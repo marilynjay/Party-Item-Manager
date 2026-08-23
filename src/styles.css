@@ -604,6 +604,15 @@ button.purse-line:hover { background: none; color: var(--text); }
 .chip-sub { font-size: 0.8rem !important; padding: 4px 10px !important; }
 .chip-skip { color: var(--text-muted); border-style: dashed; }
 .panel-hint { font-size: 0.83rem; }
+.add-bottom {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+  font-weight: 600;
+  padding: 11px;
+  font-size: 1.02rem;
+}
+.add-bottom:hover:not(:disabled) { background: var(--accent) !important; }
 .picked-tweak { padding: 0 2px; font-size: 0.82rem; }
 .coin-modal { width: 360px; }
 .coin-add { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; font-weight: 600; }

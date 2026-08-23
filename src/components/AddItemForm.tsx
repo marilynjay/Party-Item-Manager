@@ -368,9 +368,11 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
           />
           {suggestions.length > 0 && <div className="suggest">{suggestions.map(suggestionRow)}</div>}
         </div>
-        <button type="submit" disabled={!name.trim()}>
-          {nothingMatches && !detailsOpen ? 'Quick Add' : 'Add'}
-        </button>
+        {!detailsOpen && (
+          <button type="submit" disabled={!name.trim()}>
+            {nothingMatches ? 'Quick Add' : 'Add'}
+          </button>
+        )}
         <input
           className="add-qty"
           type="number"
@@ -398,6 +400,11 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         <button type="button" className="link-button" onClick={() => setBrowsing(true)}>
           📖 Browse
         </button>
+        {!detailsOpen && (adv.category !== '' || adv.catDone) && (
+          <button type="button" className="link-button" onClick={() => setDetailsOpen(true)}>
+            Custom item ▾
+          </button>
+        )}
       </div>
       {money && (
         <div className="picked-note money-note">
@@ -477,6 +484,9 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             <div className="wide muted panel-hint">✦ Saved to the party catalogue automatically.</div>
           )}
           </>)}
+          <button type="submit" className="wide add-bottom" disabled={!name.trim()}>
+            Add{name.trim() ? ` ${name.trim()}` : ''}
+          </button>
         </div>
       )}
       {browsing && (
