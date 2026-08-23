@@ -17,11 +17,12 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
   const bagWeight = items.filter((i) => i.location === 'senchez').reduce((s, i) => s + stackWeight(i), 0);
   const overCap = bagWeight > BAG_CAPACITY_LB;
 
-  // `short` swaps in on narrow screens where the rail shows icons only.
+  // `short` swaps in on narrow screens; home/all/log are "utility" tabs that
+  // drop their icon and read horizontally there.
   const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string) => (
     <button
       key={key}
-      className={`tab ${scope === key ? 'active' : ''}`}
+      className={`tab ${key === 'home' || key === 'all' || key === 'log' ? 'tab-util' : 'tab-holder'} ${scope === key ? 'active' : ''}`}
       title={label}
       onClick={() => onSelect(key)}
     >

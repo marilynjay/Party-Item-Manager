@@ -356,14 +356,19 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
     align-items: center;
   }
   .brand, .rail-heading, .bag-meter, .bag-warning { display: none; }
+  .sidebar { gap: 0; }
   .tab {
     flex-direction: column;
     align-items: center;
     gap: 5px;
     width: 44px;
     flex-shrink: 0;
-    padding: 6px 2px;
+    padding: 9px 2px;
+    border-radius: 0;
+    border-bottom: 1px solid var(--border);
   }
+  .tab:last-of-type { border-bottom: none; }
+  .tab.active { border-radius: 8px; border-bottom-color: transparent; }
   .tab-emoji { font-size: 1.1rem; }
   .tab-label-full { display: none; }
   .tab-label-short {
@@ -373,6 +378,8 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
     letter-spacing: 0.05em;
     flex: none;
   }
+  .tab-util .tab-emoji { display: none; }
+  .tab-util .tab-label-short { writing-mode: horizontal-tb; font-size: 0.78rem; letter-spacing: 0.03em; }
   .tab .badge, .tab .tab-badges { display: none; }
   .main { padding: 14px 12px 60px; }
   .log-time { width: 90px; }
