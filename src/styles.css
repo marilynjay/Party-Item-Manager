@@ -779,6 +779,7 @@ button.holder-heading {
 }
 button.holder-heading:hover { background: var(--bg-hover); }
 .cat-group-count { opacity: 0.7; }
+.cat-group-weight { margin-left: auto; color: var(--gold); opacity: 0.85; font-variant-numeric: tabular-nums; }
 
 /* ---- dice (ported from DM-Screen) ---- */
 

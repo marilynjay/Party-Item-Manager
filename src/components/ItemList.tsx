@@ -89,11 +89,13 @@ export function ItemList(props: Props) {
         {groups.map((g) => {
           const key = `${collapseScope}:${g.key}`;
           const folded = isFolded(key);
+          const lb = Math.round(g.items.reduce((sum, i) => sum + (i.weight ?? 0) * i.qty, 0) * 10) / 10;
           return (
             <section key={g.key} className="cat-group">
               <button type="button" className="cat-group-heading muted" onClick={() => toggle(key)}>
                 <span className="fold-caret">{folded ? '▸' : '▾'}</span>
                 {g.label} <span className="cat-group-count">· {g.items.length}</span>
+                {lb > 0 && <span className="cat-group-weight">{lb.toLocaleString()} lb</span>}
               </button>
               {!folded && (
                 <ul className="item-list">
