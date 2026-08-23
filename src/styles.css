@@ -502,10 +502,17 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   cursor: pointer;
 }
 .spell-link:hover { background: none; text-decoration-style: solid; }
-.spell-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* structured spell entry: one row per spell, autocomplete under the row */
+.spell-field { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--text-muted); }
+.spell-edit-wrap { display: flex; flex-direction: column; gap: 4px; }
+.spell-edit-row { display: flex; align-items: center; gap: 6px; }
+.spell-name-input { flex: 1; min-width: 0; }
+.spell-cost-input { width: 64px; text-align: center; }
+.spell-remove { padding: 4px 6px; }
+.spell-add { align-self: flex-start; padding: 4px 0; }
+.spell-suggest { display: flex; flex-wrap: wrap; gap: 6px; }
 .spell-suggest .chip { font-size: 0.82rem; }
-.spell-check-row { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 0.8rem; font-weight: 400; }
-.spell-check { white-space: nowrap; }
+.spell-check { white-space: nowrap; font-size: 0.95rem; }
 .spell-check.known { color: var(--accent); }
 .spell-card { max-width: 480px; }
 .spell-card-meta { margin: 0; font-style: italic; font-size: 0.88rem; }

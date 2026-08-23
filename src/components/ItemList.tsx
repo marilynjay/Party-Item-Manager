@@ -757,7 +757,11 @@ function ItemEditor({
   const sPlan = statPlan(item.category, item.subtype);
   // surface the tucked-away fields if any of them already hold a value
   const [moreOpen, setMoreOpen] = useState(
-    Boolean(item.rarity || item.value || item.magic || item.requiresAttunement || item.weight !== null || item.stats?.cursed || item.stats?.properties)
+    Boolean(
+      item.rarity || item.value || item.magic || item.requiresAttunement || item.weight !== null || item.stats?.cursed || item.stats?.properties ||
+      (sPlan.advanced.includes('spells') && item.stats?.spells) ||
+      (sPlan.advanced.includes('charges') && (item.stats?.charges !== undefined || item.stats?.chargesMax !== undefined))
+    )
   );
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
   const [pickingIcon, setPickingIcon] = useState(false);

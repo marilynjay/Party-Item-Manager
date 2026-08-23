@@ -40,98 +40,131 @@ export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | 
 
 const SPELL_LEVELS = ['cantrip', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
 
-// The Spells box helps with the typing: suggestion chips complete long
-// names ("loc" → Locate Animals or Plants) with a default cost of 1 left
-// selected for overtyping, and a live check row shows which lines the
-// compendium recognizes (✓ opens a readable card in play; ? stays plain).
-function SpellsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-  const [cursor, setCursor] = useState(-1);
+// Spells entry as one row per spell — a name field (with compendium
+// autocomplete and a live ✓/? match mark) plus a small charge-cost field,
+// and a ＋ Spell button for more rows. Storage stays the "Name — cost"
+// text lines the rest of the app reads, so this is purely an editor view.
+interface SpellRow {
+  name: string;
+  cost: string;
+}
 
-  // the name being typed on the cursor's line, until a cost shows up
-  const partial = useMemo(() => {
-    if (cursor < 0 || cursor > value.length) return null;
-    const lineStart = value.lastIndexOf('\n', cursor - 1) + 1;
-    const nextBreak = value.indexOf('\n', cursor);
-    const lineEnd = nextBreak < 0 ? value.length : nextBreak;
-    const raw = value.slice(lineStart, lineEnd).replace(/^[-•·]\s*/, '');
-    if (/\d/.test(raw)) return null;
-    const name = raw.replace(/[\s—–:-]+$/, '').trim().toLowerCase();
-    if (name.length < 2 || SPELL_NAMES.has(name)) return null;
-    return { name, lineStart, lineEnd };
-  }, [value, cursor]);
+const rowsFromValue = (value: string): SpellRow[] =>
+  parseSpellLines(value).map((sp) => ({ name: sp.name, cost: String(sp.cost) }));
+
+const serializeRows = (rows: SpellRow[]): string =>
+  rows
+    .filter((r) => r.name.trim())
+    .map((r) => `${r.name.trim()} — ${Math.max(1, parseInt(r.cost, 10) || 1)}`)
+    .join('\n');
+
+function SpellsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [rows, setRows] = useState<SpellRow[]>(() => rowsFromValue(value));
+  const [focused, setFocused] = useState(-1);
+  const nameRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const costRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  const commit = (next: SpellRow[]) => {
+    setRows(next);
+    onChange(serializeRows(next));
+  };
+  const update = (i: number, patch: Partial<SpellRow>) => commit(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const remove = (i: number) => commit(rows.filter((_, j) => j !== i));
+  const addRow = () => {
+    setRows([...rows, { name: '', cost: '' }]);
+    requestAnimationFrame(() => nameRefs.current[rows.length]?.focus());
+  };
 
   const matches = useMemo(() => {
-    if (!partial) return [];
+    const q = rows[focused]?.name.trim().toLowerCase() ?? '';
+    if (q.length < 2 || SPELL_NAMES.has(q)) return [];
     const starts: string[] = [];
     const contains: string[] = [];
     for (const [key, display] of SPELL_NAMES) {
-      if (key.startsWith(partial.name)) starts.push(display);
-      else if (key.includes(partial.name)) contains.push(display);
+      if (key.startsWith(q)) starts.push(display);
+      else if (key.includes(q)) contains.push(display);
     }
     return [...starts, ...contains].slice(0, 5);
-  }, [partial]);
+  }, [rows, focused]);
 
-  const complete = (display: string) => {
-    if (!partial) return;
-    const insert = `${display} — 1`;
-    onChange(value.slice(0, partial.lineStart) + insert + value.slice(partial.lineEnd));
-    const end = partial.lineStart + insert.length;
+  const complete = (i: number, display: string) => {
+    update(i, { name: display });
     requestAnimationFrame(() => {
-      const ta = taRef.current;
-      if (ta) {
-        ta.focus();
-        ta.setSelectionRange(end - 1, end); // the default cost, ready to overtype
+      const cost = costRefs.current[i];
+      if (cost) {
+        cost.focus();
+        cost.select();
       }
     });
-    setCursor(-1);
+    setFocused(-1);
   };
 
-  const lines = parseSpellLines(value);
+  const mark = (name: string) =>
+    !name.trim() ? null : SPELL_NAMES.has(name.trim().toLowerCase()) ? (
+      <span className="spell-check known" title="In the compendium — tappable to read in play">✓</span>
+    ) : (
+      <span className="spell-check muted" title="Not in the 2014 compendium — stays plain text">?</span>
+    );
 
   return (
-    <label className="wide">
-      Spells <span className="muted">— one per line, cost last: Cure Wounds — 1</span>
-      <AutoTextarea
-        rows={3}
-        placeholder={'Animal Friendship — 1\nAwaken — 5\nWall of Thorns — 6'}
-        value={value}
-        onChange={(e) => {
-          taRef.current = e.target;
-          setCursor(e.target.selectionStart);
-          onChange(e.target.value);
-        }}
-        onSelect={(e) => {
-          taRef.current = e.currentTarget;
-          setCursor(e.currentTarget.selectionStart);
-        }}
-        onBlur={() => setTimeout(() => setCursor(-1), 150)}
-      />
-      {matches.length > 0 && (
-        <span className="spell-suggest">
-          {matches.map((m) => (
-            <button key={m} type="button" className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => complete(m)}>
-              {m}
+    <div className="wide spell-field">
+      <span className="spell-field-label">
+        Spells <span className="muted">— cost in ⚡ charges</span>
+      </span>
+      {rows.map((r, i) => (
+        <span key={i} className="spell-edit-wrap">
+          <span className="spell-edit-row">
+            <input
+              ref={(el) => { nameRefs.current[i] = el; }}
+              className="spell-name-input"
+              placeholder="Spell name"
+              value={r.name}
+              onChange={(e) => update(i, { name: e.target.value })}
+              onFocus={() => setFocused(i)}
+              onBlur={() => setTimeout(() => setFocused((f) => (f === i ? -1 : f)), 150)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  costRefs.current[i]?.focus();
+                }
+              }}
+            />
+            {mark(r.name)}
+            <input
+              ref={(el) => { costRefs.current[i] = el; }}
+              className="spell-cost-input"
+              type="number"
+              min={1}
+              placeholder="1"
+              title="Charge cost"
+              value={r.cost}
+              onChange={(e) => update(i, { cost: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addRow();
+                }
+              }}
+            />
+            <button type="button" className="link-button spell-remove" title="Remove this spell" onClick={() => remove(i)}>
+              ✕
             </button>
-          ))}
-        </span>
-      )}
-      {lines.length > 0 && (
-        <span className="spell-check-row">
-          {lines.map((sp, i) =>
-            SPELL_NAMES.has(sp.name.trim().toLowerCase()) ? (
-              <span key={sp.name + i} className="spell-check known" title="In the compendium — tappable to read in play">
-                ✓ {sp.name}
-              </span>
-            ) : (
-              <span key={sp.name + i} className="spell-check muted" title="Not in the 2014 compendium — stays plain text">
-                ? {sp.name}
-              </span>
-            )
+          </span>
+          {focused === i && matches.length > 0 && (
+            <span className="spell-suggest">
+              {matches.map((m) => (
+                <button key={m} type="button" className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => complete(i, m)}>
+                  {m}
+                </button>
+              ))}
+            </span>
           )}
         </span>
-      )}
-    </label>
+      ))}
+      <button type="button" className="link-button spell-add" onClick={addRow}>
+        ＋ Spell
+      </button>
+    </div>
   );
 }
 

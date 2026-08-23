@@ -155,7 +155,6 @@ export function statPlan(category: CategoryKey, subtype: string): StatPlan {
     }
     if (category === 'arcana' && ['wand', 'staff', 'rod', 'focus'].includes(subtype)) return { primary: ['charges', 'spells'], advanced: [] };
     if (category === 'arcana' && subtype === 'spellbook') return { primary: ['spells'], advanced: [] };
-    if (category === 'accessory' && subtype === 'ring') return { primary: [], advanced: ['charges', 'spells'] };
     if (category === 'consumable' && subtype === 'potion') return { primary: ['heal'], advanced: [] };
     if (category === 'consumable' && subtype === 'food & drink') return { primary: [], advanced: ['heal'] };
     if (category === 'consumable' && subtype === 'scroll') return { primary: ['spellLevel', 'dc'], advanced: [] };
@@ -164,6 +163,15 @@ export function statPlan(category: CategoryKey, subtype: string): StatPlan {
     if (category === 'papers') return { primary: [], advanced: ['language'] };
     return { primary: [], advanced: [] };
   })();
+  // Plenty of items beyond arcana cast spells (Luck Blade, Cloak of the Bat,
+  // Instrument of the Bards) — everything except consumables, papers, and
+  // treasure offers the charges + spells pair, tucked under More options
+  // wherever the plan above didn't already surface it.
+  if (!['consumable', 'papers', 'treasure', ''].includes(category)) {
+    for (const f of ['charges', 'spells'] as const) {
+      if (!plan.primary.includes(f) && !plan.advanced.includes(f)) plan.advanced.push(f);
+    }
+  }
   if (planHas(category, subtype, 'magic')) plan.advanced.push('cursed');
   return plan;
 }
