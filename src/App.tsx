@@ -235,6 +235,7 @@ export function App() {
                   onConsume={(id, note) => run(() => api.consumeItem(id, actor, note))}
                   onSpend={(id) => run(() => api.spendCharge(id, actor))}
                   onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
+                  onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
                   onDelete={(id) => run(() => api.deleteItem(id, actor))}
                 />
@@ -303,6 +304,7 @@ export function App() {
               onConsume={(id, note) => run(() => api.consumeItem(id, actor, note))}
               onSpend={(id) => run(() => api.spendCharge(id, actor))}
               onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
+              onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
               onDelete={(id) => run(() => api.deleteItem(id, actor))}
             />

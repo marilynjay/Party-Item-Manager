@@ -277,6 +277,21 @@ export function spendCharge(id: string, actor: string): Promise<{ ok: true }> {
   return Promise.resolve({ ok: true });
 }
 
+// Cast one of a charged item's listed spells, paying its cost in charges.
+export function castSpell(id: string, spell: string, cost: number, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item || !item.stats || item.stats.charges === undefined) return Promise.reject(new Error('That item has no charges'));
+  if (item.stats.charges < cost) {
+    return Promise.reject(new Error(`${item.name} doesn't have enough charges — ${spell} needs ${cost}, ${item.stats.charges} left`));
+  }
+  item.stats.charges -= cost;
+  item.updatedAt = Date.now();
+  addLog(db, actor, `cast ${spell} from ${item.name} — ${cost} charge${cost === 1 ? '' : 's'} (${item.stats.charges} left)`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
 export function rechargeItem(id: string, actor: string): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);

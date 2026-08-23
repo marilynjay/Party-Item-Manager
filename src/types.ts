@@ -141,7 +141,7 @@ export type StatField =
   | 'heal'
   | 'dmg' | 'dtype' | 'bonus' | 'properties'
   | 'ac' | 'armorClass' | 'stealthStr'
-  | 'charges' | 'spellLevel' | 'dc'
+  | 'charges' | 'spells' | 'spellLevel' | 'dc'
   | 'capacity' | 'language' | 'cursed';
 export interface StatPlan { primary: StatField[]; advanced: StatField[] }
 
@@ -153,8 +153,9 @@ export function statPlan(category: CategoryKey, subtype: string): StatPlan {
       if (subtype === 'shield') return { primary: ['ac'], advanced: [] };
       return { primary: [], advanced: [] };
     }
-    if (category === 'arcana' && ['wand', 'staff', 'rod', 'focus'].includes(subtype)) return { primary: ['charges'], advanced: [] };
-    if (category === 'accessory' && subtype === 'ring') return { primary: [], advanced: ['charges'] };
+    if (category === 'arcana' && ['wand', 'staff', 'rod', 'focus'].includes(subtype)) return { primary: ['charges', 'spells'], advanced: [] };
+    if (category === 'arcana' && subtype === 'spellbook') return { primary: ['spells'], advanced: [] };
+    if (category === 'accessory' && subtype === 'ring') return { primary: [], advanced: ['charges', 'spells'] };
     if (category === 'consumable' && subtype === 'potion') return { primary: ['heal'], advanced: [] };
     if (category === 'consumable' && subtype === 'food & drink') return { primary: [], advanced: ['heal'] };
     if (category === 'consumable' && subtype === 'scroll') return { primary: ['spellLevel', 'dc'], advanced: [] };

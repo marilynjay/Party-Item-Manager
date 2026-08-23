@@ -21,6 +21,7 @@ export interface ItemStats {
   language?: string;
   cursed?: boolean;
   curseText?: string;
+  spells?: string; // one per line: "Cure Wounds — 1"
 }
 
 export interface CatalogItem {

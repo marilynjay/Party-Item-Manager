@@ -5,7 +5,7 @@ import type { FormField, ItemStats } from '../types';
 import { CATEGORIES, HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
 import { StatFieldControl, cleanStats } from './StatFields';
 import { DiceGroup } from './Dice';
-import { parseRoll, rollDice } from '../dice';
+import { parseRoll, parseSpellLines, rollDice } from '../dice';
 import type { RollResult } from '../dice';
 import { CategoryPicker } from './CategoryPicker';
 import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
@@ -27,6 +27,7 @@ interface Props {
   onConsume: (id: string, note?: string) => void;
   onSpend: (id: string) => void;
   onRecharge: (id: string) => void;
+  onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
   onDelete: (id: string) => void;
 }
@@ -153,6 +154,7 @@ function ItemRow({
   onConsume,
   onSpend,
   onRecharge,
+  onCast,
   onUpdate,
   onDelete,
 }: Props & { item: Item }) {
@@ -358,6 +360,7 @@ function ItemRow({
           onToggleAttune={item.requiresAttunement && item.location !== 'senchez' ? toggleAttune : undefined}
           onSpend={() => onSpend(item.id)}
           onRecharge={() => onRecharge(item.id)}
+          onCast={(spell, cost) => onCast(item.id, spell, cost)}
         />
       )}
       {view === 'edit' && (
@@ -380,7 +383,7 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void }) {
+function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
@@ -458,6 +461,28 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge }
             </div>
           ))}
         </dl>
+      )}
+      {s.spells && (
+        <div className="spell-list">
+          <span className="item-menu-heading muted">Spells</span>
+          {parseSpellLines(s.spells).map((sp, i) => (
+            <div className="spell-row" key={sp.name + i}>
+              <span className="spell-name">{sp.name}</span>
+              <span className="spell-cost muted">⚡{sp.cost}</span>
+              {s.charges !== undefined && (
+                <button
+                  type="button"
+                  className="charge-btn"
+                  disabled={(s.charges ?? 0) < sp.cost}
+                  title={(s.charges ?? 0) < sp.cost ? 'Not enough charges' : `Spend ${sp.cost} charge${sp.cost === 1 ? '' : 's'}`}
+                  onClick={() => onCast(sp.name, sp.cost)}
+                >
+                  Cast
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       )}
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
       <div className="item-detail-actions">

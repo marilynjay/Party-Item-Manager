@@ -23,6 +23,7 @@ export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | 
     else if (stats.chargesMax !== undefined) out.charges = stats.chargesMax;
     if (stats.recharge?.trim()) out.recharge = stats.recharge.trim();
   }
+  if (has('spells') && stats.spells?.trim()) out.spells = stats.spells.trim();
   if (has('spellLevel') && stats.spellLevel) out.spellLevel = stats.spellLevel;
   if (has('dc') && stats.dc?.trim()) out.dc = stats.dc.trim();
   if (has('capacity') && stats.capacity?.trim()) out.capacity = stats.capacity.trim();
@@ -138,6 +139,18 @@ export function StatFieldControl({ field, stats: s, onChange }: Props) {
             <input placeholder="e.g. 1d6+1 at dawn" value={s.recharge ?? ''} onChange={(e) => onChange({ recharge: e.target.value })} />
           </label>
         </span>
+      );
+    case 'spells':
+      return (
+        <label className="wide">
+          Spells <span className="muted">— one per line, cost last: Cure Wounds — 1</span>
+          <AutoTextarea
+            rows={3}
+            placeholder={'Animal Friendship — 1\nAwaken — 5\nWall of Thorns — 6'}
+            value={s.spells ?? ''}
+            onChange={(e) => onChange({ spells: e.target.value })}
+          />
+        </label>
       );
     case 'spellLevel':
       return (
