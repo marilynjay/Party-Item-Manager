@@ -26,7 +26,7 @@ There are no automated tests; verify changes via `npm run build` at minimum, ide
 - Attunement: max 3 per member (warning only, not enforced); moving an item into Senchez clears `attuned`.
 - "Magic" for filtering = `magic` flag OR `requiresAttunement` OR rarity above common (`isMagic` in `src/types.ts`).
 - Senchez capacity: 500 lb (`BAG_CAPACITY_LB`), warning only.
-- Party gold: per-holder integer gp, `setGold` in `src/api.ts` sets an absolute amount and logs the delta. `GoldTracker` shows the total, expanding to a per-holder editable breakdown.
+- Party money: per-holder integer gp and pp (`gold`/`platinum` in state, 1 pp = 10 gp via `PP_IN_GP`). All displayed totals are gp-equivalent; the split shows in the ledger row editor and the holder-tab purse line. `setPurse` sets a purse outright, `addMoney` adds coins; both log. Typing "25 gp" / "3 pp" into the quick-add box routes to `addMoney` instead of creating an item (`parseMoney` in `AddItemForm`).
 - Change log: capped at 500 entries, actor comes from the client's "Playing as" picker (localStorage).
 
 - Home tab (default scope): shows only the party-gold line (click for the per-holder breakdown) and a floating + button that opens the add form in a modal.

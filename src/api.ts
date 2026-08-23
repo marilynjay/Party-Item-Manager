@@ -14,12 +14,12 @@ function load(): AppState {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const db = JSON.parse(raw) as Partial<AppState>;
-      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold, icons: db.icons ?? {} };
+      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold, platinum: (db.platinum ?? {}) as Gold, icons: db.icons ?? {} };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
   }
-  return { items: [], log: [], gold: {} as Gold, icons: {} };
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {} };
 }
 
 function save(db: AppState): void {
@@ -212,19 +212,37 @@ export function setIcon(holder: HolderId, icon: string, actor: string): Promise<
   return Promise.resolve({ ok: true });
 }
 
-export function setGold(holder: HolderId, gold: number, actor: string): Promise<{ gold: Gold }> {
+const coins = (n: unknown) => Math.max(0, Math.floor(Number(n) || 0));
+const purseText = (gp: number, pp: number) => (pp > 0 ? `${gp} gp + ${pp} pp` : `${gp} gp`);
+
+// Set a holder's purse outright (the ledger's row editor).
+export function setPurse(holder: HolderId, gp: number, pp: number, actor: string): Promise<{ ok: true }> {
   const db = load();
-  const amount = Math.max(0, Math.floor(gold) || 0);
-  const before = Math.max(0, Math.floor(Number(db.gold[holder]) || 0));
-  if (amount !== before) {
-    db.gold[holder] = amount;
-    const delta = amount - before;
+  const nextGp = coins(gp);
+  const nextPp = coins(pp);
+  const beforeGp = coins(db.gold[holder]);
+  const beforePp = coins(db.platinum[holder]);
+  if (nextGp !== beforeGp || nextPp !== beforePp) {
+    db.gold[holder] = nextGp;
+    db.platinum[holder] = nextPp;
     addLog(
       db,
       actor,
-      `${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} gp ${delta > 0 ? 'to' : 'from'} ${holderName(holder)} (now ${amount} gp)`
+      `set ${holderName(holder)}’s purse to ${purseText(nextGp, nextPp)} (was ${purseText(beforeGp, beforePp)})`
     );
     save(db);
   }
-  return Promise.resolve({ gold: clone(db.gold) });
+  return Promise.resolve({ ok: true });
+}
+
+// Drop coins into a holder's purse (quick-add money and the give picker).
+export function addMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
+  const n = coins(amount);
+  if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+  const db = load();
+  const store = unit === 'pp' ? db.platinum : db.gold;
+  store[holder] = coins(store[holder]) + n;
+  addLog(db, actor, `added ${n} ${unit} to ${holderName(holder)} (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
+  save(db);
+  return Promise.resolve({ ok: true });
 }

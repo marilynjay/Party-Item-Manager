@@ -56,10 +56,14 @@ export interface LogEntry {
 export type Gold = Record<HolderId, number>;
 export type Icons = Partial<Record<HolderId, string>>;
 
+// Standard 5e exchange rate: 1 platinum = 10 gold.
+export const PP_IN_GP = 10;
+
 export interface AppState {
   items: Item[];
   log: LogEntry[];
   gold: Gold;
+  platinum: Gold;
   icons: Icons;
 }
 

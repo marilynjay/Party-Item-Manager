@@ -9,12 +9,28 @@ import { ItemList } from './components/ItemList';
 import { LogPanel } from './components/LogPanel';
 import { GoldTracker } from './components/GoldTracker';
 import { IconPicker } from './components/IconPicker';
+import { PP_IN_GP } from './types';
+
+// A holder's coin line, shown on their own tab when they carry anything.
+function PurseLine({ gp, pp }: { gp: number; pp: number }) {
+  if (gp <= 0 && pp <= 0) return null;
+  return (
+    <div className="purse-line muted">
+      🪙 {gp.toLocaleString()} gp
+      {pp > 0 && (
+        <>
+          {' '}+ {pp.toLocaleString()} pp <span className="purse-worth">(= {(gp + pp * PP_IN_GP).toLocaleString()} gp)</span>
+        </>
+      )}
+    </div>
+  );
+}
 
 type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], icons: {} });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {} });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -88,6 +104,9 @@ export function App() {
         <AddItemForm
           defaultLocation={isHolderScope ? scope : 'senchez'}
           onAdd={(fields) => run(() => api.createItem(fields, actor)).then(() => setAdding(false))}
+          onAddMoney={(amount, unit, location) =>
+            run(() => api.addMoney(location, amount, unit, actor)).then(() => setAdding(false))
+          }
         />
       </div>
     </div>
@@ -141,7 +160,13 @@ export function App() {
 
         {scope === 'home' ? (
           <div className="home">
-            <GoldTracker gold={state.gold} icons={state.icons} onSet={(holder, amount) => run(() => api.setGold(holder, amount, actor))} />
+            <GoldTracker
+              gold={state.gold}
+              platinum={state.platinum}
+              icons={state.icons}
+              onSetPurse={(holder, gp, pp) => run(() => api.setPurse(holder, gp, pp, actor))}
+              onGive={(holder, amount, unit) => run(() => api.addMoney(holder, amount, unit, actor))}
+            />
             <button type="button" className="add-big" onClick={() => setAdding(true)}>
               <span className="add-big-plus">＋</span> Add
             </button>
@@ -151,9 +176,11 @@ export function App() {
           <LogPanel log={state.log} />
         ) : (
           <>
+            {scopeHolder && <PurseLine gp={state.gold[scopeHolder.id] ?? 0} pp={state.platinum[scopeHolder.id] ?? 0} />}
             <AddItemForm
               defaultLocation={isHolderScope ? scope : 'senchez'}
               onAdd={(fields) => run(() => api.createItem(fields, actor))}
+              onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, amount, unit, actor))}
             />
             <FilterBar filters={filters} onChange={setFilters} />
             <ItemList

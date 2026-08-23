@@ -8,6 +8,16 @@ import { CatalogBrowser } from './CatalogBrowser';
 interface Props {
   defaultLocation: HolderId;
   onAdd: (fields: Partial<Item> & { name: string }) => Promise<unknown> | void;
+  onAddMoney: (amount: number, unit: 'gp' | 'pp', location: HolderId) => Promise<unknown> | void;
+}
+
+// "50 gp", "50 gold", "3 pp", "3 platinum" — money typed into the item box.
+function parseMoney(s: string): { amount: number; unit: 'gp' | 'pp' } | null {
+  const m = s.trim().toLowerCase().replace(/,/g, '').match(/^(\d+)\s*(gp|gold|pp|plat|platinum)$/);
+  if (!m) return null;
+  const amount = parseInt(m[1], 10);
+  if (!amount) return null;
+  return { amount, unit: m[2].startsWith('g') ? 'gp' : 'pp' };
 }
 
 const blankAdvanced = {
@@ -20,7 +30,7 @@ const blankAdvanced = {
   notes: '',
 };
 
-export function AddItemForm({ defaultLocation, onAdd }: Props) {
+export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
   const [name, setName] = useState('');
   const [qty, setQty] = useState(1);
   const [location, setLocation] = useState<HolderId | 'auto'>('auto');
@@ -49,10 +59,12 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
     nameRef.current?.focus();
   };
 
+  const money = parseMoney(name);
+
   const onNameChange = (v: string) => {
     setName(v);
     setPicked(null);
-    setSuggestions(searchCatalog(v));
+    setSuggestions(parseMoney(v) ? [] : searchCatalog(v));
     setSugIx(0);
   };
 
@@ -67,6 +79,12 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (money) {
+      void onAddMoney(money.amount, money.unit, location === 'auto' ? defaultLocation : location);
+      setName('');
+      setSuggestions([]);
+      return;
+    }
     void onAdd({
       name: name.trim(),
       qty,
@@ -96,7 +114,7 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
           <input
             ref={nameRef}
             className="add-name"
-            placeholder="Add an item… (e.g. Potion of Healing)"
+            placeholder="Add an item… or gold: 25 gp"
             value={name}
             autoComplete="off"
             onChange={(e) => onNameChange(e.target.value)}
@@ -154,7 +172,13 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
           Advanced {showAdvanced ? '▴' : '▾'}
         </button>
       </div>
-      {picked && (
+      {money && (
+        <div className="picked-note money-note">
+          🪙 Adding {money.amount.toLocaleString()} {money.unit} to{' '}
+          {HOLDERS.find((h) => h.id === (location === 'auto' ? defaultLocation : location))!.name}’s purse
+        </div>
+      )}
+      {picked && !money && (
         <div className="picked-note muted">
           ✓ From the catalogue: {picked.rarity || 'mundane'} {picked.type}
           {picked.requiresAttunement ? ', requires attunement' : ''}

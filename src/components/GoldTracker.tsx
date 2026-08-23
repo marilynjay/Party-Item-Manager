@@ -1,21 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Gold, HolderId, Icons } from '../types';
-import { HOLDERS, holderIcon } from '../types';
+import { HOLDERS, PP_IN_GP, holderIcon } from '../types';
 
 interface Props {
   gold: Gold;
+  platinum: Gold;
   icons: Icons;
-  onSet: (holder: HolderId, amount: number) => void;
+  onSetPurse: (holder: HolderId, gp: number, pp: number) => void;
+  onGive: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
 
-export function GoldTracker({ gold, icons, onSet }: Props) {
+export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<HolderId | null>(null);
   const [giveTo, setGiveTo] = useState<HolderId | ''>('');
-  const total = HOLDERS.reduce((s, h) => s + (gold[h.id] ?? 0), 0);
-  const holdersWithGold = HOLDERS.filter((h) => (gold[h.id] ?? 0) > 0);
+  const gpOf = (id: HolderId) => gold[id] ?? 0;
+  const ppOf = (id: HolderId) => platinum[id] ?? 0;
+  // Everything displayed is the gp equivalent; platinum shows up in the row editor.
+  const worth = (id: HolderId) => gpOf(id) + ppOf(id) * PP_IN_GP;
+  const total = HOLDERS.reduce((s, h) => s + worth(h.id), 0);
+  const holdersWithMoney = HOLDERS.filter((h) => worth(h.id) > 0);
 
   return (
     <div className="gold-tracker">
@@ -24,14 +30,15 @@ export function GoldTracker({ gold, icons, onSet }: Props) {
       </button>
       {open && (
         <div className="gold-breakdown">
-          {holdersWithGold.map((h) =>
+          {holdersWithMoney.map((h) =>
             editing === h.id ? (
-              <LedgerEdit
+              <PurseEdit
                 key={h.id}
                 label={`${holderIcon(icons, h)} ${h.name}`}
-                initial={gold[h.id] ?? 0}
-                onSave={(v) => {
-                  onSet(h.id, v);
+                gp={gpOf(h.id)}
+                pp={ppOf(h.id)}
+                onSave={(gp, pp) => {
+                  onSetPurse(h.id, gp, pp);
                   setEditing(null);
                 }}
                 onCancel={() => setEditing(null)}
@@ -41,15 +48,18 @@ export function GoldTracker({ gold, icons, onSet }: Props) {
                 key={h.id}
                 type="button"
                 className="ledger-row"
-                title={`Tap to edit ${h.name}’s gold`}
+                title={`Tap to edit ${h.name}’s purse${ppOf(h.id) > 0 ? ` (${fmt(gpOf(h.id))} gp + ${fmt(ppOf(h.id))} pp)` : ''}`}
                 onClick={() => setEditing(h.id)}
               >
-                <span className="ledger-name">{holderIcon(icons, h)} {h.name}</span>
-                <span className="ledger-amount">{fmt(gold[h.id] ?? 0)}</span>
+                <span className="ledger-name">
+                  {holderIcon(icons, h)} {h.name}
+                  {ppOf(h.id) > 0 && <span className="ledger-pp muted"> · {fmt(ppOf(h.id))} pp</span>}
+                </span>
+                <span className="ledger-amount">{fmt(worth(h.id))}</span>
               </button>
             )
           )}
-          {holdersWithGold.length === 0 && (
+          {holdersWithMoney.length === 0 && (
             <div className="ledger-row ledger-empty muted">Nobody's holding any gold yet.</div>
           )}
           <div className="ledger-row ledger-total">
@@ -65,17 +75,15 @@ export function GoldTracker({ gold, icons, onSet }: Props) {
               <option value="">＋ Give gold to…</option>
               {HOLDERS.map((h) => (
                 <option key={h.id} value={h.id}>
-                  {holderIcon(icons, h)} {h.name} ({fmt(gold[h.id] ?? 0)} gp)
+                  {holderIcon(icons, h)} {h.name} ({fmt(worth(h.id))} gp)
                 </option>
               ))}
             </select>
           ) : (
-            <LedgerEdit
-              label={`${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name} +`}
-              initial={0}
-              placeholder="amount"
-              onSave={(v) => {
-                if (v > 0) onSet(giveTo, (gold[giveTo] ?? 0) + v);
+            <GiveForm
+              label={`${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name}`}
+              onGive={(amount, unit) => {
+                onGive(giveTo, amount, unit);
                 setGiveTo('');
               }}
               onCancel={() => setGiveTo('')}
@@ -89,43 +97,82 @@ export function GoldTracker({ gold, icons, onSet }: Props) {
 
 const holderOf = (id: HolderId) => HOLDERS.find((h) => h.id === id)!;
 
-function LedgerEdit({
+function PurseEdit({
   label,
-  initial,
-  placeholder,
+  gp,
+  pp,
   onSave,
   onCancel,
 }: {
   label: string;
-  initial: number;
-  placeholder?: string;
-  onSave: (v: number) => void;
+  gp: number;
+  pp: number;
+  onSave: (gp: number, pp: number) => void;
   onCancel: () => void;
 }) {
-  const [value, setValue] = useState(initial > 0 ? String(initial) : '');
+  const [gpVal, setGpVal] = useState(String(gp));
+  const [ppVal, setPpVal] = useState(String(pp));
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.select(), []);
+  const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
 
   return (
     <form
       className="ledger-row ledger-editing"
       onSubmit={(e) => {
         e.preventDefault();
-        onSave(Math.max(0, Math.floor(Number(value) || 0)));
+        onSave(parse(gpVal), parse(ppVal));
       }}
     >
       <span className="ledger-name">{label}</span>
       <span className="ledger-edit-controls">
-        <input
-          ref={ref}
-          type="number"
-          min={0}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        />
+        <label className="coin-field">
+          <input ref={ref} type="number" min={0} value={gpVal} onChange={(e) => setGpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
+          gp
+        </label>
+        <label className="coin-field">
+          <input type="number" min={0} value={ppVal} onChange={(e) => setPpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
+          pp
+        </label>
         <button type="submit" title="Save">✓</button>
+        <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
+      </span>
+    </form>
+  );
+}
+
+function GiveForm({
+  label,
+  onGive,
+  onCancel,
+}: {
+  label: string;
+  onGive: (amount: number, unit: 'gp' | 'pp') => void;
+  onCancel: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [unit, setUnit] = useState<'gp' | 'pp'>('gp');
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => ref.current?.focus(), []);
+
+  return (
+    <form
+      className="ledger-row ledger-editing"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const n = Math.max(0, Math.floor(Number(amount) || 0));
+        if (n > 0) onGive(n, unit);
+        else onCancel();
+      }}
+    >
+      <span className="ledger-name">{label} +</span>
+      <span className="ledger-edit-controls">
+        <input ref={ref} type="number" min={1} placeholder="amount" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
+        <select value={unit} onChange={(e) => setUnit(e.target.value as 'gp' | 'pp')}>
+          <option value="gp">gp</option>
+          <option value="pp">pp</option>
+        </select>
+        <button type="submit" title="Give">✓</button>
         <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
       </span>
     </form>
