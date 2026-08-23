@@ -29,7 +29,7 @@ h2 { font-size: 1rem; margin: 0; }
 
 .muted { color: var(--text-muted); }
 
-button, select, input {
+button, select, input, textarea {
   font: inherit;
   color: var(--text);
   background: var(--bg-raised);
@@ -228,6 +228,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   color: var(--text);
 }
 .wide { grid-column: 1 / -1; }
+.add-advanced textarea, .item-editor textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
 
 /* ---- filters ---- */
 
@@ -621,6 +622,11 @@ button.purse-line:hover { background: none; color: var(--text); }
 .cat-name { font-weight: 600; }
 .cat-rules { font-size: 0.8rem; }
 .cat-more { padding: 8px 4px; font-size: 0.85rem; }
+.custom-mark { color: var(--gold); }
+.cat-custom-row { display: flex; gap: 6px; align-items: stretch; }
+.cat-custom-row .cat-row { flex: 1; }
+.cat-custom-delete { color: var(--danger); background: none; border: none; padding: 0 8px; }
+.cat-custom-delete:hover { background: rgba(224, 108, 108, 0.12); }
 
 @media (max-width: 720px) {
   .overlay { padding: 8px; align-items: flex-start; padding-top: 28px; }

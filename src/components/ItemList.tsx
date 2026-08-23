@@ -349,7 +349,7 @@ function ItemEditor({
       )}
       <label className="wide">
         Notes
-        <input value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+        <textarea rows={3} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </label>
       {wouldExceed && (
         <div className="attune-warning wide">

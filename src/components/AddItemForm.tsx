@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { HolderId, Item } from '../types';
 import { HOLDERS, ITEM_TYPES, RARITIES, holderById } from '../types';
 import type { CatalogItem } from '../catalog';
@@ -7,8 +7,12 @@ import { CatalogBrowser } from './CatalogBrowser';
 
 interface Props {
   defaultLocation: HolderId;
+  custom: CatalogItem[];
   onAdd: (fields: Partial<Item> & { name: string }) => Promise<unknown> | void;
   onAddMoney: (amount: number, unit: 'gp' | 'pp', location: HolderId) => Promise<unknown> | void;
+  onSaveCustom: (entry: CatalogItem) => Promise<unknown> | void;
+  onDeleteCustom: (name: string) => Promise<unknown> | void;
+  onClose: () => void;
 }
 
 // "50 gp", "50 gold", "3 pp", "3 platinum" — money typed into the item box.
@@ -23,11 +27,11 @@ function parseMoney(s: string): { amount: number; unit: 'gp' | 'pp' } | null {
 type Suggestion =
   | { kind: 'coins'; amount: number; unit: 'gp' | 'pp' }
   | { kind: 'coin-dialog' }
-  | { kind: 'item'; item: CatalogItem };
+  | { kind: 'item'; item: CatalogItem; custom?: boolean };
 
 const COIN_WORDS = ['gold', 'platinum', 'coins', 'coin', 'money'];
 
-function suggestFor(name: string): Suggestion[] {
+function suggestFor(name: string, custom: CatalogItem[]): Suggestion[] {
   const money = parseMoney(name);
   if (money) return [{ kind: 'coins', ...money }];
   const t = name.trim().toLowerCase();
@@ -35,7 +39,15 @@ function suggestFor(name: string): Suggestion[] {
     const n = parseInt(t, 10);
     if (n > 0) return [{ kind: 'coins', amount: n, unit: 'gp' }, { kind: 'coins', amount: n, unit: 'pp' }];
   }
-  const rows: Suggestion[] = searchCatalog(name).map((item) => ({ kind: 'item', item }));
+  const rows: Suggestion[] = [];
+  if (t.length >= 2) {
+    // the party's own creations outrank the SRD
+    for (const it of custom) {
+      if (it.name.toLowerCase().includes(t)) rows.push({ kind: 'item', item: it, custom: true });
+      if (rows.length >= 4) break;
+    }
+  }
+  for (const item of searchCatalog(name, 8 - rows.length)) rows.push({ kind: 'item', item });
   if (t === 'gp' || t === 'pp' || (t.length >= 2 && COIN_WORDS.some((w) => w.startsWith(t)))) {
     rows.unshift({ kind: 'coin-dialog' });
   }
@@ -49,15 +61,17 @@ const blankAdvanced = {
   value: '',
   magic: false,
   requiresAttunement: false,
+  attuned: false,
   notes: '',
 };
 
-export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
+export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSaveCustom, onDeleteCustom, onClose }: Props) {
   const [name, setName] = useState('');
   const [qty, setQty] = useState(1);
   const [location, setLocation] = useState<HolderId | 'auto'>('auto');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [adv, setAdv] = useState(blankAdvanced);
+  const [saveCustom, setSaveCustom] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [sugIx, setSugIx] = useState(0);
   const [picked, setPicked] = useState<CatalogItem | null>(null);
@@ -67,6 +81,8 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
 
   const target = location === 'auto' ? defaultLocation : location;
   const money = parseMoney(name);
+  // rarity above common already counts as magic in every filter
+  const impliedMagic = adv.rarity !== '' && adv.rarity !== 'common';
 
   const applyCatalog = (it: CatalogItem) => {
     setName(it.name);
@@ -77,6 +93,7 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
       value: '',
       magic: it.magic,
       requiresAttunement: it.requiresAttunement,
+      attuned: false,
       notes: it.rules,
     });
     setPicked(it);
@@ -90,8 +107,7 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
       applyCatalog(s.item);
     } else if (s.kind === 'coins') {
       void onAddMoney(s.amount, s.unit, target);
-      setName('');
-      setSuggestions([]);
+      onClose();
     } else {
       setCoining(true);
       setSuggestions([]);
@@ -101,7 +117,7 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
   const onNameChange = (v: string) => {
     setName(v);
     setPicked(null);
-    setSuggestions(suggestFor(v));
+    setSuggestions(suggestFor(v, custom));
     setSugIx(0);
   };
 
@@ -113,33 +129,59 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
     else if (e.key === 'Escape') setSuggestions([]);
   };
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const reset = () => {
+    setName('');
+    setQty(1);
+    setAdv(blankAdvanced);
+    setSaveCustom(false);
+    setShowAdvanced(false);
+    setPicked(null);
+    setSuggestions([]);
+  };
+
+  const doAdd = (andAnother: boolean) => {
     if (!name.trim()) return;
     if (money) {
       void onAddMoney(money.amount, money.unit, target);
-      setName('');
-      setSuggestions([]);
+      onClose();
       return;
     }
+    const weight = adv.weight === '' ? null : Number(adv.weight);
     void onAdd({
       name: name.trim(),
       qty,
       location: target,
       type: adv.type,
       rarity: adv.rarity,
-      weight: adv.weight === '' ? null : Number(adv.weight),
+      weight,
       value: adv.value,
-      magic: adv.magic,
+      magic: adv.magic || impliedMagic,
       requiresAttunement: adv.requiresAttunement,
+      attuned: adv.attuned,
       notes: adv.notes,
     });
-    setName('');
-    setQty(1);
-    setAdv(blankAdvanced);
-    setShowAdvanced(false);
-    setPicked(null);
-    setSuggestions([]);
+    if (saveCustom) {
+      void onSaveCustom({
+        name: name.trim(),
+        type: adv.type,
+        rarity: adv.rarity,
+        magic: adv.magic || impliedMagic,
+        requiresAttunement: adv.requiresAttunement,
+        weight,
+        rules: adv.notes,
+      });
+    }
+    if (andAnother) {
+      reset();
+      nameRef.current?.focus();
+    } else {
+      onClose();
+    }
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    doAdd(false);
   };
 
   const setA = (patch: Partial<typeof blankAdvanced>) => setAdv({ ...adv, ...patch });
@@ -165,12 +207,12 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
     }
     const it = s.item;
     return (
-      <button key={it.name} type="button" className={`suggest-row ${active}`}
+      <button key={(s.custom ? '✦' : '') + it.name} type="button" className={`suggest-row ${active}`}
         onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}>
-        <span>{it.name}</span>
+        <span>{s.custom && <span className="custom-mark">✦ </span>}{it.name}</span>
         <span className="item-tags">
           {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
-          <span className="tag">{it.type}</span>
+          {it.type && <span className="tag">{it.type}</span>}
           {it.requiresAttunement && <span className="tag attune-tag">◇</span>}
         </span>
       </button>
@@ -217,6 +259,15 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
         <button type="submit" disabled={!name.trim()}>
           Add
         </button>
+        <button
+          type="button"
+          className="link-button"
+          disabled={!name.trim() || !!money}
+          title="Add this and keep the form open"
+          onClick={() => doAdd(true)}
+        >
+          Add & another
+        </button>
         <button type="button" className="link-button" onClick={() => setCoining(true)}>
           🪙 Coins
         </button>
@@ -229,7 +280,7 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
       </div>
       {money && (
         <div className="picked-note money-note">
-          🪙 Adding {money.amount.toLocaleString()} {money.unit} to {holderName(target)}’s purse
+          🟡 Adding {money.amount.toLocaleString()} {money.unit} to {holderName(target)}’s purse
         </div>
       )}
       {picked && !money && (
@@ -277,32 +328,54 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
             Value
             <input placeholder="e.g. 50 gp" value={adv.value} onChange={(e) => setA({ value: e.target.value })} />
           </label>
-          <label className="check">
-            <input type="checkbox" checked={adv.magic} onChange={(e) => setA({ magic: e.target.checked })} />
-            Magic item
+          <label className="check" title={impliedMagic ? 'Anything above common counts as magic already' : undefined}>
+            <input
+              type="checkbox"
+              checked={adv.magic || impliedMagic}
+              disabled={impliedMagic}
+              onChange={(e) => setA({ magic: e.target.checked })}
+            />
+            Magic item{impliedMagic && <span className="muted"> (implied by rarity)</span>}
           </label>
           <label className="check">
             <input
               type="checkbox"
               checked={adv.requiresAttunement}
-              onChange={(e) => setA({ requiresAttunement: e.target.checked })}
+              onChange={(e) => setA({ requiresAttunement: e.target.checked, attuned: e.target.checked ? adv.attuned : false })}
             />
             Requires attunement
           </label>
+          {adv.requiresAttunement && target !== 'senchez' && (
+            <label className="check">
+              <input type="checkbox" checked={adv.attuned} onChange={(e) => setA({ attuned: e.target.checked })} />
+              Already attuned to {holderName(target)}
+            </label>
+          )}
           <label className="wide">
             Notes
-            <input value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
+            <textarea rows={3} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
+          </label>
+          <label className="check wide" title="Saved items autocomplete and appear in Browse under ✦ Custom">
+            <input type="checkbox" checked={saveCustom} onChange={(e) => setSaveCustom(e.target.checked)} />
+            ✦ Save to our catalogue for next time
           </label>
         </div>
       )}
-      {browsing && <CatalogBrowser onPick={applyCatalog} onClose={() => setBrowsing(false)} />}
+      {browsing && (
+        <CatalogBrowser
+          custom={custom}
+          onPick={applyCatalog}
+          onDeleteCustom={onDeleteCustom}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
       {coining && (
         <CoinDialog
           defaultTo={target}
           onAdd={(amount, unit, to) => {
             void onAddMoney(amount, unit, to);
             setCoining(false);
-            setName('');
+            onClose();
           }}
           onClose={() => setCoining(false)}
         />
@@ -324,7 +397,6 @@ function CoinDialog({
   const [unit, setUnit] = useState<'gp' | 'pp'>('gp');
   const [to, setTo] = useState<HolderId>(defaultTo);
   const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => ref.current?.focus(), []);
   const n = Math.max(0, Math.floor(Number(amount) || 0));
 
   // Not a <form>: this dialog renders inside the add form, and nested forms
@@ -342,7 +414,7 @@ function CoinDialog({
         </div>
         <div className="coin-fields">
           <input
-            ref={ref}
+            ref={(el) => { ref.current = el; el?.focus(); }}
             type="number"
             min={1}
             placeholder="Amount"

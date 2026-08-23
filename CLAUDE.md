@@ -31,6 +31,7 @@ There are no automated tests; verify changes via `npm run build` at minimum, ide
 
 - Home tab (default scope): the party-gold number (click for the ledger breakdown), a quiet search field that searches the whole party (results grouped by holder), and the + Add pill. Adding everywhere goes through the same modal (`AddItemForm`); there is no inline add form. The search field (`FilterBar`) reveals type/rarity/magic controls only on focus or when a filter is active.
 - Holder icons: per-holder emoji stored in state (`icons`), editable from the holder's own tab via the heading icon (`IconPicker`); defaults live on `HOLDERS`. The phone rail shows icons only.
+- Party custom catalogue: homebrew items saved via the "✦ Save to our catalogue" checkbox live in state (`custom`, same `CatalogItem` shape); they outrank SRD entries in autocomplete, appear under Browse's ✦ Custom tab (with delete), and upsert by name (`saveCustomItem`/`deleteCustomItem`).
 - Item catalogue: `src/catalog.ts` holds 252 SRD items (generated from the DM-Screen project's item list, enriched with SRD attunement flags and standard weights). It powers the quick-add autocomplete and the 📖 Browse modal (`CatalogBrowser`); picking an item prefills the advanced fields. One-off data fixes inline are fine.
 
 ## Conventions

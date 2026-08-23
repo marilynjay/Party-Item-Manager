@@ -59,12 +59,15 @@ export type Icons = Partial<Record<HolderId, string>>;
 // Standard 5e exchange rate: 1 platinum = 10 gold.
 export const PP_IN_GP = 10;
 
+import type { CatalogItem } from './catalog';
+
 export interface AppState {
   items: Item[];
   log: LogEntry[];
   gold: Gold;
   platinum: Gold;
   icons: Icons;
+  custom: CatalogItem[];
 }
 
 // A holder's icon: their chosen one, falling back to the default emoji.

@@ -70,7 +70,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {} });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, custom: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -143,10 +143,12 @@ export function App() {
         </div>
         <AddItemForm
           defaultLocation={isHolderScope ? scope : 'senchez'}
-          onAdd={(fields) => run(() => api.createItem(fields, actor)).then(() => setAdding(false))}
-          onAddMoney={(amount, unit, location) =>
-            run(() => api.addMoney(location, amount, unit, actor)).then(() => setAdding(false))
-          }
+          custom={state.custom}
+          onAdd={(fields) => run(() => api.createItem(fields, actor))}
+          onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, amount, unit, actor))}
+          onSaveCustom={(entry) => run(() => api.saveCustomItem(entry, actor))}
+          onDeleteCustom={(name) => run(() => api.deleteCustomItem(name, actor))}
+          onClose={() => setAdding(false)}
         />
       </div>
     </div>

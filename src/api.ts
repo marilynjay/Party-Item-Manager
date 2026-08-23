@@ -4,6 +4,7 @@
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
 import { HOLDERS } from './types';
+import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
 const DB_KEY = 'pim-db';
@@ -14,12 +15,12 @@ function load(): AppState {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const db = JSON.parse(raw) as Partial<AppState>;
-      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold, platinum: (db.platinum ?? {}) as Gold, icons: db.icons ?? {} };
+      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold, platinum: (db.platinum ?? {}) as Gold, icons: db.icons ?? {}, custom: db.custom ?? [] };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
   }
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {} };
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, custom: [] };
 }
 
 function save(db: AppState): void {
@@ -118,7 +119,7 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     value: fields.value ?? '',
     magic: fields.magic ?? false,
     requiresAttunement: fields.requiresAttunement ?? false,
-    attuned: false,
+    attuned: Boolean(fields.requiresAttunement && fields.attuned && (fields.location ?? 'senchez') !== 'senchez'),
     location: fields.location ?? 'senchez',
     notes: fields.notes ?? '',
     createdAt: now,
@@ -186,6 +187,37 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
     }
   }
   addLog(db, actor, `moved ${n > 1 ? n + ' × ' : ''}${item.name} from ${holderName(from)} to ${holderName(to)}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// The party's homebrew catalogue: entries behave like SRD items in the
+// autocomplete and Browse. Upserts by name, case-insensitively.
+export function saveCustomItem(entry: CatalogItem, actor: string): Promise<{ ok: true }> {
+  const name = entry.name.trim();
+  if (!name) return Promise.reject(new Error('The item needs a name'));
+  const db = load();
+  const key = name.toLowerCase();
+  const existing = db.custom.findIndex((c) => c.name.toLowerCase() === key);
+  const clean: CatalogItem = { ...entry, name };
+  if (existing >= 0) {
+    db.custom[existing] = clean;
+    addLog(db, actor, `updated ${name} in the party catalogue`);
+  } else {
+    db.custom.push(clean);
+    db.custom.sort((x, y) => x.name.localeCompare(y.name));
+    addLog(db, actor, `added ${name} to the party catalogue ✦`);
+  }
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function deleteCustomItem(name: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const key = name.toLowerCase();
+  if (!db.custom.some((c) => c.name.toLowerCase() === key)) return Promise.reject(new Error('Not in the catalogue'));
+  db.custom = db.custom.filter((c) => c.name.toLowerCase() !== key);
+  addLog(db, actor, `removed ${name} from the party catalogue`);
   save(db);
   return Promise.resolve({ ok: true });
 }
