@@ -415,19 +415,41 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   flex-direction: column;
   gap: 6px;
 }
-.gold-row { display: flex; align-items: center; gap: 8px; }
-.gold-row-name { flex: 1; }
-.gold-row input { width: 110px; text-align: right; padding: 5px 8px; }
-.gold-row button { font-size: 0.85rem; padding: 5px 12px; }
-.gold-save-hidden { visibility: hidden; }
-.gold-total-row {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-  margin-top: 2px;
-  font-weight: 700;
-  color: var(--gold);
+.ledger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 1rem;
 }
-.gold-row-amount { margin-right: 4px; }
+button.ledger-row:hover { background: var(--bg-hover); }
+.ledger-name { color: var(--text); }
+.ledger-amount { font-variant-numeric: tabular-nums; text-align: right; }
+.ledger-total {
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  margin-top: 2px;
+  padding-top: 9px;
+  font-weight: 700;
+}
+.ledger-total .ledger-name, .ledger-total .ledger-amount { color: var(--gold); }
+.ledger-empty { font-size: 0.9rem; }
+.ledger-editing { padding: 3px 8px; }
+.ledger-edit-controls { display: flex; align-items: center; gap: 5px; }
+.ledger-edit-controls input { width: 96px; text-align: right; padding: 4px 8px; font-variant-numeric: tabular-nums; }
+.ledger-edit-controls button { padding: 4px 10px; font-size: 0.9rem; }
+.give-gold-select {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  border-style: dashed;
+}
 
 /* ---- catalogue autocomplete + browser ---- */
 
