@@ -157,6 +157,12 @@ function ItemRow({
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   const [moveQty, setMoveQty] = useState(1);
 
+  const useOne = () => {
+    setMenuOpen(false);
+    if (item.stats?.heal && parseRoll(item.stats.heal)) setRollFor(true);
+    else onConsume(item.id);
+  };
+
   const startMove = (to: HolderId) => {
     if (item.qty === 1) {
       setMenuOpen(false);
@@ -183,6 +189,18 @@ function ItemRow({
         }}
       >
         {menuOpen ? '✕' : '➤'}
+      </button>
+      <button
+        type="button"
+        className="item-trash"
+        title="Discard"
+        onClick={() => {
+          if (confirm(`Discard ${item.qty > 1 ? `all ${item.qty} × ` : ''}${item.name}? (Sold, lost, or trashed — it comes off the list.)`)) {
+            onDelete(item.id);
+          }
+        }}
+      >
+        🗑
       </button>
       <div className="item-main" onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}>
         <span className="item-name">
@@ -266,14 +284,7 @@ function ItemRow({
             )}
             <div className="item-menu-heading muted">Or</div>
             <div className="item-menu-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  if (item.stats?.heal && parseRoll(item.stats.heal)) setRollFor(true);
-                  else onConsume(item.id);
-                }}
-              >
+              <button type="button" onClick={useOne}>
                 🧪 Use one
               </button>
               <button
@@ -307,7 +318,13 @@ function ItemRow({
         />
       )}
       {view === 'detail' && (
-        <ItemDetail item={item} onEdit={() => setView('edit')} onSpend={() => onSpend(item.id)} onRecharge={() => onRecharge(item.id)} />
+        <ItemDetail
+          item={item}
+          onEdit={() => setView('edit')}
+          onUse={item.category === 'consumable' ? useOne : undefined}
+          onSpend={() => onSpend(item.id)}
+          onRecharge={() => onRecharge(item.id)}
+        />
       )}
       {view === 'edit' && (
         <ItemEditor
@@ -329,7 +346,7 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit, onSpend, onRecharge }: { item: Item; onEdit: () => void; onSpend: () => void; onRecharge: () => void }) {
+function ItemDetail({ item, onEdit, onUse, onSpend, onRecharge }: { item: Item; onEdit: () => void; onUse?: () => void; onSpend: () => void; onRecharge: () => void }) {
   const [zoomed, setZoomed] = useState(false);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
@@ -400,6 +417,11 @@ function ItemDetail({ item, onEdit, onSpend, onRecharge }: { item: Item; onEdit:
       )}
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
       <div className="item-detail-actions">
+        {onUse && (
+          <button type="button" className="detail-use" onClick={onUse}>
+            🧪 Use one
+          </button>
+        )}
         <button type="button" className="link-button" onClick={onEdit}>✎ Edit</button>
       </div>
     </div>

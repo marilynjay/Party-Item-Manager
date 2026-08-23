@@ -339,6 +339,22 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   line-height: 1;
 }
 .item-send:hover { background: var(--bg-hover); border-color: var(--accent); }
+.item-trash {
+  position: absolute;
+  bottom: 6px;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+.item-trash:hover { opacity: 1; color: var(--danger); background: none; }
+.detail-use { font-size: 0.88rem; padding: 6px 14px; }
 .item-send.open { color: var(--text-muted); }
 .send-modal { width: 380px; gap: 8px; }
 .item-menu-heading { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
