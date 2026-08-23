@@ -10,7 +10,8 @@ import type { RollResult } from '../dice';
 import { CategoryPicker } from './CategoryPicker';
 import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
 import { compressImage } from '../image';
-import { SPELL_NAMES, findSpellInName } from '../spellIndex';
+import { SPELL_NAMES } from '../spellIndex';
+import { findSpellForItem, tokenizeSpells } from '../spellLinks';
 import { SpellCard } from './SpellCard';
 
 interface Props {
@@ -403,11 +404,23 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
   const s = item.stats ?? {};
-  // a scroll named after a known spell ("Spell Scroll: Fireball") gets a lookup card too
-  const scrollSpell = useMemo(
-    () => (item.subtype === 'scroll' ? findSpellInName(item.name) : null),
-    [item.subtype, item.name]
+  // an item named for a known spell ("Spell Scroll: Fireball", "Wand of
+  // Fireballs") gets a lookup card, unless its spell list already covers that
+  const nameSpell = useMemo(
+    () => (s.spells ? null : findSpellForItem(item.name, item.subtype)),
+    [s.spells, item.subtype, item.name]
   );
+  // prose with a spell name in book casing gets an inline link
+  const prose = (text: string) =>
+    tokenizeSpells(text).map((t, i) =>
+      t.spell ? (
+        <button key={i} type="button" className="spell-link" title="Read the spell" onClick={() => setSpellView(t.spell!)}>
+          {t.text}
+        </button>
+      ) : (
+        <span key={i}>{t.text}</span>
+      )
+    );
   if (cat) rows.push(['Type', `${cat.emoji} ${cat.name}${item.subtype ? ' · ' + item.subtype : ''}`]);
   if (s.dmg || s.dtype || s.bonus)
     rows.push(['Damage', [s.dmg, s.dtype, s.bonus ? `+${s.bonus}` : ''].filter(Boolean).join(' ')]);
@@ -426,14 +439,14 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
         )}
       </span>,
     ]);
-  if (s.spellLevel || s.dc || scrollSpell)
+  if (s.spellLevel || s.dc || nameSpell)
     rows.push([
       'Spell',
       <span className="charges-row">
         {[s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')}
-        {scrollSpell && (
-          <button type="button" className="charge-btn" title="Read the spell" onClick={() => setSpellView(scrollSpell)}>
-            📖 {SPELL_NAMES.get(scrollSpell)}
+        {nameSpell && (
+          <button type="button" className="charge-btn" title="Read the spell" onClick={() => setSpellView(nameSpell)}>
+            📖 {SPELL_NAMES.get(nameSpell)}
           </button>
         )}
       </span>,
@@ -534,7 +547,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           ))}
         </dl>
       )}
-      {item.notes && <p className="item-detail-notes">{item.notes}</p>}
+      {item.notes && <p className="item-detail-notes">{prose(item.notes)}</p>}
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
       {spellView && <SpellCard name={spellView} onClose={() => setSpellView(null)} />}
       <div className="item-detail-actions">
