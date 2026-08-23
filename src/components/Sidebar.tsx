@@ -1,26 +1,28 @@
-import type { HolderId, Item } from '../types';
-import { ATTUNEMENT_SLOTS, BAG_CAPACITY_LB, HOLDERS } from '../types';
+import type { HolderId, Icons, Item } from '../types';
+import { ATTUNEMENT_SLOTS, BAG_CAPACITY_LB, HOLDERS, holderIcon } from '../types';
 
-export type Scope = 'all' | 'log' | HolderId;
+export type Scope = 'home' | 'all' | 'log' | HolderId;
 
 interface Props {
   scope: Scope;
   onSelect: (scope: Scope) => void;
   items: Item[];
+  icons: Icons;
   attunedCounts: Map<HolderId, number>;
 }
 
 const stackWeight = (i: Item) => (i.weight === null ? 0 : i.weight * i.qty);
 
-export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
+export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props) {
   const bagWeight = items.filter((i) => i.location === 'senchez').reduce((s, i) => s + stackWeight(i), 0);
   const overCap = bagWeight > BAG_CAPACITY_LB;
 
-  // `short` swaps in on narrow screens where the rail shows sideways labels.
+  // `short` swaps in on narrow screens where the rail shows icons only.
   const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string) => (
     <button
       key={key}
       className={`tab ${scope === key ? 'active' : ''}`}
+      title={label}
       onClick={() => onSelect(key)}
     >
       <span className="tab-emoji">{emoji}</span>
@@ -36,6 +38,7 @@ export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
         <span className="brand-emoji">🎒</span>
         <span>Party Items</span>
       </div>
+      {tab('home', 'Home', '⛺', undefined, 'Home')}
       {tab('all', 'Everything', '📜', <span className="badge">{items.length}</span>, 'All')}
       <div className="rail-heading">Party</div>
       {HOLDERS.filter((h) => h.kind === 'member').map((h) => {
@@ -44,7 +47,7 @@ export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
         return tab(
           h.id,
           h.name,
-          h.emoji,
+          holderIcon(icons, h),
           <span className="tab-badges">
             {attuned > 0 && (
               <span
@@ -62,7 +65,7 @@ export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
       {tab(
         'senchez',
         'Senchez',
-        '🎒',
+        holderIcon(icons, HOLDERS[5]),
         <span className="tab-badges">
           <span className={`badge weight ${overCap ? 'over' : ''}`} title={`${bagWeight} / ${BAG_CAPACITY_LB} lb`}>
             {Math.round(bagWeight)} lb

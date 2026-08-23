@@ -14,12 +14,12 @@ function load(): AppState {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const db = JSON.parse(raw) as Partial<AppState>;
-      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold };
+      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold, icons: db.icons ?? {} };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
   }
-  return { items: [], log: [], gold: {} as Gold };
+  return { items: [], log: [], gold: {} as Gold, icons: {} };
 }
 
 function save(db: AppState): void {
@@ -197,6 +197,18 @@ export function deleteItem(id: string, actor: string): Promise<{ ok: true }> {
   db.items = db.items.filter((i) => i.id !== id);
   addLog(db, actor, `removed ${item.name} from ${holderName(item.location)}`);
   save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function setIcon(holder: HolderId, icon: string, actor: string): Promise<{ ok: true }> {
+  const trimmed = icon.trim().slice(0, 8);
+  if (!trimmed) return Promise.reject(new Error('Pick an icon first'));
+  const db = load();
+  if (db.icons[holder] !== trimmed) {
+    db.icons[holder] = trimmed;
+    addLog(db, actor, `gave ${holderName(holder)} a new icon: ${trimmed}`);
+    save(db);
+  }
   return Promise.resolve({ ok: true });
 }
 

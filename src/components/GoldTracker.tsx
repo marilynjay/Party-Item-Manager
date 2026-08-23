@@ -1,30 +1,29 @@
 import { useEffect, useState } from 'react';
-import type { Gold, HolderId } from '../types';
-import { HOLDERS } from '../types';
+import type { Gold, HolderId, Icons } from '../types';
+import { HOLDERS, holderIcon } from '../types';
 
 interface Props {
   gold: Gold;
+  icons: Icons;
   onSet: (holder: HolderId, amount: number) => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
 
-export function GoldTracker({ gold, onSet }: Props) {
+export function GoldTracker({ gold, icons, onSet }: Props) {
   const [open, setOpen] = useState(false);
   const total = HOLDERS.reduce((s, h) => s + (gold[h.id] ?? 0), 0);
 
   return (
     <div className="gold-tracker">
-      <button type="button" className="gold-summary" onClick={() => setOpen(!open)}>
-        <span className="gold-coin">🪙</span>
-        <span className="gold-total">{fmt(total)} gp</span>
-        <span className="muted">party gold</span>
-        <span className="gold-caret">{open ? '▴' : '▾'}</span>
+      <button type="button" className="gold-line" onClick={() => setOpen(!open)} title={open ? 'Hide details' : 'Who holds what'}>
+        <span className="gold-label muted">Party gold</span>
+        <span className="gold-amount">{fmt(total)} gp</span>
       </button>
       {open && (
         <div className="gold-breakdown">
           {HOLDERS.map((h) => (
-            <GoldRow key={h.id} emoji={h.emoji} name={h.name} amount={gold[h.id] ?? 0} onSet={(v) => onSet(h.id, v)} />
+            <GoldRow key={h.id} emoji={holderIcon(icons, h)} name={h.name} amount={gold[h.id] ?? 0} onSet={(v) => onSet(h.id, v)} />
           ))}
           <div className="gold-row gold-total-row">
             <span className="gold-row-name">Total</span>

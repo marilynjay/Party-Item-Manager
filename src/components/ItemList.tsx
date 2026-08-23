@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { HolderId, Item } from '../types';
-import { HOLDERS, ITEM_TYPES, RARITIES, holderById } from '../types';
+import type { HolderId, Icons, Item } from '../types';
+import { HOLDERS, ITEM_TYPES, RARITIES, holderById, holderIcon } from '../types';
 
 interface Props {
   items: Item[];
+  icons: Icons;
   groupByHolder: boolean;
   highlightMagic: boolean;
   attunedCounts: Map<HolderId, number>;
@@ -28,7 +29,7 @@ export function ItemList(props: Props) {
       {HOLDERS.filter((h) => items.some((i) => i.location === h.id)).map((h) => (
         <section key={h.id} className="holder-group">
           <h2 className="holder-heading">
-            <span>{h.emoji}</span> {h.name}
+            <span>{holderIcon(props.icons, h)}</span> {h.name}
             <span className="muted"> · {items.filter((i) => i.location === h.id).length}</span>
           </h2>
           <ul className="item-list">
@@ -46,6 +47,7 @@ export function ItemList(props: Props) {
 
 function ItemRow({
   item,
+  icons,
   isMagic,
   attunedCounts,
   attunementSlots,
@@ -98,7 +100,7 @@ function ItemRow({
             <option value="">Give to…</option>
             {HOLDERS.filter((h) => h.id !== item.location).map((h) => (
               <option key={h.id} value={h.id}>
-                {h.emoji} {h.name}
+                {holderIcon(icons, h)} {h.name}
               </option>
             ))}
           </select>

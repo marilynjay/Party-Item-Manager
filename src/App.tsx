@@ -1,23 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as api from './api';
 import type { AppState, HolderId } from './types';
-import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, isMagic } from './types';
+import { ATTUNEMENT_SLOTS, MEMBERS, holderById, holderIcon, isMagic } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
 import { ItemList } from './components/ItemList';
 import { LogPanel } from './components/LogPanel';
 import { GoldTracker } from './components/GoldTracker';
+import { IconPicker } from './components/IconPicker';
 
 type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'] });
-  const [scope, setScope] = useState<Scope>('all');
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], icons: {} });
+  const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [pickingIcon, setPickingIcon] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -69,22 +72,53 @@ export function App() {
 
   if (phase === 'checking') return <div className="centered muted">Opening the bag…</div>;
 
-  const scopedItems =
-    scope === 'all' || scope === 'log' ? state.items : state.items.filter((i) => i.location === scope);
+  const isHolderScope = scope !== 'home' && scope !== 'all' && scope !== 'log';
+  const scopedItems = isHolderScope ? state.items.filter((i) => i.location === scope) : state.items;
   const visible = applyFilters(scopedItems, filters);
   const filtering = filters.search !== '' || filters.type !== '' || filters.rarity !== '' || filters.magicOnly;
+  const scopeHolder = isHolderScope ? holderById(scope) : null;
+
+  const addModal = adding && (
+    <div className="overlay" onClick={() => setAdding(false)}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>Add an item</h2>
+          <button type="button" className="link-button" onClick={() => setAdding(false)}>✕</button>
+        </div>
+        <AddItemForm
+          defaultLocation={isHolderScope ? scope : 'senchez'}
+          onAdd={(fields) => run(() => api.createItem(fields, actor)).then(() => setAdding(false))}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="app">
-      <Sidebar scope={scope} onSelect={setScope} items={state.items} attunedCounts={attunedCounts} />
+      <Sidebar scope={scope} onSelect={setScope} items={state.items} icons={state.icons} attunedCounts={attunedCounts} />
       <main className="main">
         <header className="topbar">
           <h1>
-            {scope === 'all'
-              ? 'Party inventory'
-              : scope === 'log'
-                ? 'Change log'
-                : `${HOLDERS.find((h) => h.id === scope)!.name}’s inventory`}
+            {scope === 'home' ? (
+              '🎒 Party Items'
+            ) : scope === 'all' ? (
+              'Party inventory'
+            ) : scope === 'log' ? (
+              'Change log'
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="heading-icon"
+                  title={`Change ${scopeHolder!.name}’s icon`}
+                  onClick={() => setPickingIcon(true)}
+                >
+                  {holderIcon(state.icons, scopeHolder!)}
+                  <span className="heading-icon-edit">✎</span>
+                </button>
+                {scopeHolder!.name}’s inventory
+              </>
+            )}
           </h1>
           <label className="actor-picker">
             Playing as{' '}
@@ -105,18 +139,26 @@ export function App() {
           </div>
         )}
 
-        {scope === 'log' ? (
+        {scope === 'home' ? (
+          <div className="home">
+            <GoldTracker gold={state.gold} icons={state.icons} onSet={(holder, amount) => run(() => api.setGold(holder, amount, actor))} />
+            <button type="button" className="fab" title="Add an item" onClick={() => setAdding(true)}>
+              +
+            </button>
+            {addModal}
+          </div>
+        ) : scope === 'log' ? (
           <LogPanel log={state.log} />
         ) : (
           <>
-            <GoldTracker gold={state.gold} onSet={(holder, amount) => run(() => api.setGold(holder, amount, actor))} />
             <AddItemForm
-              defaultLocation={scope === 'all' ? 'senchez' : scope}
+              defaultLocation={isHolderScope ? scope : 'senchez'}
               onAdd={(fields) => run(() => api.createItem(fields, actor))}
             />
             <FilterBar filters={filters} onChange={setFilters} />
             <ItemList
               items={visible}
+              icons={state.icons}
               groupByHolder={scope === 'all'}
               highlightMagic={filters.magicOnly}
               attunedCounts={attunedCounts}
@@ -130,6 +172,17 @@ export function App() {
               onDelete={(id) => run(() => api.deleteItem(id, actor))}
             />
           </>
+        )}
+        {pickingIcon && scopeHolder && (
+          <IconPicker
+            holder={scopeHolder}
+            current={holderIcon(state.icons, scopeHolder)}
+            onPick={(icon) => {
+              void run(() => api.setIcon(scopeHolder.id, icon, actor));
+              setPickingIcon(false);
+            }}
+            onClose={() => setPickingIcon(false)}
+          />
         )}
       </main>
     </div>

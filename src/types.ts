@@ -54,12 +54,17 @@ export interface LogEntry {
 }
 
 export type Gold = Record<HolderId, number>;
+export type Icons = Partial<Record<HolderId, string>>;
 
 export interface AppState {
   items: Item[];
   log: LogEntry[];
   gold: Gold;
+  icons: Icons;
 }
+
+// A holder's icon: their chosen one, falling back to the default emoji.
+export const holderIcon = (icons: Icons, h: Holder): string => icons[h.id] || h.emoji;
 
 // An item counts as "magic" for filtering if flagged, or if it has any rarity
 // above common, or if it needs attunement.
