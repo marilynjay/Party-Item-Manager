@@ -339,19 +339,21 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 }
 .item-send:hover { background: var(--bg-hover); border-color: var(--accent); }
 .item-send.open { color: var(--text-muted); }
-.item-menu {
-  width: 100%;
-  border-top: 1px solid var(--border);
-  margin-top: 4px;
-  padding-top: 10px;
+.send-modal { width: 380px; gap: 8px; }
+.item-menu-heading { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+.send-holders { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.send-holder {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 9px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 1rem;
 }
-.item-menu-heading { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; }
-.item-menu-holders { display: flex; gap: 6px; flex-wrap: wrap; }
-.item-menu-actions { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 9px; }
-.item-menu-actions button { font-size: 0.88rem; }
+.send-holder-emoji { font-size: 1.15rem; }
+.item-menu-actions { display: flex; gap: 8px; }
+.item-menu-actions button { flex: 1; padding: 10px 12px; }
+.send-cancel { margin-top: 4px; align-self: center; color: var(--text-muted); }
 .move-qty-form { display: flex; gap: 6px; align-items: center; }
 .move-qty-form input { width: 62px; padding: 5px 8px; }
 .move-qty-form button { font-size: 0.88rem; padding: 5px 10px; }

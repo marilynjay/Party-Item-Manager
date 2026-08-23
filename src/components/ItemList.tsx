@@ -107,57 +107,70 @@ function ItemRow({
         </span>
       </div>
       {menuOpen && (
-        <div className="item-menu">
-          <div className="item-menu-heading muted">Give to</div>
-          {moveTo === '' ? (
-            <div className="item-menu-holders">
-              {HOLDERS.filter((h) => h.id !== item.location).map((h) => (
-                <button key={h.id} type="button" className="chip" onClick={() => startMove(h.id)}>
-                  {holderIcon(icons, h)} {h.name}
-                </button>
-              ))}
+        <div className="overlay" onClick={() => setMenuOpen(false)}>
+          <div className="modal send-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>
+                {item.name}
+                {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
+              </h2>
+              <button type="button" className="link-button" onClick={() => setMenuOpen(false)}>✕</button>
             </div>
-          ) : (
-            <div className="move-qty-form">
-              <input
-                type="number"
-                min={1}
-                max={item.qty}
-                value={moveQty}
-                autoFocus
-                onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
-              />
-              <span className="muted">of {item.qty}</span>
+            <div className="item-menu-heading muted">Give to</div>
+            {moveTo === '' ? (
+              <div className="send-holders">
+                {HOLDERS.filter((h) => h.id !== item.location).map((h) => (
+                  <button key={h.id} type="button" className="send-holder" onClick={() => startMove(h.id)}>
+                    <span className="send-holder-emoji">{holderIcon(icons, h)}</span> {h.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="move-qty-form">
+                <input
+                  type="number"
+                  min={1}
+                  max={item.qty}
+                  value={moveQty}
+                  autoFocus
+                  onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
+                />
+                <span className="muted">of {item.qty}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setMoveTo('');
+                    onMove(item.id, moveTo, moveQty);
+                  }}
+                >
+                  → {holderById(moveTo).name}
+                </button>
+                <button type="button" className="link-button" onClick={() => setMoveTo('')}>
+                  ✕
+                </button>
+              </div>
+            )}
+            <div className="item-menu-heading muted">Or</div>
+            <div className="item-menu-actions">
+              <button type="button" onClick={() => { setMenuOpen(false); onConsume(item.id); }}>
+                🧪 Use one
+              </button>
               <button
                 type="button"
+                className="danger"
                 onClick={() => {
-                  setMenuOpen(false);
-                  setMoveTo('');
-                  onMove(item.id, moveTo, moveQty);
+                  if (confirm(`Discard ${item.qty > 1 ? `all ${item.qty} × ` : ''}${item.name}? (Sold, lost, or trashed — it comes off the list.)`)) {
+                    setMenuOpen(false);
+                    onDelete(item.id);
+                  }
                 }}
               >
-                → {holderById(moveTo).name}
-              </button>
-              <button type="button" className="link-button" onClick={() => setMoveTo('')}>
-                ✕
+                🗑️ Discard
               </button>
             </div>
-          )}
-          <div className="item-menu-actions">
-            <button type="button" onClick={() => { setMenuOpen(false); onConsume(item.id); }}>
-              🧪 Use one
-            </button>
-            <button
-              type="button"
-              className="danger"
-              onClick={() => {
-                if (confirm(`Discard ${item.qty > 1 ? `all ${item.qty} × ` : ''}${item.name}? (Sold, lost, or trashed — it comes off the list.)`)) {
-                  setMenuOpen(false);
-                  onDelete(item.id);
-                }
-              }}
-            >
-              🗑️ Discard
+            <button type="button" className="link-button send-cancel" onClick={() => setMenuOpen(false)}>
+              Cancel — keep it where it is
             </button>
           </div>
         </div>
