@@ -149,6 +149,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .tab.active { background: var(--accent-strong); color: #fff; }
 .tab.active .badge { background: rgba(255, 255, 255, 0.22); color: #fff; }
 .tab-label { flex: 1; }
+.tab-label-short { display: none; }
 .tab-badges { display: flex; gap: 4px; }
 
 .badge {
@@ -347,19 +348,30 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 /* ---- mobile ---- */
 
 @media (max-width: 720px) {
-  .app { flex-direction: column; }
+  /* Slim vertical rail: sideways labels, no badges, everything visible at once. */
   .sidebar {
-    width: 100%;
-    flex-direction: row;
+    width: 48px;
+    padding: 8px 4px;
+    gap: 3px;
     align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 8px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
   }
-  .brand, .rail-heading, .bag-meter, .bag-warning, .rail-spacer { display: none; }
-  .tab { width: auto; flex-shrink: 0; padding: 7px 10px; }
+  .brand, .rail-heading, .bag-meter, .bag-warning { display: none; }
+  .tab {
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+    padding: 6px 2px;
+  }
+  .tab-emoji, .tab-label-full { display: none; }
+  .tab-label-short {
+    display: inline;
+    writing-mode: vertical-rl;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    flex: none;
+  }
+  .tab .badge, .tab .tab-badges { display: none; }
   .main { padding: 14px 12px 60px; }
   .log-time { width: 90px; }
 }

@@ -16,14 +16,16 @@ export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
   const bagWeight = items.filter((i) => i.location === 'senchez').reduce((s, i) => s + stackWeight(i), 0);
   const overCap = bagWeight > BAG_CAPACITY_LB;
 
-  const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode) => (
+  // `short` swaps in on narrow screens where the rail shows sideways labels.
+  const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string) => (
     <button
       key={key}
       className={`tab ${scope === key ? 'active' : ''}`}
       onClick={() => onSelect(key)}
     >
       <span className="tab-emoji">{emoji}</span>
-      <span className="tab-label">{label}</span>
+      <span className="tab-label tab-label-full">{label}</span>
+      <span className="tab-label tab-label-short">{short ?? label}</span>
       {extra}
     </button>
   );
@@ -34,7 +36,7 @@ export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
         <span className="brand-emoji">🎒</span>
         <span>Party Items</span>
       </div>
-      {tab('all', 'Everything', '📜', <span className="badge">{items.length}</span>)}
+      {tab('all', 'Everything', '📜', <span className="badge">{items.length}</span>, 'All')}
       <div className="rail-heading">Party</div>
       {HOLDERS.filter((h) => h.kind === 'member').map((h) => {
         const count = items.filter((i) => i.location === h.id).length;
@@ -76,7 +78,7 @@ export function Sidebar({ scope, onSelect, items, attunedCounts }: Props) {
       </div>
       {overCap && <div className="bag-warning">⚠️ Senchez is over 500 lb!</div>}
       <div className="rail-spacer" />
-      {tab('log', 'Change log', '🕯️')}
+      {tab('log', 'Change log', '🕯️', undefined, 'Log')}
     </nav>
   );
 }
