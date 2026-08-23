@@ -5,13 +5,16 @@ import fs from 'node:fs';
 import { loadDb, saveDb } from './store.js';
 
 const PORT = Number(process.env.PORT || 3001);
-const PARTY_PASSWORD = process.env.PARTY_PASSWORD || 'change-me';
+const PARTY_PASSWORD = process.env.PARTY_PASSWORD || '';
+const AUTH_ENABLED = PARTY_PASSWORD !== ''; // no password set => open access (playtesting mode)
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-not-for-production';
 const COOKIE_NAME = 'pim_session';
 const PROD = process.env.NODE_ENV === 'production';
 
-if (PROD && (PARTY_PASSWORD === 'change-me' || SESSION_SECRET === 'dev-secret-not-for-production')) {
-  console.warn('WARNING: set PARTY_PASSWORD and SESSION_SECRET env vars before exposing this to the internet.');
+if (!AUTH_ENABLED) {
+  console.warn('PARTY_PASSWORD not set — login is DISABLED. Set it to require the party password again.');
+} else if (PROD && SESSION_SECRET === 'dev-secret-not-for-production') {
+  console.warn('WARNING: set SESSION_SECRET to a long random string before exposing this to the internet.');
 }
 
 const MEMBER_IDS = ['yiptik', 'radish', 'tuffany', 'astrielle', 'hyrroh'];
@@ -46,6 +49,7 @@ function isAuthed(req) {
 }
 
 app.post('/api/login', (req, res) => {
+  if (!AUTH_ENABLED) return res.json({ ok: true });
   const { password } = req.body ?? {};
   const pw = String(password ?? '');
   const ok =
@@ -65,7 +69,7 @@ app.post('/api/logout', (_req, res) => {
 });
 
 app.use('/api', (req, res, next) => {
-  if (req.path === '/login') return next();
+  if (!AUTH_ENABLED || req.path === '/login') return next();
   if (!isAuthed(req)) return res.status(401).json({ error: 'Not logged in' });
   next();
 });
@@ -108,8 +112,29 @@ const holderName = (id) => (id === 'senchez' ? 'Senchez' : id.charAt(0).toUpperC
 
 // ---- API -----------------------------------------------------------------
 
+const fullGold = () => {
+  const g = {};
+  for (const id of HOLDER_IDS) g[id] = Math.max(0, Math.floor(Number(db.gold?.[id]) || 0));
+  return g;
+};
+
 app.get('/api/state', (_req, res) => {
-  res.json({ items: db.items, log: db.log });
+  res.json({ items: db.items, log: db.log, gold: fullGold() });
+});
+
+app.patch('/api/gold', (req, res) => {
+  const { holder, gold, actor } = req.body ?? {};
+  if (!HOLDER_IDS.includes(holder)) return res.status(400).json({ error: 'Unknown holder' });
+  const amount = Math.max(0, Math.floor(Number(gold) || 0));
+  db.gold = fullGold();
+  const before = db.gold[holder];
+  if (amount !== before) {
+    db.gold[holder] = amount;
+    const delta = amount - before;
+    addLog(actor, `${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} gp ${delta > 0 ? 'to' : 'from'} ${holderName(holder)} (now ${amount} gp)`);
+    saveDb(db);
+  }
+  res.json({ gold: db.gold });
 });
 
 app.post('/api/items', (req, res) => {

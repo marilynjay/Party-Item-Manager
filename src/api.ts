@@ -1,4 +1,4 @@
-import type { AppState, HolderId, Item } from './types';
+import type { AppState, Gold, HolderId, Item } from './types';
 
 export class AuthError extends Error {}
 
@@ -31,6 +31,9 @@ export const updateItem = (id: string, fields: Partial<Item>, actor: string) =>
 
 export const moveItem = (id: string, to: HolderId, qty: number, actor: string) =>
   req<{ ok: true }>(`/api/items/${id}/move`, { method: 'POST', body: JSON.stringify({ to, qty, actor }) });
+
+export const setGold = (holder: HolderId, gold: number, actor: string) =>
+  req<{ gold: Gold }>('/api/gold', { method: 'PATCH', body: JSON.stringify({ holder, gold, actor }) });
 
 export const deleteItem = (id: string, actor: string) =>
   req<{ ok: true }>(`/api/items/${id}?actor=${encodeURIComponent(actor)}`, { method: 'DELETE' });

@@ -6,13 +6,13 @@ import path from 'node:path';
 const DATA_DIR = process.env.DATA_DIR || path.resolve('data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
-const EMPTY = { items: [], log: [] };
+const EMPTY = { items: [], log: [], gold: {} };
 
 export function loadDb() {
   try {
     const raw = fs.readFileSync(DB_FILE, 'utf8');
     const db = JSON.parse(raw);
-    return { items: db.items ?? [], log: db.log ?? [] };
+    return { items: db.items ?? [], log: db.log ?? [], gold: db.gold ?? {} };
   } catch {
     return structuredClone(EMPTY);
   }

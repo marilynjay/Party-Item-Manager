@@ -7,7 +7,7 @@ Shared D&D party inventory tracker. Five party members (Yiptik, Radish, Tuffany,
 - **Frontend**: React 19 + TypeScript + Vite, in `src/`. No router — one screen with a scope selector (`Sidebar`) and orthogonal filters (`FilterBar`).
 - **Backend**: Express (plain ESM JavaScript, no build step) in `server/`. Serves the API and, in production, the built `dist/`.
 - **Storage**: single JSON file `data/db.json` via `server/store.js` (load once at boot, atomic write-on-mutation). No database. `data/` is gitignored.
-- **Auth**: one shared password (`PARTY_PASSWORD` env var) → HMAC-signed session cookie (`SESSION_SECRET`). All `/api/*` except `/api/login` require it.
+- **Auth**: optional. If `PARTY_PASSWORD` is unset/empty, all API routes are open (playtesting mode). If set, login → HMAC-signed session cookie (`SESSION_SECRET`) guards all `/api/*` except `/api/login`. The login UI only appears when the server returns 401s.
 - **Sync**: frontend polls `/api/state` every 10 s; every mutation re-fetches.
 
 ## Commands
@@ -26,6 +26,7 @@ There are no automated tests; verify server changes by exercising the API with c
 - Attunement: max 3 per member (warning only, not enforced); moving an item into Senchez clears `attuned`.
 - "Magic" for filtering = `magic` flag OR `requiresAttunement` OR rarity above common (`isMagic` in `src/types.ts`).
 - Senchez capacity: 500 lb (`BAG_CAPACITY_LB`), warning only.
+- Party gold: per-holder integer gp in `db.gold`, `PATCH /api/gold {holder, gold}` sets an absolute amount and logs the delta. `GoldTracker` shows the total, expanding to a per-holder editable breakdown.
 - Change log: server-side, capped at 500 entries, actor comes from the client's "Playing as" picker (localStorage).
 
 ## Conventions

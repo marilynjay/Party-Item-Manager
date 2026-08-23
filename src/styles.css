@@ -363,3 +363,48 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   .main { padding: 14px 12px 60px; }
   .log-time { width: 90px; }
 }
+
+/* ---- gold tracker ---- */
+
+.gold-tracker { margin-bottom: 14px; }
+
+.gold-summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(224, 180, 92, 0.12), rgba(224, 180, 92, 0.03));
+  border: 1px solid rgba(224, 180, 92, 0.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: left;
+}
+.gold-summary:hover { background: rgba(224, 180, 92, 0.18); }
+.gold-coin { font-size: 1.1rem; }
+.gold-total { font-weight: 700; color: var(--gold); font-size: 1.05rem; }
+.gold-caret { margin-left: auto; color: var(--gold); }
+
+.gold-breakdown {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  margin: -4px 8px 0;
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gold-row { display: flex; align-items: center; gap: 8px; }
+.gold-row-name { flex: 1; }
+.gold-row input { width: 110px; text-align: right; padding: 5px 8px; }
+.gold-row button { font-size: 0.85rem; padding: 5px 12px; }
+.gold-save-hidden { visibility: hidden; }
+.gold-total-row {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 2px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.gold-row-amount { margin-right: 4px; }

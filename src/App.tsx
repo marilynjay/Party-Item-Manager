@@ -9,12 +9,13 @@ import { FilterBar, type Filters, emptyFilters, applyFilters } from './component
 import { AddItemForm } from './components/AddItemForm';
 import { ItemList } from './components/ItemList';
 import { LogPanel } from './components/LogPanel';
+import { GoldTracker } from './components/GoldTracker';
 
 type Phase = 'checking' | 'login' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'] });
   const [scope, setScope] = useState<Scope>('all');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -124,6 +125,7 @@ export function App() {
           <LogPanel log={state.log} />
         ) : (
           <>
+            <GoldTracker gold={state.gold} onSet={(holder, amount) => run(() => api.setGold(holder, amount, actor))} />
             <AddItemForm
               defaultLocation={scope === 'all' ? 'senchez' : scope}
               onAdd={(fields) => run(() => api.createItem(fields, actor))}

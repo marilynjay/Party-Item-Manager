@@ -7,6 +7,7 @@ Everyone logs in with the same party password, and everyone sees the same live i
 ## Features
 
 - **Left-rail tabs** — Everything / each party member / Senchez, with live item counts.
+- **Party gold tracker** — total gp always visible at the top; click it to break down who's holding what, and edit any holder's stash inline.
 - **Quick add** — name, quantity, and who gets it. An **Advanced ▾** toggle reveals type, rarity, weight, value, magic flag, attunement, and notes.
 - **Filters everywhere** — search, type, rarity, and a ✨ Magic-only toggle. Filters apply to whichever tab you're on; on "Everything" results are grouped by holder.
 - **Give to…** — move an item (or part of a stack: 3 of 10 arrows) to anyone in one click. Identical stacks merge automatically at the destination.
@@ -21,9 +22,14 @@ Requires Node 20+.
 
 ```bash
 npm install
-cp .env.example .env   # then edit: set PARTY_PASSWORD and SESSION_SECRET
 npm run build
 npm start              # serves the app on http://localhost:3001
+```
+
+Login is **off by default** — with no `PARTY_PASSWORD` set, anyone with the URL walks right in (handy for playtesting). To require the party password, set env vars (see `.env.example`):
+
+```bash
+PARTY_PASSWORD=your-secret SESSION_SECRET=some-long-random-string npm start
 ```
 
 For development (Vite dev server with hot reload + API server):
@@ -36,7 +42,7 @@ npm run dev            # app at http://localhost:5173
 
 This is a single Node process that serves both the API and the built frontend, storing data in `data/db.json`. Any host that runs Node and gives you a persistent disk works — Railway, Render, Fly.io, a VPS, a Raspberry Pi under the DM's desk.
 
-1. Set env vars: `PARTY_PASSWORD` (what the party types to log in) and `SESSION_SECRET` (any long random string).
+1. Set env vars when you're ready to lock it down: `PARTY_PASSWORD` (what the party types to log in) and `SESSION_SECRET` (any long random string). Leave them unset for open playtesting.
 2. Make sure the `data/` directory is on persistent storage (set `DATA_DIR` to relocate it if needed).
 3. Build command: `npm install && npm run build` · Start command: `npm start`.
 4. Share the URL and the password with the party.

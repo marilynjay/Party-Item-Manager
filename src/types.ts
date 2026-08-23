@@ -53,9 +53,12 @@ export interface LogEntry {
   text: string;
 }
 
+export type Gold = Record<HolderId, number>;
+
 export interface AppState {
   items: Item[];
   log: LogEntry[];
+  gold: Gold;
 }
 
 // An item counts as "magic" for filtering if flagged, or if it has any rarity
