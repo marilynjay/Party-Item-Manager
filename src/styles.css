@@ -507,8 +507,8 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .cat-more { padding: 8px 4px; font-size: 0.85rem; }
 
 @media (max-width: 720px) {
-  .overlay { padding: 8px; align-items: flex-end; }
-  .modal { max-height: 92vh; padding: 12px; }
+  .overlay { padding: 8px; align-items: flex-start; padding-top: 28px; }
+  .modal { max-height: 88vh; padding: 12px; }
 }
 
 
