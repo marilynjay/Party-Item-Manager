@@ -27,6 +27,7 @@ function parseMoney(s: string): { amount: number; unit: 'gp' | 'pp' } | null {
 type Suggestion =
   | { kind: 'coins'; amount: number; unit: 'gp' | 'pp' }
   | { kind: 'coin-dialog' }
+  | { kind: 'custom-item' }
   | { kind: 'item'; item: CatalogItem; custom?: boolean };
 
 const COIN_WORDS = ['gold', 'platinum', 'coins', 'coin', 'money'];
@@ -51,6 +52,8 @@ function suggestFor(name: string, custom: CatalogItem[]): Suggestion[] {
   if (t === 'gp' || t === 'pp' || (t.length >= 2 && COIN_WORDS.some((w) => w.startsWith(t)))) {
     rows.unshift({ kind: 'coin-dialog' });
   }
+  // the escape hatch is always last: make this a full custom item
+  if (t.length > 0) rows.push({ kind: 'custom-item' });
   return rows;
 }
 
@@ -69,7 +72,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const [name, setName] = useState('');
   const [qty, setQty] = useState(1);
   const [location, setLocation] = useState<HolderId | 'auto'>('auto');
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [adv, setAdv] = useState(blankAdvanced);
   const [saveCustom, setSaveCustom] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -81,6 +84,9 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
 
   const target = location === 'auto' ? defaultLocation : location;
   const money = parseMoney(name);
+  // no catalogue matches for what's typed: the two options are Quick Add or a custom item
+  const nothingMatches =
+    name.trim() !== '' && !money && !picked && !suggestFor(name, custom).some((r) => r.kind === 'item');
   // rarity above common already counts as magic in every filter
   const impliedMagic = adv.rarity !== '' && adv.rarity !== 'common';
 
@@ -108,6 +114,9 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     } else if (s.kind === 'coins') {
       void onAddMoney(s.amount, s.unit, target);
       onClose();
+    } else if (s.kind === 'custom-item') {
+      setDetailsOpen(true);
+      setSuggestions([]);
     } else {
       setCoining(true);
       setSuggestions([]);
@@ -125,7 +134,13 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     if (suggestions.length === 0) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setSugIx((sugIx + 1) % suggestions.length); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSugIx((sugIx + suggestions.length - 1) % suggestions.length); }
-    else if (e.key === 'Enter') { e.preventDefault(); applySuggestion(suggestions[sugIx]); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      const chosen = suggestions[sugIx];
+      // typing an unknown name and hitting Enter means Quick Add, not the details panel
+      if (chosen.kind === 'custom-item' && nothingMatches) doAdd(false);
+      else applySuggestion(chosen);
+    }
     else if (e.key === 'Escape') setSuggestions([]);
   };
 
@@ -134,7 +149,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     setQty(1);
     setAdv(blankAdvanced);
     setSaveCustom(false);
-    setShowAdvanced(false);
+    setDetailsOpen(false);
     setPicked(null);
     setSuggestions([]);
   };
@@ -197,6 +212,14 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         </button>
       );
     }
+    if (s.kind === 'custom-item') {
+      return (
+        <button key="custom-item" type="button" className={`suggest-row suggest-new ${nothingMatches ? 'lit' : ''} ${active}`}
+          onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}>
+          <span>＋ Custom item <span className="muted">— add details</span></span>
+        </button>
+      );
+    }
     if (s.kind === 'coin-dialog') {
       return (
         <button key="coin-dialog" type="button" className={`suggest-row suggest-coin ${active}`}
@@ -235,6 +258,9 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
           />
           {suggestions.length > 0 && <div className="suggest">{suggestions.map(suggestionRow)}</div>}
         </div>
+        <button type="submit" disabled={!name.trim()}>
+          {nothingMatches && !detailsOpen ? 'Quick Add' : 'Add'}
+        </button>
         <input
           className="add-qty"
           type="number"
@@ -256,9 +282,6 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             </option>
           ))}
         </select>
-        <button type="submit" disabled={!name.trim()}>
-          Add
-        </button>
         <button
           type="button"
           className="link-button"
@@ -274,9 +297,6 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         <button type="button" className="link-button" onClick={() => setBrowsing(true)}>
           📖 Browse
         </button>
-        <button type="button" className="link-button" onClick={() => setShowAdvanced(!showAdvanced)}>
-          Advanced {showAdvanced ? '▴' : '▾'}
-        </button>
       </div>
       {money && (
         <div className="picked-note money-note">
@@ -287,11 +307,20 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         <div className="picked-note muted">
           ✓ From the catalogue: {picked.rarity || 'mundane'} {picked.type}
           {picked.requiresAttunement ? ', requires attunement' : ''}
-          {picked.weight !== null ? `, ${picked.weight} lb` : ''} — details filled in for you.
+          {picked.weight !== null ? `, ${picked.weight} lb` : ''} — details filled in.{' '}
+          {!detailsOpen && (
+            <button type="button" className="link-button picked-tweak" onClick={() => setDetailsOpen(true)}>
+              ✎ adjust
+            </button>
+          )}
         </div>
       )}
-      {showAdvanced && (
+      {detailsOpen && (
         <div className="add-advanced">
+          <div className="details-head wide">
+            <span className="item-menu-heading muted">Item details</span>
+            <button type="button" className="link-button" onClick={() => setDetailsOpen(false)}>▴ hide</button>
+          </div>
           <label>
             Type
             <select value={adv.type} onChange={(e) => setA({ type: e.target.value })}>

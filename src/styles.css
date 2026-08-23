@@ -573,6 +573,10 @@ button.purse-line:hover { background: none; color: var(--text); }
 
 .picked-note { font-size: 0.82rem; margin-top: 8px; }
 .suggest-coin { color: var(--gold); }
+.suggest-new { color: var(--accent); border-top: 1px solid var(--border); }
+.suggest-new.lit { background: rgba(143, 92, 232, 0.22); font-weight: 600; }
+.details-head { display: flex; align-items: center; justify-content: space-between; }
+.picked-tweak { padding: 0 2px; font-size: 0.82rem; }
 .coin-modal { width: 360px; }
 .coin-add { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; font-weight: 600; }
 .coin-add:hover:not(:disabled) { background: var(--accent) !important; }
