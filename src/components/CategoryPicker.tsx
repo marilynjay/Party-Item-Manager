@@ -5,6 +5,8 @@ import { CATEGORIES, categoryOf } from '../types';
 // pointer chip that files the item under its real home.
 const CROSS_LINKS: Partial<Record<CategoryKey, Array<[CategoryKey, string]>>> = {
   supplies: [['consumable', 'food & drink']],
+  papers: [['consumable', 'scroll'], ['arcana', 'spellbook']],
+  gear: [['arcana', 'wand'], ['arcana', 'staff'], ['consumable', 'alchemical']],
 };
 
 interface Props {
