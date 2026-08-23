@@ -489,6 +489,13 @@ button.ledger-row:hover { background: var(--bg-hover); }
 .suggest-row.active, .suggest-row:hover { background: var(--bg-hover); }
 
 .picked-note { font-size: 0.82rem; margin-top: 8px; }
+.suggest-coin { color: var(--gold); }
+.coin-modal { width: 360px; }
+.coin-add { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; font-weight: 600; }
+.coin-add:hover:not(:disabled) { background: var(--accent) !important; }
+.coin-fields { display: flex; flex-direction: column; gap: 10px; }
+.coin-units { display: flex; gap: 8px; }
+.coin-units .chip { flex: 1; text-align: center; }
 
 .overlay {
   position: fixed;
