@@ -358,6 +358,24 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .move-qty-form input { width: 62px; padding: 5px 8px; }
 .move-qty-form button { font-size: 0.88rem; padding: 5px 10px; }
 
+.item-notes-preview { width: 100%; font-size: 0.83rem; line-height: 1.4; }
+
+.item-detail {
+  width: 100%;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.item-detail-notes { margin: 0; font-size: 0.92rem; line-height: 1.5; }
+.item-detail-grid { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 18px; }
+.item-detail-row { display: flex; gap: 10px; align-items: baseline; }
+.item-detail-row dt { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; min-width: 84px; }
+.item-detail-row dd { margin: 0; font-size: 0.92rem; }
+.item-detail-actions { display: flex; justify-content: flex-end; }
+
 .item-editor {
   width: 100%;
   display: grid;

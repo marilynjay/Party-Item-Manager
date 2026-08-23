@@ -57,7 +57,7 @@ function ItemRow({
   onUpdate,
   onDelete,
 }: Props & { item: Item }) {
-  const [expanded, setExpanded] = useState(false);
+  const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   const [moveQty, setMoveQty] = useState(1);
@@ -83,12 +83,12 @@ function ItemRow({
         onClick={() => {
           setMenuOpen(!menuOpen);
           setMoveTo('');
-          setExpanded(false);
+          setView('closed');
         }}
       >
         {menuOpen ? '✕' : '➤'}
       </button>
-      <div className="item-main" onClick={() => { setExpanded(!expanded); setMenuOpen(false); }}>
+      <div className="item-main" onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}>
         <span className="item-name">
           {isMagic(item) && <span className="magic-spark">✨</span>}
           {item.name}
@@ -105,6 +105,9 @@ function ItemRow({
           {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
           {item.value && <span className="tag muted-tag">{item.value}</span>}
         </span>
+        {item.notes && view === 'closed' && (
+          <span className="item-notes-preview muted">{previewText(item.notes)}</span>
+        )}
       </div>
       {menuOpen && (
         <div className="overlay" onClick={() => setMenuOpen(false)}>
@@ -175,18 +178,57 @@ function ItemRow({
           </div>
         </div>
       )}
-      {expanded && (
+      {view === 'detail' && <ItemDetail item={item} onEdit={() => setView('edit')} />}
+      {view === 'edit' && (
         <ItemEditor
           item={item}
           holderAttuned={holderAttuned}
           attunementSlots={attunementSlots}
           onUpdate={(fields) => {
             onUpdate(item.id, fields);
-            setExpanded(false);
+            setView('closed');
           }}
+          onCancel={() => setView('detail')}
         />
       )}
     </li>
+  );
+}
+
+const NOTES_PREVIEW_CHARS = 90;
+const previewText = (n: string) =>
+  n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
+
+function ItemDetail({ item, onEdit }: { item: Item; onEdit: () => void }) {
+  const rows: Array<[string, React.ReactNode]> = [];
+  if (item.type) rows.push(['Type', item.type]);
+  if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
+  if (item.qty > 1) rows.push(['Quantity', item.qty]);
+  if (item.weight !== null)
+    rows.push(['Weight', item.qty > 1 ? `${item.weight} lb each · ${item.weight * item.qty} lb total` : `${item.weight} lb`]);
+  if (item.value) rows.push(['Value', item.value]);
+  if (item.requiresAttunement)
+    rows.push(['Attunement', item.attuned ? `◈ Attuned to ${holderById(item.location).name}` : '◇ Required, not attuned']);
+  else if (item.magic) rows.push(['Magic', 'Yes']);
+
+  return (
+    <div className="item-detail">
+      {item.notes && <p className="item-detail-notes">{item.notes}</p>}
+      {rows.length > 0 && (
+        <dl className="item-detail-grid">
+          {rows.map(([label, value]) => (
+            <div key={label} className="item-detail-row">
+              <dt className="muted">{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
+      <div className="item-detail-actions">
+        <button type="button" className="link-button" onClick={onEdit}>✎ Edit</button>
+      </div>
+    </div>
   );
 }
 
@@ -195,11 +237,13 @@ function ItemEditor({
   holderAttuned,
   attunementSlots,
   onUpdate,
+  onCancel,
 }: {
   item: Item;
   holderAttuned: number;
   attunementSlots: number;
   onUpdate: (fields: Partial<Item>) => void;
+  onCancel: () => void;
 }) {
   const [f, setF] = useState({
     name: item.name,
@@ -305,6 +349,7 @@ function ItemEditor({
       )}
       <div className="editor-buttons wide">
         <button type="submit">Save</button>
+        <button type="button" className="link-button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   );
