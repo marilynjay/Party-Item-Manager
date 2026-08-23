@@ -142,8 +142,8 @@ export function App() {
         {scope === 'home' ? (
           <div className="home">
             <GoldTracker gold={state.gold} icons={state.icons} onSet={(holder, amount) => run(() => api.setGold(holder, amount, actor))} />
-            <button type="button" className="fab" title="Add an item" onClick={() => setAdding(true)}>
-              +
+            <button type="button" className="add-big" onClick={() => setAdding(true)}>
+              <span className="add-big-plus">＋</span> Add
             </button>
             {addModal}
           </div>

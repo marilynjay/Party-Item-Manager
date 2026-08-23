@@ -359,12 +359,20 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   .tab {
     flex-direction: column;
     align-items: center;
+    gap: 5px;
     width: 44px;
     flex-shrink: 0;
-    padding: 8px 2px;
+    padding: 6px 2px;
   }
-  .tab-emoji { font-size: 1.25rem; }
-  .tab-label-full, .tab-label-short { display: none; }
+  .tab-emoji { font-size: 1.1rem; }
+  .tab-label-full { display: none; }
+  .tab-label-short {
+    display: inline;
+    writing-mode: vertical-rl;
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+    flex: none;
+  }
   .tab .badge, .tab .tab-badges { display: none; }
   .main { padding: 14px 12px 60px; }
   .log-time { width: 90px; }
@@ -499,25 +507,24 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 
 /* ---- home ---- */
 
-.home { display: flex; flex-direction: column; gap: 20px; max-width: 560px; margin: 4vh auto 0; }
+.home { display: flex; flex-direction: column; align-items: center; gap: 26px; max-width: 560px; margin: 3vh auto 0; }
+.home .gold-tracker { width: 100%; margin-bottom: 0; }
 
-.fab {
-  position: fixed;
-  right: 26px;
-  bottom: 26px;
-  z-index: 40;
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
+.add-big {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
   background: var(--accent-strong);
   border: none;
   color: #fff;
-  font-size: 2.1rem;
-  line-height: 1;
-  font-weight: 600;
-  box-shadow: 0 6px 20px rgba(143, 92, 232, 0.45);
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 16px 34px;
+  box-shadow: 0 6px 20px rgba(143, 92, 232, 0.4);
 }
-.fab:hover { background: var(--accent) !important; }
+.add-big:hover { background: var(--accent) !important; }
+.add-big-plus { font-size: 1.4rem; line-height: 1; }
 
 .heading-icon {
   background: none;
@@ -548,6 +555,5 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .icon-custom input { flex: 1; }
 
 @media (max-width: 720px) {
-  .fab { right: 18px; bottom: 18px; }
   .home { margin-top: 2vh; }
 }
