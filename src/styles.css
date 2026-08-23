@@ -349,6 +349,8 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 
 @media (max-width: 720px) {
   /* Slim vertical rail: sideways labels, no badges, everything visible at once. */
+  /* iOS zooms into focused inputs below 16px — keep controls at 16px on phones. */
+  input, select, textarea { font-size: 16px; }
   .sidebar {
     width: 48px;
     padding: 8px 4px;
@@ -391,19 +393,16 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 
 .gold-line {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
   width: 100%;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 18px;
-  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 4px 8px;
 }
-.gold-line:hover { border-color: var(--gold); background: var(--bg-raised); }
-.gold-label { font-size: 0.9rem; }
-.gold-amount { font-weight: 700; color: var(--gold); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.gold-line:hover { background: none; }
+.gold-line:hover .gold-amount { text-shadow: 0 0 14px rgba(224, 180, 92, 0.55); }
+.gold-amount { font-weight: 700; color: var(--gold); font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 
 .gold-breakdown {
   background: var(--bg-raised);

@@ -16,8 +16,7 @@ export function GoldTracker({ gold, icons, onSet }: Props) {
 
   return (
     <div className="gold-tracker">
-      <button type="button" className="gold-line" onClick={() => setOpen(!open)} title={open ? 'Hide details' : 'Who holds what'}>
-        <span className="gold-label muted">Party gold</span>
+      <button type="button" className="gold-line" onClick={() => setOpen(!open)} title="Party gold — tap for the breakdown">
         <span className="gold-amount">{fmt(total)} gp</span>
       </button>
       {open && (
