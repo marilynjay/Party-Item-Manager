@@ -282,15 +282,6 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          className="link-button"
-          disabled={!name.trim() || !!money}
-          title="Add this and keep the form open"
-          onClick={() => doAdd(true)}
-        >
-          Add & another
-        </button>
         <button type="button" className="link-button" onClick={() => setCoining(true)}>
           🪙 Coins
         </button>
