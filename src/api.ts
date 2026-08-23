@@ -197,6 +197,8 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
   const from = item.location;
   const now = Date.now();
 
+  // A journal is one-of-a-kind: never merge stacks when either side has
+  // entries, or the pages of one would silently vanish.
   const mergeTarget = db.items.find(
     (i) =>
       i.id !== item.id &&
@@ -204,7 +206,9 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
       i.name.toLowerCase() === item.name.toLowerCase() &&
       i.category === item.category &&
       i.subtype === item.subtype &&
-      i.rarity === item.rarity
+      i.rarity === item.rarity &&
+      !i.entries?.length &&
+      !item.entries?.length
   );
 
   if (n === item.qty) {
@@ -225,10 +229,68 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
       mergeTarget.qty += n;
       mergeTarget.updatedAt = now;
     } else {
-      db.items.push({ ...item, id: newId(), qty: n, location: to, attuned: false, createdAt: now, updatedAt: now });
+      // entries stay with the original stack — the split-off copy is blank pages
+      db.items.push({ ...item, id: newId(), qty: n, location: to, attuned: false, entries: undefined, createdAt: now, updatedAt: now });
     }
   }
   addLog(db, actor, `moved ${n > 1 ? n + ' × ' : ''}${item.name} from ${holderName(from)} to ${holderName(to)}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// ---- journal entries ---------------------------------------------------
+// Information items collect dated entries — a sketch, a name, a clue.
+// Text or a picture (or both); an entry with neither is rejected.
+
+const findEntry = (item: Item, entryId: string) => (item.entries ?? []).find((e) => e.id === entryId);
+
+export function addEntry(
+  itemId: string,
+  fields: { title?: string; text: string; image?: string },
+  actor: string
+): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === itemId);
+  if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  const title = fields.title?.trim() || undefined;
+  const text = fields.text.trim();
+  if (!text && !fields.image) return Promise.reject(new Error('Write something (or add a sketch) first'));
+  item.entries = item.entries ?? [];
+  item.entries.push({ id: newId(), at: Date.now(), title, text, image: fields.image || undefined });
+  item.updatedAt = Date.now();
+  addLog(db, actor, `wrote in ${item.name}${title ? ` — “${title}”` : ''}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function updateEntry(
+  itemId: string,
+  entryId: string,
+  fields: { title?: string; text: string; image?: string },
+  actor: string
+): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === itemId);
+  const entry = item && findEntry(item, entryId);
+  if (!item || !entry) return Promise.reject(new Error('Entry not found — it may have been changed in another tab'));
+  const text = fields.text.trim();
+  if (!text && !fields.image) return Promise.reject(new Error('Write something (or add a sketch) first'));
+  entry.title = fields.title?.trim() || undefined;
+  entry.text = text;
+  entry.image = fields.image || undefined;
+  item.updatedAt = Date.now();
+  addLog(db, actor, `edited an entry in ${item.name}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function deleteEntry(itemId: string, entryId: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === itemId);
+  if (!item || !findEntry(item, entryId)) return Promise.reject(new Error('Entry not found — it may have been changed in another tab'));
+  item.entries = (item.entries ?? []).filter((e) => e.id !== entryId);
+  item.updatedAt = Date.now();
+  addLog(db, actor, `tore a page out of ${item.name}`);
   save(db);
   return Promise.resolve({ ok: true });
 }

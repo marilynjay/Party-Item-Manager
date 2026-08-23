@@ -238,6 +238,9 @@ export function App() {
                   onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
                   onDelete={(id) => run(() => api.deleteItem(id, actor))}
+                  onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
+                  onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
+                  onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
                 />
               </div>
             )}
@@ -307,6 +310,9 @@ export function App() {
               onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
               onDelete={(id) => run(() => api.deleteItem(id, actor))}
+              onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
+              onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
+              onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
             />
           </>
         )}

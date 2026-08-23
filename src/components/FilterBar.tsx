@@ -15,7 +15,16 @@ export const emptyFilters: Filters = { search: '', category: '', subtype: '', ra
 export function applyFilters(items: Item[], f: Filters): Item[] {
   const q = f.search.trim().toLowerCase();
   return items.filter((i) => {
-    if (q && !(i.name.toLowerCase().includes(q) || i.notes.toLowerCase().includes(q) || (i.content ?? '').toLowerCase().includes(q))) return false;
+    if (
+      q &&
+      !(
+        i.name.toLowerCase().includes(q) ||
+        i.notes.toLowerCase().includes(q) ||
+        (i.content ?? '').toLowerCase().includes(q) ||
+        (i.entries ?? []).some((en) => en.text.toLowerCase().includes(q) || (en.title ?? '').toLowerCase().includes(q))
+      )
+    )
+      return false;
     if (f.category && i.category !== f.category) return false;
     if (f.subtype && i.subtype !== f.subtype) return false;
     if (f.rarity && i.rarity !== f.rarity) return false;

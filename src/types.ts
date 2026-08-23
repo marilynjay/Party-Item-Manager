@@ -216,12 +216,26 @@ export const DAMAGE_TYPES = [
   'acid', 'poison', 'necrotic', 'radiant', 'force', 'psychic',
 ] as const;
 
+// One page of a journal-style item: a dated jot with an optional title
+// and an optional sketch (compressed like item photos).
+export interface JournalEntry {
+  id: string;
+  at: number;
+  title?: string;
+  text: string;
+  image?: string;
+}
+
+// Information items (notebooks, maps, deeds…) can accumulate entries.
+export const canJournal = (category: CategoryKey): boolean => category === 'papers';
+
 export interface Item {
   id: string;
   name: string;
   icon?: string;   // chosen emoji; display falls back to defaultIcon()
   image?: string;  // small data-URL photo (compressed client-side)
   content?: string; // papery items: the text written on the thing
+  entries?: JournalEntry[]; // papery items: appended journal entries
   stats?: ItemStats; // type-specific mechanics (damage, AC, charges, …)
   category: CategoryKey;
   subtype: string;

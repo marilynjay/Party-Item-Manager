@@ -1,8 +1,8 @@
 import { AutoTextarea } from './AutoTextarea';
 import { useState } from 'react';
-import type { CategoryKey, HolderId, Icons, Item } from '../types';
+import type { CategoryKey, HolderId, Icons, Item, JournalEntry } from '../types';
 import type { FormField, ItemStats } from '../types';
-import { CATEGORIES, HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
+import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
 import { StatFieldControl, cleanStats } from './StatFields';
 import { DiceGroup } from './Dice';
 import { parseRoll, parseSpellLines, rollDice } from '../dice';
@@ -30,6 +30,9 @@ interface Props {
   onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
   onDelete: (id: string) => void;
+  onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
+  onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
+  onDeleteEntry: (id: string, entryId: string) => void;
 }
 
 const rarityClass = (r: string) => 'rarity-' + r.replace(/\s+/g, '-');
@@ -157,6 +160,9 @@ function ItemRow({
   onCast,
   onUpdate,
   onDelete,
+  onAddEntry,
+  onUpdateEntry,
+  onDeleteEntry,
 }: Props & { item: Item }) {
   const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -259,9 +265,12 @@ function ItemRow({
             {item.value && <span className="tag muted-tag">{item.value}</span>}
           </span>
         )}
-        {(item.content || item.notes) && view === 'closed' && (
-          <span className="item-notes-preview muted">{previewText(item.content || item.notes)}</span>
-        )}
+        {view === 'closed' && (() => {
+          // papery preview: the contents line, else the freshest journal entry, else notes
+          const latest = item.entries?.length ? item.entries[item.entries.length - 1] : undefined;
+          const line = item.content || latest?.title || latest?.text || item.notes;
+          return line ? <span className="item-notes-preview muted">{previewText(line)}</span> : null;
+        })()}
       </div>
       {menuOpen && (
         <div className="overlay" onClick={() => setMenuOpen(false)}>
@@ -361,6 +370,9 @@ function ItemRow({
           onSpend={() => onSpend(item.id)}
           onRecharge={() => onRecharge(item.id)}
           onCast={(spell, cost) => onCast(item.id, spell, cost)}
+          onAddEntry={(fields) => onAddEntry(item.id, fields)}
+          onUpdateEntry={(entryId, fields) => onUpdateEntry(item.id, entryId, fields)}
+          onDeleteEntry={(entryId) => onDeleteEntry(item.id, entryId)}
         />
       )}
       {view === 'edit' && (
@@ -383,7 +395,7 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void }) {
+function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
@@ -452,6 +464,15 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           <p className="item-detail-notes item-content-text">{item.content}</p>
         </div>
       )}
+      {canJournal(item.category) && (
+        <EntriesSection
+          entries={item.entries ?? []}
+          itemName={item.name}
+          onAdd={onAddEntry}
+          onUpdate={onUpdateEntry}
+          onDelete={onDeleteEntry}
+        />
+      )}
       {rows.length > 0 && (
         <dl className="item-detail-grid">
           {rows.map(([label, value]) => (
@@ -492,6 +513,167 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           </button>
         )}
         <button type="button" className="link-button" onClick={onEdit}>✎ Edit</button>
+      </div>
+    </div>
+  );
+}
+
+// A journal's pages: dated entries in the order written, each with an
+// optional title and sketch, editable in place. Lives in the detail view
+// so jotting something down never goes through the full item editor.
+function EntriesSection({
+  entries,
+  itemName,
+  onAdd,
+  onUpdate,
+  onDelete,
+}: {
+  entries: JournalEntry[];
+  itemName: string;
+  onAdd: (fields: { title?: string; text: string; image?: string }) => void;
+  onUpdate: (entryId: string, fields: { title?: string; text: string; image?: string }) => void;
+  onDelete: (entryId: string) => void;
+}) {
+  const [editing, setEditing] = useState<string | null>(null); // entry id, or 'new'
+  const [zoomedId, setZoomedId] = useState<string | null>(null);
+  const zoomed = entries.find((e) => e.id === zoomedId);
+  const when = (at: number) => new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return (
+    <div className="entry-section">
+      {entries.length > 0 && <span className="item-menu-heading muted">Entries</span>}
+      {entries.map((e) =>
+        editing === e.id ? (
+          <EntryEditor
+            key={e.id}
+            initial={e}
+            itemName={itemName}
+            onSave={(fields) => {
+              onUpdate(e.id, fields);
+              setEditing(null);
+            }}
+            onCancel={() => setEditing(null)}
+          />
+        ) : (
+          <div key={e.id} className="entry">
+            <div className="entry-head">
+              {e.title && <span className="entry-title">{e.title}</span>}
+              <span className="entry-date muted">{when(e.at)}</span>
+              <span className="entry-tools">
+                <button type="button" className="entry-tool" title="Edit this entry" onClick={() => setEditing(e.id)}>✎</button>
+                <button
+                  type="button"
+                  className="entry-tool"
+                  title="Tear out this page"
+                  onClick={() => {
+                    if (confirm(`Tear this page out of ${itemName}?${e.title ? ` (“${e.title}”)` : ''}`)) onDelete(e.id);
+                  }}
+                >
+                  🗑
+                </button>
+              </span>
+            </div>
+            {e.text && <p className="entry-text">{e.text}</p>}
+            {e.image && (
+              <img className="entry-photo" src={e.image} alt={e.title || 'sketch'} title="Tap to enlarge" onClick={() => setZoomedId(e.id)} />
+            )}
+          </div>
+        )
+      )}
+      {zoomed?.image && (
+        <div className="overlay photo-zoom" onClick={() => setZoomedId(null)}>
+          <img src={zoomed.image} alt={zoomed.title || 'sketch'} />
+        </div>
+      )}
+      {editing === 'new' ? (
+        <EntryEditor
+          itemName={itemName}
+          onSave={(fields) => {
+            onAdd(fields);
+            setEditing(null);
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      ) : (
+        <button type="button" className="link-button entry-add" onClick={() => setEditing('new')}>
+          ＋ Add entry
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Deliberately not a <form>: the editor can render inside other layouts,
+// and buttons submit explicitly.
+function EntryEditor({
+  initial,
+  itemName,
+  onSave,
+  onCancel,
+}: {
+  initial?: JournalEntry;
+  itemName: string;
+  onSave: (fields: { title?: string; text: string; image?: string }) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [text, setText] = useState(initial?.text ?? '');
+  const [image, setImage] = useState(initial?.image);
+  const [photoError, setPhotoError] = useState('');
+
+  const onPhotoFile = (file: File | undefined) => {
+    if (!file) return;
+    setPhotoError('');
+    compressImage(file)
+      .then(setImage)
+      .catch((e: Error) => setPhotoError(e.message));
+  };
+
+  return (
+    <div className="entry-editor">
+      <input
+        className="entry-title-input"
+        placeholder="Title (optional)"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+      <AutoTextarea
+        rows={3}
+        autoFocus={!initial}
+        placeholder={`Write in ${itemName}…`}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="entry-editor-photo">
+        {image ? (
+          <span className="photo-controls">
+            <img className="item-photo-mini" src={image} alt="" />
+            <label className="link-button photo-pick">
+              Replace sketch
+              <input type="file" accept="image/*" hidden onChange={(e) => onPhotoFile(e.target.files?.[0])} />
+            </label>
+            <button type="button" className="link-button danger-link" onClick={() => setImage(undefined)}>
+              Remove
+            </button>
+          </span>
+        ) : (
+          <label className="link-button photo-pick">
+            📷 Add a sketch
+            <input type="file" accept="image/*" hidden onChange={(e) => onPhotoFile(e.target.files?.[0])} />
+          </label>
+        )}
+        {photoError && <span className="muted photo-error">{photoError}</span>}
+      </div>
+      <div className="entry-editor-buttons">
+        <button
+          type="button"
+          className="entry-save"
+          disabled={!text.trim() && !image}
+          onClick={() => onSave({ title: title.trim() || undefined, text, image })}
+        >
+          Save entry
+        </button>
+        <button type="button" className="link-button" onClick={onCancel}>Cancel</button>
       </div>
     </div>
   );

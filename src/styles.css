@@ -402,6 +402,43 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .item-detail-actions { display: flex; justify-content: flex-end; }
 .item-detail-contents { display: flex; flex-direction: column; gap: 4px; }
 .item-content-text { border-left: 3px solid var(--gold); padding-left: 10px; font-style: italic; white-space: pre-wrap; }
+/* ---- journal entries (Information items) ---- */
+.entry-section { display: flex; flex-direction: column; gap: 8px; }
+.entry {
+  border-left: 3px solid var(--border);
+  padding: 2px 0 2px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.entry-head { display: flex; align-items: baseline; gap: 10px; }
+.entry-title { font-weight: 600; font-size: 0.92rem; }
+.entry-date { font-size: 0.78rem; white-space: nowrap; }
+.entry-tools { margin-left: auto; display: flex; gap: 2px; }
+.entry-tool {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+  opacity: 0.55;
+}
+.entry-tool:hover { background: none; opacity: 1; }
+.entry-text { margin: 0; font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap; }
+.entry-photo { max-height: 120px; max-width: 100%; align-self: flex-start; border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in; }
+.entry-add { align-self: flex-start; padding-left: 0; }
+.entry-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+.entry-editor textarea { resize: vertical; line-height: 1.45; }
+.entry-editor-photo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.entry-editor-buttons { display: flex; align-items: center; gap: 8px; }
+.entry-save { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; font-weight: 600; }
+.entry-save:hover:not(:disabled) { background: var(--accent) !important; }
+
 .attune-pair { display: flex; flex-direction: column; gap: 8px; align-self: end; padding-bottom: 8px; }
 .attune-pair .check { align-self: auto; padding-bottom: 0; }
 .charges-group { display: contents; }
