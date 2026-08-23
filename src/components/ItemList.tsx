@@ -14,6 +14,8 @@ interface Props {
   items: Item[];
   icons: Icons;
   groupByHolder: boolean;
+  collapseScope: string;
+  filtering: boolean;
   highlightMagic: boolean;
   attunedCounts: Map<HolderId, number>;
   attunementSlots: number;
@@ -39,13 +41,37 @@ const subIndex = (c: string, s2: string) => {
   const i = cat.subtypes.indexOf(s2);
   return i < 0 ? 99 : i;
 };
+// Which group headers are folded up, remembered per browser.
+const COLLAPSE_KEY = 'pim-collapsed';
+const readCollapsed = (): Set<string> => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '[]') as string[]);
+  } catch {
+    return new Set();
+  }
+};
+
 const byTaxonomy = (a: Item, b: Item) =>
   catIndex(a.category) - catIndex(b.category) ||
   subIndex(a.category, a.subtype) - subIndex(b.category, b.subtype) ||
   a.name.localeCompare(b.name);
 
 export function ItemList(props: Props) {
-  const { items, groupByHolder, emptyMessage } = props;
+  const { items, groupByHolder, emptyMessage, collapseScope, filtering } = props;
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggle = (key: string) => {
+    const next = new Set(collapsed);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
+    } catch {
+      // fine — collapse state is a convenience
+    }
+  };
+  // an active search always shows its matches, collapsed or not
+  const isFolded = (key: string) => !filtering && collapsed.has(key);
   if (items.length === 0) return <div className="empty muted">{emptyMessage}</div>;
 
   if (!groupByHolder) {
@@ -60,40 +86,54 @@ export function ItemList(props: Props) {
     if (loose.length) groups.push({ key: 'loose', label: 'Uncategorized', items: loose });
     return (
       <>
-        {groups.map((g) => (
-          <section key={g.key} className="cat-group">
-            <h3 className="cat-group-heading muted">
-              {g.label} <span className="cat-group-count">· {g.items.length}</span>
-            </h3>
-            <ul className="item-list">
-              {g.items.map((i) => (
-                <ItemRow key={i.id} item={i} {...props} />
-              ))}
-            </ul>
-          </section>
-        ))}
+        {groups.map((g) => {
+          const key = `${collapseScope}:${g.key}`;
+          const folded = isFolded(key);
+          return (
+            <section key={g.key} className="cat-group">
+              <button type="button" className="cat-group-heading muted" onClick={() => toggle(key)}>
+                <span className="fold-caret">{folded ? '▸' : '▾'}</span>
+                {g.label} <span className="cat-group-count">· {g.items.length}</span>
+              </button>
+              {!folded && (
+                <ul className="item-list">
+                  {g.items.map((i) => (
+                    <ItemRow key={i.id} item={i} {...props} />
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
       </>
     );
   }
 
   return (
     <>
-      {HOLDERS.filter((h) => items.some((i) => i.location === h.id)).map((h) => (
-        <section key={h.id} className="holder-group">
-          <h2 className="holder-heading">
-            <span>{holderIcon(props.icons, h)}</span> {h.name}
-            <span className="muted"> · {items.filter((i) => i.location === h.id).length}</span>
-          </h2>
-          <ul className="item-list">
-            {items
-              .filter((i) => i.location === h.id)
-              .sort(byTaxonomy)
-              .map((i) => (
-                <ItemRow key={i.id} item={i} {...props} />
-              ))}
-          </ul>
-        </section>
-      ))}
+      {HOLDERS.filter((h) => items.some((i) => i.location === h.id)).map((h) => {
+        const key = `${collapseScope}:${h.id}`;
+        const folded = isFolded(key);
+        return (
+          <section key={h.id} className="holder-group">
+            <button type="button" className="holder-heading" onClick={() => toggle(key)}>
+              <span className="fold-caret muted">{folded ? '▸' : '▾'}</span>
+              <span>{holderIcon(props.icons, h)}</span> {h.name}
+              <span className="muted"> · {items.filter((i) => i.location === h.id).length}</span>
+            </button>
+            {!folded && (
+              <ul className="item-list">
+                {items
+                  .filter((i) => i.location === h.id)
+                  .sort(byTaxonomy)
+                  .map((i) => (
+                    <ItemRow key={i.id} item={i} {...props} />
+                  ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
     </>
   );
 }

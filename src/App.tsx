@@ -218,6 +218,8 @@ export function App() {
                 <ItemList
                   items={visible}
                   icons={state.icons}
+                  collapseScope="home"
+                  filtering
                   groupByHolder
                   highlightMagic={filters.magicOnly}
                   attunedCounts={attunedCounts}
@@ -255,6 +257,8 @@ export function App() {
             <ItemList
               items={visible}
               icons={state.icons}
+              collapseScope={scope}
+              filtering={filtering}
               groupByHolder={scope === 'all'}
               highlightMagic={filters.magicOnly}
               attunedCounts={attunedCounts}
