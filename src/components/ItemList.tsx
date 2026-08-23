@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, categoryOf, hidesAttunement, hidesWeight, holderById, holderIcon } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, categoryOf, hidesAttunement, hidesWeight, holderById, holderIcon, itemIcon } from '../types';
 import { CategoryPicker } from './CategoryPicker';
+import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
+import { compressImage } from '../image';
 
 interface Props {
   items: Item[];
@@ -92,7 +94,7 @@ function ItemRow({
       </button>
       <div className="item-main" onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}>
         <span className="item-name">
-          {isMagic(item) && <span className="magic-spark">✨</span>}
+          <span className="item-icon">{itemIcon(item)}</span>
           {item.name}
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
         </span>
@@ -116,7 +118,7 @@ function ItemRow({
           <div className="modal send-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h2>
-                {item.name}
+                {itemIcon(item)} {item.name}
                 {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
               </h2>
               <button type="button" className="link-button" onClick={() => setMenuOpen(false)}>✕</button>
@@ -211,6 +213,7 @@ const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
 function ItemDetail({ item, onEdit }: { item: Item; onEdit: () => void }) {
+  const [zoomed, setZoomed] = useState(false);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
   if (cat) rows.push(['Type', `${cat.emoji} ${cat.name}${item.subtype ? ' · ' + item.subtype : ''}`]);
@@ -225,6 +228,20 @@ function ItemDetail({ item, onEdit }: { item: Item; onEdit: () => void }) {
 
   return (
     <div className="item-detail">
+      {item.image && (
+        <img
+          className="item-photo-thumb"
+          src={item.image}
+          alt={item.name}
+          title="Tap to enlarge"
+          onClick={() => setZoomed(true)}
+        />
+      )}
+      {zoomed && item.image && (
+        <div className="overlay photo-zoom" onClick={() => setZoomed(false)}>
+          <img src={item.image} alt={item.name} />
+        </div>
+      )}
       {item.notes && <p className="item-detail-notes">{item.notes}</p>}
       {rows.length > 0 && (
         <dl className="item-detail-grid">
@@ -259,6 +276,8 @@ function ItemEditor({
 }) {
   const [f, setF] = useState({
     name: item.name,
+    icon: item.icon ?? '',
+    image: item.image,
     qty: item.qty,
     category: item.category as CategoryKey,
     subtype: item.subtype,
@@ -271,6 +290,17 @@ function ItemEditor({
     notes: item.notes,
   });
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
+  const [pickingIcon, setPickingIcon] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const shownIcon = f.icon || itemIcon({ ...item, icon: '', name: f.name, category: f.category, subtype: f.subtype });
+
+  const onPhotoFile = (file: File | undefined) => {
+    if (!file) return;
+    setPhotoError('');
+    compressImage(file)
+      .then((dataUrl) => set({ image: dataUrl }))
+      .catch((e: Error) => setPhotoError(e.message));
+  };
 
   const attuningNew = f.attuned && !item.attuned;
   const wouldExceed = attuningNew && item.location !== 'senchez' && holderAttuned >= attunementSlots;
@@ -284,6 +314,8 @@ function ItemEditor({
         const noAttune = hidesAttunement(f.category, f.subtype);
         onUpdate({
           name: f.name,
+          icon: f.icon || undefined,
+          image: f.image,
           qty: f.qty,
           category: f.category,
           subtype: f.subtype,
@@ -299,7 +331,12 @@ function ItemEditor({
     >
       <label>
         Name
-        <input value={f.name} onChange={(e) => set({ name: e.target.value })} />
+        <span className="name-with-icon">
+          <button type="button" className="item-icon-button" title="Change icon" onClick={() => setPickingIcon(true)}>
+            {shownIcon}
+          </button>
+          <input value={f.name} onChange={(e) => set({ name: e.target.value })} />
+        </span>
       </label>
       <label>
         Qty
@@ -359,10 +396,42 @@ function ItemEditor({
           You can still save, but the rules will judge you.
         </div>
       )}
+      <div className="wide photo-field">
+        {f.image ? (
+          <span className="photo-controls">
+            <img className="item-photo-mini" src={f.image} alt="" />
+            <label className="link-button photo-pick">
+              Replace picture
+              <input type="file" accept="image/*" hidden onChange={(e) => onPhotoFile(e.target.files?.[0])} />
+            </label>
+            <button type="button" className="link-button danger-link" onClick={() => set({ image: undefined })}>
+              Remove
+            </button>
+          </span>
+        ) : (
+          <label className="link-button photo-pick">
+            📷 Add a picture
+            <input type="file" accept="image/*" hidden onChange={(e) => onPhotoFile(e.target.files?.[0])} />
+          </label>
+        )}
+        {photoError && <span className="muted photo-error">{photoError}</span>}
+      </div>
       <div className="editor-buttons wide">
         <button type="submit">Save</button>
         <button type="button" className="link-button" onClick={onCancel}>Cancel</button>
       </div>
+      {pickingIcon && (
+        <IconPicker
+          title={`${f.name || 'item'} icon`}
+          presets={ITEM_ICON_PRESETS}
+          current={shownIcon}
+          onPick={(icon) => {
+            set({ icon });
+            setPickingIcon(false);
+          }}
+          onClose={() => setPickingIcon(false)}
+        />
+      )}
     </form>
   );
 }

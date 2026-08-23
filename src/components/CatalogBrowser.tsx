@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { CatalogItem } from '../catalog';
 import { CATALOG } from '../catalog';
 import type { CategoryKey } from '../types';
-import { CATEGORIES, categoryLabel } from '../types';
+import { CATEGORIES, categoryLabel, defaultIcon } from '../types';
 
 const TABS: Array<[string, string]> = [
   ['all', 'All'],
@@ -77,7 +77,7 @@ export function CatalogBrowser({ custom, onPick, onDeleteCustom, onClose }: Prop
             <div key={'✦' + it.name} className="cat-custom-row">
               <button type="button" className="cat-row" onClick={() => onPick(it)}>
                 <span className="cat-row-top">
-                  <span className="cat-name"><span className="custom-mark">✦</span> {it.name}</span>
+                  <span className="cat-name"><span className="custom-mark">✦</span> {defaultIcon(it.category as CategoryKey, it.subtype, it.name)} {it.name}</span>
                   <span className="item-tags">
                     {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
                     {categoryLabel(it.category as CategoryKey, it.subtype) && <span className="tag">{categoryLabel(it.category as CategoryKey, it.subtype)}</span>}
@@ -109,7 +109,7 @@ export function CatalogBrowser({ custom, onPick, onDeleteCustom, onClose }: Prop
           {shown.map((it) => (
             <button key={it.name} type="button" className="cat-row" onClick={() => onPick(it)}>
               <span className="cat-row-top">
-                <span className="cat-name">{it.name}</span>
+                <span className="cat-name">{defaultIcon(it.category as CategoryKey, it.subtype, it.name)} {it.name}</span>
                 <span className="item-tags">
                   {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
                   {categoryLabel(it.category as CategoryKey, it.subtype) && <span className="tag">{categoryLabel(it.category as CategoryKey, it.subtype)}</span>}

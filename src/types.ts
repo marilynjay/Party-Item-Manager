@@ -45,6 +45,52 @@ export const categoryOf = (key: CategoryKey): ItemCategory | undefined => CATEGO
 export const categoryLabel = (category: CategoryKey, subtype: string): string =>
   subtype || categoryOf(category)?.name.toLowerCase() || '';
 
+// Name-flavored icons first, then category/subtype defaults.
+const NAME_ICONS: Array<[RegExp, string]> = [
+  [/sword|blade|scimitar|rapier|dagger|defender/, '🗡️'],
+  [/axe|battleaxe|greataxe|handaxe/, '🪓'],
+  [/hammer|maul|mace|club|morningstar|flail|thunderbolts/, '🔨'],
+  [/bow|longbow|shortbow|crossbow|sling|oathbow|arrow|ammunition/, '🏹'],
+  [/trident/, '🔱'],
+  [/crown/, '👑'],
+  [/helm|circlet|headband/, '🪖'],
+  [/goggles|eyes of/, '🥽'],
+  [/horn of/, '📯'],
+  [/key/, '🗝️'],
+  [/lantern/, '🏮'],
+  [/torch|candle/, '🕯️'],
+  [/rope/, '🪢'],
+  [/mirror/, '🪞'],
+  [/crystal ball|orb|pearl/, '🔮'],
+  [/deck of/, '🃏'],
+  [/figurine|statue|stone golem/, '🗿'],
+  [/feather/, '🪶'],
+  [/bead|necklace|medallion|periapt|talisman|scarab|amulet|brooch/, '📿'],
+  [/map/, '🗺️'],
+];
+
+const SUBTYPE_ICONS: Record<string, string> = {
+  'weapon': '⚔️', 'armor': '🛡️', 'shield': '🛡️', 'ammunition': '🏹',
+  'ring': '💍', 'cloak': '🧥', 'boots': '🥾', 'belt': '➰', 'headwear': '🎩', 'amulet': '📿', 'gloves': '🧤',
+  'potion': '🧪', 'scroll': '📜', 'food & drink': '🍖', 'alchemical': '⚗️',
+  'wand': '🪄', 'staff': '🦯', 'rod': '🪄', 'focus': '🔮', 'spellbook': '📖',
+  'tool': '🛠️', 'container': '🎒', 'camp gear': '🏕️', 'instrument': '🪕',
+  'note': '📝', 'map': '🗺️', 'deed': '📜', 'book': '📕', 'gems': '💎', 'art': '🏺',
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  gear: '⚔️', accessory: '💍', consumable: '🧪', arcana: '🪄', supplies: '🎒', papers: '📜', other: '📦',
+};
+
+export function defaultIcon(category: CategoryKey, subtype: string, name: string): string {
+  const n = name.toLowerCase();
+  for (const [re, icon] of NAME_ICONS) if (re.test(n)) return icon;
+  return SUBTYPE_ICONS[subtype] || CATEGORY_ICONS[category] || '📦';
+}
+
+export const itemIcon = (i: Pick<Item, 'icon' | 'category' | 'subtype' | 'name'>): string =>
+  i.icon || defaultIcon(i.category, i.subtype, i.name);
+
 // Papers don't encumber; you can't attune to a sandwich or a deed.
 export const hidesWeight = (category: CategoryKey): boolean => category === 'papers';
 export const hidesAttunement = (category: CategoryKey, subtype: string): boolean =>
@@ -90,6 +136,8 @@ export const RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary',
 export interface Item {
   id: string;
   name: string;
+  icon?: string;   // chosen emoji; display falls back to defaultIcon()
+  image?: string;  // small data-URL photo (compressed client-side)
   category: CategoryKey;
   subtype: string;
   rarity: string;

@@ -43,7 +43,11 @@ function load(): AppState {
 }
 
 function save(db: AppState): void {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  } catch {
+    throw new Error('Storage is full — remove a picture or two to make room.');
+  }
 }
 
 const newId = () => Math.random().toString(16).slice(2, 10) + Date.now().toString(16);

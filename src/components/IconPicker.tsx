@@ -1,30 +1,36 @@
 import { useState } from 'react';
-import type { Holder } from '../types';
 
-const PRESETS = [
+export const HOLDER_ICON_PRESETS = [
   '🗡️', '🛡️', '🏹', '✨', '🪓', '🎒', '🧙', '🧝', '🐉', '🦊', '🐺', '🐸',
   '🦉', '🐴', '🔥', '❄️', '🌙', '⭐', '☠️', '🍄', '🗿', '🪶', '🎲', '🔮',
   '⚗️', '🏺', '📯', '🃏', '🌿', '🪙',
 ];
 
+export const ITEM_ICON_PRESETS = [
+  '🗡️', '⚔️', '🪓', '🔨', '🏹', '🔱', '🛡️', '🥾', '🧥', '💍', '📿', '🧤',
+  '🎩', '👑', '🪖', '🧪', '⚗️', '📜', '🍖', '🍺', '🪄', '🔮', '📕', '📖',
+  '🗺️', '📝', '💎', '🏺', '🎒', '🛠️', '🪢', '🕯️', '🪕', '🗝️', '🃏', '📦',
+];
+
 interface Props {
-  holder: Holder;
+  title: string;
   current: string;
+  presets: string[];
   onPick: (icon: string) => void;
   onClose: () => void;
 }
 
-export function IconPicker({ holder, current, onPick, onClose }: Props) {
+export function IconPicker({ title, current, presets, onPick, onClose }: Props) {
   const [custom, setCustom] = useState('');
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal icon-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>{current} {holder.name}’s icon</h2>
+          <h2>{current} {title}</h2>
           <button type="button" className="link-button" onClick={onClose}>✕</button>
         </div>
         <div className="icon-grid">
-          {PRESETS.map((e) => (
+          {presets.map((e) => (
             <button
               key={e}
               type="button"

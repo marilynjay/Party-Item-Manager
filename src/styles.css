@@ -365,6 +365,19 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .move-qty-form button { font-size: 0.88rem; padding: 5px 10px; }
 
 .item-notes-preview { width: 100%; font-size: 0.83rem; line-height: 1.4; }
+.item-icon { margin-right: 7px; }
+.name-with-icon { display: flex; gap: 6px; align-items: center; }
+.name-with-icon input { flex: 1; min-width: 0; }
+.item-icon-button { font-size: 1.15rem; padding: 5px 9px; background: var(--bg-raised); }
+.item-photo-thumb { max-height: 180px; max-width: 100%; border-radius: 10px; align-self: flex-start; cursor: zoom-in; border: 1px solid var(--border); }
+.item-photo-mini { height: 44px; border-radius: 6px; border: 1px solid var(--border); }
+.photo-zoom { cursor: zoom-out; }
+.photo-zoom img { max-width: 96vw; max-height: 92vh; border-radius: 10px; }
+.photo-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.photo-controls { display: flex; align-items: center; gap: 10px; }
+.photo-pick { cursor: pointer; }
+.danger-link { color: var(--danger); }
+.photo-error { color: var(--danger); font-size: 0.85rem; }
 
 .item-detail {
   width: 100%;

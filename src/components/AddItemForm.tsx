@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Item } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, hidesAttunement, hidesWeight, holderById } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, defaultIcon, hidesAttunement, hidesWeight, holderById } from '../types';
 import { CategoryPicker } from './CategoryPicker';
 import type { CatalogItem } from '../catalog';
 import { searchCatalog } from '../catalog';
@@ -239,7 +239,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     return (
       <button key={(s.custom ? '✦' : '') + it.name} type="button" className={`suggest-row ${active}`}
         onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}>
-        <span>{s.custom && <span className="custom-mark">✦ </span>}{it.name}</span>
+        <span>{s.custom && <span className="custom-mark">✦ </span>}{defaultIcon(it.category as CategoryKey, it.subtype, it.name)} {it.name}</span>
         <span className="item-tags">
           {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
           {categoryLabel(it.category as CategoryKey, it.subtype) && (

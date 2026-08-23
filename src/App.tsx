@@ -8,7 +8,7 @@ import { AddItemForm } from './components/AddItemForm';
 import { ItemList } from './components/ItemList';
 import { LogPanel } from './components/LogPanel';
 import { GoldTracker } from './components/GoldTracker';
-import { IconPicker } from './components/IconPicker';
+import { HOLDER_ICON_PRESETS, IconPicker } from './components/IconPicker';
 import { PP_IN_GP } from './types';
 
 // A holder's coin line, shown on their own tab when they carry anything;
@@ -271,7 +271,8 @@ export function App() {
         {addModal}
         {pickingIcon && scopeHolder && (
           <IconPicker
-            holder={scopeHolder}
+            title={`${scopeHolder.name}’s icon`}
+            presets={HOLDER_ICON_PRESETS}
             current={holderIcon(state.icons, scopeHolder)}
             onPick={(icon) => {
               void run(() => api.setIcon(scopeHolder.id, icon, actor));
