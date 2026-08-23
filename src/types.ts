@@ -91,14 +91,48 @@ export function defaultIcon(category: CategoryKey, subtype: string, name: string
 export const itemIcon = (i: Pick<Item, 'icon' | 'category' | 'subtype' | 'name'>): string =>
   i.icon || defaultIcon(i.category, i.subtype, i.name);
 
-// Paper doesn't encumber and you can't attune to a sandwich or a deed —
-// but only for the subtypes that are actually paper. "Other" and weighty
-// treasure (gems, art, books) keep the full generic form.
+// Each kind of item gets the fields that make sense for it up front; the
+// rest wait under "More options". A field in neither list is hidden and
+// scrubbed on save. "Other"/unset subtypes get the full generic form.
+export type FormField = 'rarity' | 'weight' | 'value' | 'magic' | 'attunement' | 'content';
+export interface FormPlan { primary: FormField[]; advanced: FormField[] }
+
+const GENERIC: FormPlan = { primary: ['rarity', 'weight', 'value', 'magic', 'attunement'], advanced: [] };
 const PAPERY = ['note', 'map', 'deed'];
-export const hidesWeight = (category: CategoryKey, subtype: string): boolean =>
-  category === 'papers' && PAPERY.includes(subtype);
-export const hidesAttunement = (category: CategoryKey, subtype: string): boolean =>
-  (category === 'papers' && PAPERY.includes(subtype)) || (category === 'consumable' && subtype === 'food & drink');
+
+export function formPlan(category: CategoryKey, subtype: string): FormPlan {
+  switch (category) {
+    case 'papers':
+      if (PAPERY.includes(subtype)) return { primary: ['content'], advanced: ['rarity', 'value', 'magic'] };
+      if (subtype === 'book') return { primary: ['content', 'weight'], advanced: ['rarity', 'value', 'magic', 'attunement'] };
+      if (subtype === 'gems' || subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic', 'attunement'] };
+      return { primary: ['content', ...GENERIC.primary], advanced: [] };
+    case 'consumable':
+      if (subtype === 'food & drink') return { primary: ['weight'], advanced: ['rarity', 'value', 'magic'] };
+      if (subtype) return { primary: ['rarity'], advanced: ['weight', 'value', 'magic', 'attunement'] };
+      return GENERIC;
+    case 'gear':
+      return subtype ? { primary: ['rarity', 'weight', 'attunement'], advanced: ['value', 'magic'] } : GENERIC;
+    case 'accessory':
+    case 'arcana':
+      return subtype ? { primary: ['rarity', 'attunement'], advanced: ['weight', 'value', 'magic'] } : GENERIC;
+    case 'supplies':
+      return subtype ? { primary: ['weight'], advanced: ['rarity', 'value', 'magic', 'attunement'] } : GENERIC;
+    default:
+      return GENERIC;
+  }
+}
+
+export function planHas(category: CategoryKey, subtype: string, field: FormField): boolean {
+  const p = formPlan(category, subtype);
+  return p.primary.includes(field) || p.advanced.includes(field);
+}
+
+export const hidesWeight = (category: CategoryKey, subtype: string): boolean => !planHas(category, subtype, 'weight');
+export const hidesAttunement = (category: CategoryKey, subtype: string): boolean => !planHas(category, subtype, 'attunement');
+
+export const notesLabel = (category: CategoryKey, subtype: string): string =>
+  category === 'papers' && (PAPERY.includes(subtype) || subtype === 'book') ? 'What it looks like' : 'Notes';
 
 // Maps the old flat type strings (and "wondrous item" by name) onto the
 // category/subtype taxonomy. Used to migrate stored items and the catalogue.
@@ -142,6 +176,7 @@ export interface Item {
   name: string;
   icon?: string;   // chosen emoji; display falls back to defaultIcon()
   image?: string;  // small data-URL photo (compressed client-side)
+  content?: string; // papery items: the text written on the thing
   category: CategoryKey;
   subtype: string;
   rarity: string;

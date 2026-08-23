@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, categoryOf, hidesAttunement, hidesWeight, holderById, holderIcon, itemIcon } from '../types';
+import type { FormField } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, holderById, holderIcon, itemIcon } from '../types';
 import { CategoryPicker } from './CategoryPicker';
 import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
 import { compressImage } from '../image';
@@ -245,6 +246,12 @@ function ItemDetail({ item, onEdit }: { item: Item; onEdit: () => void }) {
         </div>
       )}
       {item.notes && <p className="item-detail-notes">{item.notes}</p>}
+      {item.content && (
+        <div className="item-detail-contents">
+          <span className="item-menu-heading muted">Contents</span>
+          <p className="item-detail-notes item-content-text">{item.content}</p>
+        </div>
+      )}
       {rows.length > 0 && (
         <dl className="item-detail-grid">
           {rows.map(([label, value]) => (
@@ -290,7 +297,14 @@ function ItemEditor({
     requiresAttunement: item.requiresAttunement,
     attuned: item.attuned,
     notes: item.notes,
+    content: item.content ?? '',
   });
+  const plan = formPlan(item.category, item.subtype);
+  // surface the tucked-away fields if any of them already hold a value
+  const [moreOpen, setMoreOpen] = useState(
+    Boolean(item.rarity || item.value || item.magic || item.requiresAttunement || item.weight !== null) &&
+      formPlan(item.category, item.subtype).advanced.length > 0
+  );
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
   const [pickingIcon, setPickingIcon] = useState(false);
   const [catDone, setCatDone] = useState(item.category !== '');
@@ -305,6 +319,72 @@ function ItemEditor({
       .catch((e: Error) => setPhotoError(e.message));
   };
 
+  const editorField = (field: FormField, advanced = false): React.ReactNode => {
+    const tier = advanced ? plan.advanced : plan.primary;
+    if (!tier.includes(field)) return null;
+    switch (field) {
+      case 'rarity':
+        return (
+          <label key={field}>
+            Rarity
+            <select value={f.rarity} onChange={(e) => set({ rarity: e.target.value })}>
+              <option value="">—</option>
+              {RARITIES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+        );
+      case 'weight':
+        return (
+          <label key={field}>
+            Weight (lb each)
+            <input type="number" min={0} step="0.1" value={f.weight} onChange={(e) => set({ weight: e.target.value })} />
+          </label>
+        );
+      case 'value':
+        return (
+          <label key={field}>
+            Value
+            <input value={f.value} onChange={(e) => set({ value: e.target.value })} />
+          </label>
+        );
+      case 'magic':
+        return (
+          <label key={field} className="check">
+            <input type="checkbox" checked={f.magic} onChange={(e) => set({ magic: e.target.checked })} />
+            Magic item
+          </label>
+        );
+      case 'attunement':
+        return (
+          <span key={field} className="attune-pair">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={f.requiresAttunement}
+                onChange={(e) => set({ requiresAttunement: e.target.checked, attuned: e.target.checked ? f.attuned : false })}
+              />
+              Requires attunement
+            </label>
+            {f.requiresAttunement && item.location !== 'senchez' && (
+              <label className="check">
+                <input type="checkbox" checked={f.attuned} onChange={(e) => set({ attuned: e.target.checked })} />
+                Attuned to {holderById(item.location).name}
+              </label>
+            )}
+          </span>
+        );
+      case 'content':
+        return (
+          <label key={field} className="wide">
+            Contents — what's written on it
+            <textarea rows={3} value={f.content} onChange={(e) => set({ content: e.target.value })} />
+          </label>
+        );
+    }
+  };
+
   const attuningNew = f.attuned && !item.attuned;
   const wouldExceed = attuningNew && item.location !== 'senchez' && holderAttuned >= attunementSlots;
 
@@ -313,8 +393,8 @@ function ItemEditor({
       className="item-editor"
       onSubmit={(e) => {
         e.preventDefault();
-        const noWeight = hidesWeight(f.category, f.subtype);
-        const noAttune = hidesAttunement(f.category, f.subtype);
+        const noWeight = !planHas(f.category, f.subtype, 'weight');
+        const noAttune = !planHas(f.category, f.subtype, 'attunement');
         onUpdate({
           name: f.name,
           icon: f.icon || undefined,
@@ -329,6 +409,7 @@ function ItemEditor({
           requiresAttunement: !noAttune && f.requiresAttunement,
           attuned: !noAttune && f.requiresAttunement ? f.attuned : false,
           notes: f.notes,
+          content: planHas(f.category, f.subtype, 'content') ? f.content : '',
         });
       }}
     >
@@ -356,51 +437,30 @@ function ItemEditor({
           }}
         />
       </div>
-      <label>
-        Rarity
-        <select value={f.rarity} onChange={(e) => set({ rarity: e.target.value })}>
-          <option value="">—</option>
-          {RARITIES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
-      </label>
-      {!hidesWeight(f.category, f.subtype) && (
-        <label>
-          Weight (lb each)
-          <input type="number" min={0} step="0.1" value={f.weight} onChange={(e) => set({ weight: e.target.value })} />
-        </label>
-      )}
-      <label>
-        Value
-        <input value={f.value} onChange={(e) => set({ value: e.target.value })} />
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={f.magic} onChange={(e) => set({ magic: e.target.checked })} />
-        Magic item
-      </label>
-      {!hidesAttunement(f.category, f.subtype) && (
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={f.requiresAttunement}
-            onChange={(e) => set({ requiresAttunement: e.target.checked, attuned: e.target.checked ? f.attuned : false })}
-          />
-          Requires attunement
-        </label>
-      )}
-      {!hidesAttunement(f.category, f.subtype) && f.requiresAttunement && item.location !== 'senchez' && (
-        <label className="check">
-          <input type="checkbox" checked={f.attuned} onChange={(e) => set({ attuned: e.target.checked })} />
-          Attuned to {holderById(item.location).name}
-        </label>
-      )}
+      {editorField('rarity')}
+      {editorField('weight')}
+      {editorField('value')}
+      {editorField('content')}
       <label className="wide">
-        Notes
+        {notesLabel(f.category, f.subtype)}
         <textarea rows={3} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </label>
+      {plan.advanced.length > 0 && (
+        <div className="wide">
+          <button type="button" className="link-button" onClick={() => setMoreOpen(!moreOpen)}>
+            More options {moreOpen ? '▴' : '▾'}
+          </button>
+        </div>
+      )}
+      {moreOpen && (<>
+        {editorField('rarity', true)}
+        {editorField('weight', true)}
+        {editorField('value', true)}
+        {editorField('magic', true)}
+        {editorField('attunement', true)}
+      </>)}
+      {editorField('magic')}
+      {editorField('attunement')}
       {wouldExceed && (
         <div className="attune-warning wide">
           ⚠️ {holderById(item.location).name} already has {holderAttuned}/{attunementSlots} attunement slots in use.

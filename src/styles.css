@@ -394,6 +394,10 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .item-detail-row dt { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; min-width: 84px; }
 .item-detail-row dd { margin: 0; font-size: 0.92rem; }
 .item-detail-actions { display: flex; justify-content: flex-end; }
+.item-detail-contents { display: flex; flex-direction: column; gap: 4px; }
+.item-content-text { border-left: 3px solid var(--gold); padding-left: 10px; font-style: italic; white-space: pre-wrap; }
+.attune-pair { display: flex; flex-direction: column; gap: 8px; align-self: end; padding-bottom: 8px; }
+.attune-pair .check { align-self: auto; padding-bottom: 0; }
 
 .item-editor {
   width: 100%;

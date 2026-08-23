@@ -147,6 +147,8 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     attuned: Boolean(fields.requiresAttunement && fields.attuned && (fields.location ?? 'senchez') !== 'senchez'),
     location: fields.location ?? 'senchez',
     notes: fields.notes ?? '',
+    content: fields.content || undefined,
+    image: fields.image || undefined,
     createdAt: now,
     updatedAt: now,
   };

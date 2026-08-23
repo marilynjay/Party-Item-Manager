@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Item } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, defaultIcon, hidesAttunement, hidesWeight, holderById } from '../types';
+import type { FormField } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, defaultIcon, formPlan, notesLabel, planHas, holderById } from '../types';
+import { compressImage } from '../image';
 import { CategoryPicker } from './CategoryPicker';
 import type { CatalogItem } from '../catalog';
 import { searchCatalog } from '../catalog';
@@ -69,6 +71,8 @@ const blankAdvanced = {
   requiresAttunement: false,
   attuned: false,
   notes: '',
+  content: '',
+  image: undefined as string | undefined,
 };
 
 export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSaveCustom, onDeleteCustom, onClose }: Props) {
@@ -82,6 +86,8 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const [picked, setPicked] = useState<CatalogItem | null>(null);
   const [browsing, setBrowsing] = useState(false);
   const [coining, setCoining] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
 
   const target = location === 'auto' ? defaultLocation : location;
@@ -91,6 +97,84 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     name.trim() !== '' && !money && !picked && !suggestFor(name, custom).some((r) => r.kind === 'item');
   // rarity above common already counts as magic in every filter
   const impliedMagic = adv.rarity !== '' && adv.rarity !== 'common';
+  const plan = formPlan(adv.category, adv.subtype);
+
+  const onPhotoFile = (file: File | undefined) => {
+    if (!file) return;
+    setPhotoError('');
+    compressImage(file)
+      .then((dataUrl) => setAdv((prev) => ({ ...prev, image: dataUrl })))
+      .catch((e: Error) => setPhotoError(e.message));
+  };
+
+  const fieldEl = (f: FormField) => {
+    switch (f) {
+      case 'rarity':
+        return (
+          <label key={f}>
+            Rarity
+            <select value={adv.rarity} onChange={(e) => setA({ rarity: e.target.value })}>
+              <option value="">—</option>
+              {RARITIES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+        );
+      case 'weight':
+        return (
+          <label key={f}>
+            Weight (lb each)
+            <input type="number" min={0} step="0.1" value={adv.weight} onChange={(e) => setA({ weight: e.target.value })} />
+          </label>
+        );
+      case 'value':
+        return (
+          <label key={f}>
+            Value
+            <input placeholder="e.g. 50 gp" value={adv.value} onChange={(e) => setA({ value: e.target.value })} />
+          </label>
+        );
+      case 'magic':
+        return (
+          <label key={f} className="check" title={impliedMagic ? 'Anything above common counts as magic already' : undefined}>
+            <input
+              type="checkbox"
+              checked={adv.magic || impliedMagic}
+              disabled={impliedMagic}
+              onChange={(e) => setA({ magic: e.target.checked })}
+            />
+            Magic item{impliedMagic && <span className="muted"> (implied by rarity)</span>}
+          </label>
+        );
+      case 'attunement':
+        return (
+          <span key={f} className="attune-pair">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={adv.requiresAttunement}
+                onChange={(e) => setA({ requiresAttunement: e.target.checked, attuned: e.target.checked ? adv.attuned : false })}
+              />
+              Requires attunement
+            </label>
+            {adv.requiresAttunement && target !== 'senchez' && (
+              <label className="check">
+                <input type="checkbox" checked={adv.attuned} onChange={(e) => setA({ attuned: e.target.checked })} />
+                Already attuned to {holderName(target)}
+              </label>
+            )}
+          </span>
+        );
+      case 'content':
+        return (
+          <label key={f} className="wide">
+            Contents — what's written on it
+            <textarea rows={3} value={adv.content} onChange={(e) => setA({ content: e.target.value })} />
+          </label>
+        );
+    }
+  };
 
   const applyCatalog = (it: CatalogItem) => {
     setName(it.name);
@@ -105,6 +189,8 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       requiresAttunement: it.requiresAttunement,
       attuned: false,
       notes: it.rules,
+      content: '',
+      image: undefined,
     });
     setPicked(it);
     setSuggestions([]);
@@ -164,9 +250,10 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       onClose();
       return;
     }
-    const noWeight = hidesWeight(adv.category, adv.subtype);
-    const noAttune = hidesAttunement(adv.category, adv.subtype);
+    const noWeight = !planHas(adv.category, adv.subtype, 'weight');
+    const noAttune = !planHas(adv.category, adv.subtype, 'attunement');
     const weight = noWeight || adv.weight === '' ? null : Number(adv.weight);
+    const content = planHas(adv.category, adv.subtype, 'content') ? adv.content : '';
     void onAdd({
       name: name.trim(),
       qty,
@@ -180,6 +267,8 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       requiresAttunement: !noAttune && adv.requiresAttunement,
       attuned: !noAttune && adv.attuned,
       notes: adv.notes,
+      content,
+      image: adv.image,
     });
     // anything built through the custom-item panel joins the party catalogue
     if (!picked && adv.catDone) {
@@ -336,62 +425,39 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             </div>
           )}
           {adv.catDone && (<>
-          <label>
-            Rarity
-            <select value={adv.rarity} onChange={(e) => setA({ rarity: e.target.value })}>
-              <option value="">—</option>
-              {RARITIES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!hidesWeight(adv.category, adv.subtype) && (
-            <label>
-              Weight (lb each)
-              <input
-                type="number"
-                min={0}
-                step="0.1"
-                value={adv.weight}
-                onChange={(e) => setA({ weight: e.target.value })}
-              />
-            </label>
-          )}
-          <label>
-            Value
-            <input placeholder="e.g. 50 gp" value={adv.value} onChange={(e) => setA({ value: e.target.value })} />
-          </label>
-          <label className="check" title={impliedMagic ? 'Anything above common counts as magic already' : undefined}>
-            <input
-              type="checkbox"
-              checked={adv.magic || impliedMagic}
-              disabled={impliedMagic}
-              onChange={(e) => setA({ magic: e.target.checked })}
-            />
-            Magic item{impliedMagic && <span className="muted"> (implied by rarity)</span>}
-          </label>
-          {!hidesAttunement(adv.category, adv.subtype) && (
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={adv.requiresAttunement}
-                onChange={(e) => setA({ requiresAttunement: e.target.checked, attuned: e.target.checked ? adv.attuned : false })}
-              />
-              Requires attunement
-            </label>
-          )}
-          {!hidesAttunement(adv.category, adv.subtype) && adv.requiresAttunement && target !== 'senchez' && (
-            <label className="check">
-              <input type="checkbox" checked={adv.attuned} onChange={(e) => setA({ attuned: e.target.checked })} />
-              Already attuned to {holderName(target)}
-            </label>
-          )}
+          {plan.primary.map(fieldEl)}
           <label className="wide">
-            Notes
-            <textarea rows={3} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
+            {notesLabel(adv.category, adv.subtype)}
+            <textarea rows={2} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
           </label>
+          <div className="wide photo-field">
+            {adv.image ? (
+              <span className="photo-controls">
+                <img className="item-photo-mini" src={adv.image} alt="" />
+                <label className="link-button photo-pick">
+                  Replace picture
+                  <input type="file" accept="image/*" hidden onChange={(e) => onPhotoFile(e.target.files?.[0])} />
+                </label>
+                <button type="button" className="link-button danger-link" onClick={() => setA({ image: undefined })}>
+                  Remove
+                </button>
+              </span>
+            ) : (
+              <label className="link-button photo-pick">
+                📷 Add a picture
+                <input type="file" accept="image/*" hidden onChange={(e) => onPhotoFile(e.target.files?.[0])} />
+              </label>
+            )}
+            {photoError && <span className="muted photo-error">{photoError}</span>}
+          </div>
+          {plan.advanced.length > 0 && (
+            <div className="wide">
+              <button type="button" className="link-button" onClick={() => setMoreOpen(!moreOpen)}>
+                More options {moreOpen ? '▴' : '▾'}
+              </button>
+            </div>
+          )}
+          {moreOpen && plan.advanced.map(fieldEl)}
           {!picked && (
             <div className="wide muted panel-hint">✦ Saved to the party catalogue automatically.</div>
           )}
