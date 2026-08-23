@@ -98,17 +98,19 @@ function ItemRow({
           {item.name}
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
         </span>
-        <span className="item-tags">
-          {categoryLabel(item.category, item.subtype) && <span className="tag">{categoryLabel(item.category, item.subtype)}</span>}
-          {item.rarity && <span className={`tag ${rarityClass(item.rarity)}`}>{item.rarity}</span>}
-          {item.requiresAttunement && (
-            <span className={`tag attune-tag ${item.attuned ? 'attuned' : ''}`}>
-              {item.attuned ? '◈ attuned' : '◇ attunement'}
-            </span>
-          )}
-          {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
-          {item.value && <span className="tag muted-tag">{item.value}</span>}
-        </span>
+        {view !== 'closed' && (
+          <span className="item-tags">
+            {categoryLabel(item.category, item.subtype) && <span className="tag">{categoryLabel(item.category, item.subtype)}</span>}
+            {item.rarity && <span className={`tag ${rarityClass(item.rarity)}`}>{item.rarity}</span>}
+            {item.requiresAttunement && (
+              <span className={`tag attune-tag ${item.attuned ? 'attuned' : ''}`}>
+                {item.attuned ? '◈ attuned' : '◇ attunement'}
+              </span>
+            )}
+            {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
+            {item.value && <span className="tag muted-tag">{item.value}</span>}
+          </span>
+        )}
         {item.notes && view === 'closed' && (
           <span className="item-notes-preview muted">{previewText(item.notes)}</span>
         )}
