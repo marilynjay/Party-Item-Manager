@@ -9,10 +9,10 @@ export interface Holder {
 
 export const HOLDERS: Holder[] = [
   { id: 'yiptik', name: 'Yiptik', kind: 'member', emoji: '🗡️' },
-  { id: 'radish', name: 'Radish', kind: 'member', emoji: '🛡️' },
-  { id: 'tuffany', name: 'Tuffany', kind: 'member', emoji: '🏹' },
+  { id: 'radish', name: 'Radish', kind: 'member', emoji: '📖' },
+  { id: 'tuffany', name: 'Tuffany', kind: 'member', emoji: '🔨' },
   { id: 'astrielle', name: 'Astrielle', kind: 'member', emoji: '✨' },
-  { id: 'hyrroh', name: 'Hyrroh', kind: 'member', emoji: '🪓' },
+  { id: 'hyrroh', name: 'Hyrroh', kind: 'member', emoji: '🛡️' },
   { id: 'senchez', name: 'Senchez', kind: 'bag', emoji: '🎒' },
 ];
 
