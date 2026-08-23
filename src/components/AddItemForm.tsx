@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import type { HolderId, Item } from '../types';
-import { HOLDERS, ITEM_TYPES, RARITIES, holderById } from '../types';
+import type { CategoryKey, HolderId, Item } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, hidesAttunement, hidesWeight, holderById } from '../types';
+import { CategoryPicker } from './CategoryPicker';
 import type { CatalogItem } from '../catalog';
 import { searchCatalog } from '../catalog';
 import { CatalogBrowser } from './CatalogBrowser';
@@ -58,7 +59,8 @@ function suggestFor(name: string, custom: CatalogItem[]): Suggestion[] {
 }
 
 const blankAdvanced = {
-  type: '',
+  category: '' as CategoryKey,
+  subtype: '',
   rarity: '',
   weight: '' as string,
   value: '',
@@ -93,7 +95,8 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const applyCatalog = (it: CatalogItem) => {
     setName(it.name);
     setAdv({
-      type: it.type,
+      category: it.category as CategoryKey,
+      subtype: it.subtype,
       rarity: it.rarity,
       weight: it.weight === null ? '' : String(it.weight),
       value: '',
@@ -161,27 +164,31 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       onClose();
       return;
     }
-    const weight = adv.weight === '' ? null : Number(adv.weight);
+    const noWeight = hidesWeight(adv.category);
+    const noAttune = hidesAttunement(adv.category, adv.subtype);
+    const weight = noWeight || adv.weight === '' ? null : Number(adv.weight);
     void onAdd({
       name: name.trim(),
       qty,
       location: target,
-      type: adv.type,
+      category: adv.category,
+      subtype: adv.subtype,
       rarity: adv.rarity,
       weight,
       value: adv.value,
       magic: adv.magic || impliedMagic,
-      requiresAttunement: adv.requiresAttunement,
-      attuned: adv.attuned,
+      requiresAttunement: !noAttune && adv.requiresAttunement,
+      attuned: !noAttune && adv.attuned,
       notes: adv.notes,
     });
     if (saveCustom) {
       void onSaveCustom({
         name: name.trim(),
-        type: adv.type,
+        category: adv.category,
+        subtype: adv.subtype,
         rarity: adv.rarity,
         magic: adv.magic || impliedMagic,
-        requiresAttunement: adv.requiresAttunement,
+        requiresAttunement: !noAttune && adv.requiresAttunement,
         weight,
         rules: adv.notes,
       });
@@ -235,7 +242,9 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         <span>{s.custom && <span className="custom-mark">✦ </span>}{it.name}</span>
         <span className="item-tags">
           {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
-          {it.type && <span className="tag">{it.type}</span>}
+          {categoryLabel(it.category as CategoryKey, it.subtype) && (
+            <span className="tag">{categoryLabel(it.category as CategoryKey, it.subtype)}</span>
+          )}
           {it.requiresAttunement && <span className="tag attune-tag">◇</span>}
         </span>
       </button>
@@ -296,7 +305,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       )}
       {picked && !money && (
         <div className="picked-note muted">
-          ✓ From the catalogue: {picked.rarity || 'mundane'} {picked.type}
+          ✓ From the catalogue: {picked.rarity || 'mundane'} {categoryLabel(picked.category as CategoryKey, picked.subtype)}
           {picked.requiresAttunement ? ', requires attunement' : ''}
           {picked.weight !== null ? `, ${picked.weight} lb` : ''} — details filled in.{' '}
           {!detailsOpen && (
@@ -312,17 +321,13 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             <span className="item-menu-heading muted">Item details</span>
             <button type="button" className="link-button" onClick={() => setDetailsOpen(false)}>▴ hide</button>
           </div>
-          <label>
-            Type
-            <select value={adv.type} onChange={(e) => setA({ type: e.target.value })}>
-              <option value="">—</option>
-              {ITEM_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="wide">
+            <CategoryPicker
+              category={adv.category}
+              subtype={adv.subtype}
+              onChange={(category, subtype) => setA({ category, subtype })}
+            />
+          </div>
           <label>
             Rarity
             <select value={adv.rarity} onChange={(e) => setA({ rarity: e.target.value })}>
@@ -334,16 +339,18 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
               ))}
             </select>
           </label>
-          <label>
-            Weight (lb each)
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              value={adv.weight}
-              onChange={(e) => setA({ weight: e.target.value })}
-            />
-          </label>
+          {!hidesWeight(adv.category) && (
+            <label>
+              Weight (lb each)
+              <input
+                type="number"
+                min={0}
+                step="0.1"
+                value={adv.weight}
+                onChange={(e) => setA({ weight: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             Value
             <input placeholder="e.g. 50 gp" value={adv.value} onChange={(e) => setA({ value: e.target.value })} />
@@ -357,15 +364,17 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             />
             Magic item{impliedMagic && <span className="muted"> (implied by rarity)</span>}
           </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={adv.requiresAttunement}
-              onChange={(e) => setA({ requiresAttunement: e.target.checked, attuned: e.target.checked ? adv.attuned : false })}
-            />
-            Requires attunement
-          </label>
-          {adv.requiresAttunement && target !== 'senchez' && (
+          {!hidesAttunement(adv.category, adv.subtype) && (
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={adv.requiresAttunement}
+                onChange={(e) => setA({ requiresAttunement: e.target.checked, attuned: e.target.checked ? adv.attuned : false })}
+              />
+              Requires attunement
+            </label>
+          )}
+          {!hidesAttunement(adv.category, adv.subtype) && adv.requiresAttunement && target !== 'senchez' && (
             <label className="check">
               <input type="checkbox" checked={adv.attuned} onChange={(e) => setA({ attuned: e.target.checked })} />
               Already attuned to {holderName(target)}

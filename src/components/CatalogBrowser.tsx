@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import type { CatalogItem } from '../catalog';
 import { CATALOG } from '../catalog';
+import type { CategoryKey } from '../types';
+import { CATEGORIES, categoryLabel } from '../types';
 
 const TABS: Array<[string, string]> = [
   ['all', 'All'],
   ['mine', '✦ Custom'],
-  ['gear', 'Mundane'],
-  ['weapon', 'Weapons'],
-  ['armor', 'Armor'],
-  ['potion', 'Potions'],
+  ['mundane', 'Mundane'],
+  ...CATEGORIES.filter((c) => c.key !== 'other').map((c): [string, string] => [c.key, `${c.emoji} ${c.name}`]),
   ['common', 'Common'],
   ['uncommon', 'Uncommon'],
   ['rare', 'Rare'],
@@ -20,11 +20,10 @@ function inTab(it: CatalogItem, tab: string): boolean {
   switch (tab) {
     case 'all': return true;
     case 'mine': return true; // custom-ness is decided by the list, not the entry
-    case 'gear': return !it.magic;
-    case 'weapon': return it.type === 'weapon' || it.type === 'ammunition';
-    case 'armor': return it.type === 'armor' || it.type === 'shield';
-    case 'potion': return it.type === 'potion' || it.type === 'scroll';
-    default: return it.rarity === tab;
+    case 'mundane': return !it.magic;
+    default:
+      if (CATEGORIES.some((c) => c.key === tab)) return it.category === tab;
+      return it.rarity === tab;
   }
 }
 
@@ -81,7 +80,7 @@ export function CatalogBrowser({ custom, onPick, onDeleteCustom, onClose }: Prop
                   <span className="cat-name"><span className="custom-mark">✦</span> {it.name}</span>
                   <span className="item-tags">
                     {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
-                    {it.type && <span className="tag">{it.type}</span>}
+                    {categoryLabel(it.category as CategoryKey, it.subtype) && <span className="tag">{categoryLabel(it.category as CategoryKey, it.subtype)}</span>}
                     {it.requiresAttunement && <span className="tag attune-tag">◇ attunement</span>}
                     {it.weight !== null && <span className="tag muted-tag">{it.weight} lb</span>}
                   </span>
@@ -113,7 +112,7 @@ export function CatalogBrowser({ custom, onPick, onDeleteCustom, onClose }: Prop
                 <span className="cat-name">{it.name}</span>
                 <span className="item-tags">
                   {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
-                  <span className="tag">{it.type}</span>
+                  {categoryLabel(it.category as CategoryKey, it.subtype) && <span className="tag">{categoryLabel(it.category as CategoryKey, it.subtype)}</span>}
                   {it.requiresAttunement && <span className="tag attune-tag">◇ attunement</span>}
                   {it.weight !== null && <span className="tag muted-tag">{it.weight} lb</span>}
                 </span>

@@ -22,17 +22,76 @@ export const holderById = (id: HolderId): Holder => HOLDERS.find((h) => h.id ===
 export const BAG_CAPACITY_LB = 500;
 export const ATTUNEMENT_SLOTS = 3;
 
-export const ITEM_TYPES = [
-  'weapon', 'armor', 'shield', 'potion', 'scroll', 'wand', 'ring', 'rod', 'staff',
-  'wondrous item', 'ammunition', 'gear', 'tool', 'treasure', 'other',
-] as const;
+export type CategoryKey = 'gear' | 'accessory' | 'consumable' | 'arcana' | 'supplies' | 'papers' | 'other' | '';
+
+export interface ItemCategory {
+  key: CategoryKey;
+  name: string;
+  emoji: string;
+  subtypes: string[];
+}
+
+export const CATEGORIES: ItemCategory[] = [
+  { key: 'gear', name: 'Gear', emoji: '⚔️', subtypes: ['weapon', 'armor', 'shield', 'ammunition'] },
+  { key: 'accessory', name: 'Accessories', emoji: '💍', subtypes: ['ring', 'cloak', 'boots', 'belt', 'headwear', 'amulet', 'gloves'] },
+  { key: 'consumable', name: 'Consumables', emoji: '🧪', subtypes: ['potion', 'scroll', 'food & drink', 'alchemical'] },
+  { key: 'arcana', name: 'Arcana', emoji: '🪄', subtypes: ['wand', 'staff', 'rod', 'focus', 'spellbook'] },
+  { key: 'supplies', name: 'Supplies', emoji: '🎒', subtypes: ['tool', 'container', 'camp gear', 'instrument'] },
+  { key: 'papers', name: 'Papers & treasure', emoji: '📜', subtypes: ['note', 'map', 'deed', 'book', 'gems', 'art'] },
+  { key: 'other', name: 'Other', emoji: '❔', subtypes: [] },
+];
+
+export const categoryOf = (key: CategoryKey): ItemCategory | undefined => CATEGORIES.find((c) => c.key === key);
+export const categoryLabel = (category: CategoryKey, subtype: string): string =>
+  subtype || categoryOf(category)?.name.toLowerCase() || '';
+
+// Papers don't encumber; you can't attune to a sandwich or a deed.
+export const hidesWeight = (category: CategoryKey): boolean => category === 'papers';
+export const hidesAttunement = (category: CategoryKey, subtype: string): boolean =>
+  category === 'papers' || (category === 'consumable' && subtype === 'food & drink');
+
+// Maps the old flat type strings (and "wondrous item" by name) onto the
+// category/subtype taxonomy. Used to migrate stored items and the catalogue.
+export function classifyLegacy(type: string, name: string): { category: CategoryKey; subtype: string } {
+  const direct: Record<string, [CategoryKey, string]> = {
+    'weapon': ['gear', 'weapon'], 'armor': ['gear', 'armor'], 'shield': ['gear', 'shield'],
+    'ammunition': ['gear', 'ammunition'], 'ring': ['accessory', 'ring'],
+    'potion': ['consumable', 'potion'], 'scroll': ['consumable', 'scroll'],
+    'wand': ['arcana', 'wand'], 'staff': ['arcana', 'staff'], 'rod': ['arcana', 'rod'],
+    'tool': ['supplies', 'tool'], 'gear': ['supplies', ''], 'treasure': ['papers', 'gems'],
+    'other': ['other', ''],
+  };
+  const key = (type || '').toLowerCase();
+  const hit = direct[key];
+  if (hit) return { category: hit[0], subtype: hit[1] };
+  if (key !== 'wondrous item' && key !== '') return { category: 'other', subtype: '' };
+  const n = name.toLowerCase();
+  const rules: Array<[RegExp, CategoryKey, string]> = [
+    [/boots|slipper/, 'accessory', 'boots'],
+    [/cloak|cape|mantle|robe|wings of flying/, 'accessory', 'cloak'],
+    [/belt of/, 'accessory', 'belt'],
+    [/helm|hat|circlet|headband|goggles|eyes of|crown/, 'accessory', 'headwear'],
+    [/amulet|necklace|medallion|periapt|brooch|talisman/, 'accessory', 'amulet'],
+    [/gauntlet|glove|bracer/, 'accessory', 'gloves'],
+    [/ring of/, 'accessory', 'ring'],
+    [/dust of|bead of|elemental gem|feather token|ointment|oil of/, 'consumable', 'alchemical'],
+    [/crystal ball|pearl of power|orb/, 'arcana', 'focus'],
+    [/manual|tome|book|libram/, 'papers', 'book'],
+    [/bag of|haversack|quiver|bottle|decanter|jug|flask|portable hole/, 'supplies', 'container'],
+    [/rope of|lantern|driftglobe|candle|lamp of/, 'supplies', 'camp gear'],
+    [/instrument|pipes of|horn of/, 'supplies', 'instrument'],
+  ];
+  for (const [re, category, subtype] of rules) if (re.test(n)) return { category, subtype };
+  return { category: 'other', subtype: '' };
+}
 
 export const RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'] as const;
 
 export interface Item {
   id: string;
   name: string;
-  type: string;
+  category: CategoryKey;
+  subtype: string;
   rarity: string;
   qty: number;
   weight: number | null;

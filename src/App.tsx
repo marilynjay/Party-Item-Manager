@@ -131,7 +131,7 @@ export function App() {
   const isHolderScope = scope !== 'home' && scope !== 'all' && scope !== 'log';
   const scopedItems = isHolderScope ? state.items.filter((i) => i.location === scope) : state.items;
   const visible = applyFilters(scopedItems, filters);
-  const filtering = filters.search !== '' || filters.type !== '' || filters.rarity !== '' || filters.magicOnly;
+  const filtering = filters.search !== '' || filters.category !== '' || filters.subtype !== '' || filters.rarity !== '' || filters.magicOnly;
   const scopeHolder = isHolderScope ? holderById(scope) : null;
 
   const addModal = adding && (

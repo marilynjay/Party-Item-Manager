@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import type { HolderId, Icons, Item } from '../types';
-import { HOLDERS, ITEM_TYPES, RARITIES, holderById, holderIcon } from '../types';
+import type { CategoryKey, HolderId, Icons, Item } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, categoryOf, hidesAttunement, hidesWeight, holderById, holderIcon } from '../types';
+import { CategoryPicker } from './CategoryPicker';
 
 interface Props {
   items: Item[];
@@ -96,7 +97,7 @@ function ItemRow({
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
         </span>
         <span className="item-tags">
-          {item.type && <span className="tag">{item.type}</span>}
+          {categoryLabel(item.category, item.subtype) && <span className="tag">{categoryLabel(item.category, item.subtype)}</span>}
           {item.rarity && <span className={`tag ${rarityClass(item.rarity)}`}>{item.rarity}</span>}
           {item.requiresAttunement && (
             <span className={`tag attune-tag ${item.attuned ? 'attuned' : ''}`}>
@@ -211,7 +212,8 @@ const previewText = (n: string) =>
 
 function ItemDetail({ item, onEdit }: { item: Item; onEdit: () => void }) {
   const rows: Array<[string, React.ReactNode]> = [];
-  if (item.type) rows.push(['Type', item.type]);
+  const cat = categoryOf(item.category);
+  if (cat) rows.push(['Type', `${cat.emoji} ${cat.name}${item.subtype ? ' · ' + item.subtype : ''}`]);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
   if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
@@ -258,7 +260,8 @@ function ItemEditor({
   const [f, setF] = useState({
     name: item.name,
     qty: item.qty,
-    type: item.type,
+    category: item.category as CategoryKey,
+    subtype: item.subtype,
     rarity: item.rarity,
     weight: item.weight === null ? '' : String(item.weight),
     value: item.value,
@@ -277,16 +280,19 @@ function ItemEditor({
       className="item-editor"
       onSubmit={(e) => {
         e.preventDefault();
+        const noWeight = hidesWeight(f.category);
+        const noAttune = hidesAttunement(f.category, f.subtype);
         onUpdate({
           name: f.name,
           qty: f.qty,
-          type: f.type,
+          category: f.category,
+          subtype: f.subtype,
           rarity: f.rarity,
-          weight: f.weight === '' ? null : Number(f.weight),
+          weight: noWeight || f.weight === '' ? null : Number(f.weight),
           value: f.value,
           magic: f.magic,
-          requiresAttunement: f.requiresAttunement,
-          attuned: f.requiresAttunement ? f.attuned : false,
+          requiresAttunement: !noAttune && f.requiresAttunement,
+          attuned: !noAttune && f.requiresAttunement ? f.attuned : false,
           notes: f.notes,
         });
       }}
@@ -299,17 +305,9 @@ function ItemEditor({
         Qty
         <input type="number" min={1} value={f.qty} onChange={(e) => set({ qty: Math.max(1, Number(e.target.value) || 1) })} />
       </label>
-      <label>
-        Type
-        <select value={f.type} onChange={(e) => set({ type: e.target.value })}>
-          <option value="">—</option>
-          {ITEM_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="wide">
+        <CategoryPicker category={f.category} subtype={f.subtype} onChange={(category, subtype) => set({ category, subtype })} />
+      </div>
       <label>
         Rarity
         <select value={f.rarity} onChange={(e) => set({ rarity: e.target.value })}>
@@ -321,10 +319,12 @@ function ItemEditor({
           ))}
         </select>
       </label>
-      <label>
-        Weight (lb each)
-        <input type="number" min={0} step="0.1" value={f.weight} onChange={(e) => set({ weight: e.target.value })} />
-      </label>
+      {!hidesWeight(f.category) && (
+        <label>
+          Weight (lb each)
+          <input type="number" min={0} step="0.1" value={f.weight} onChange={(e) => set({ weight: e.target.value })} />
+        </label>
+      )}
       <label>
         Value
         <input value={f.value} onChange={(e) => set({ value: e.target.value })} />
@@ -333,15 +333,17 @@ function ItemEditor({
         <input type="checkbox" checked={f.magic} onChange={(e) => set({ magic: e.target.checked })} />
         Magic item
       </label>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={f.requiresAttunement}
-          onChange={(e) => set({ requiresAttunement: e.target.checked, attuned: e.target.checked ? f.attuned : false })}
-        />
-        Requires attunement
-      </label>
-      {f.requiresAttunement && item.location !== 'senchez' && (
+      {!hidesAttunement(f.category, f.subtype) && (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={f.requiresAttunement}
+            onChange={(e) => set({ requiresAttunement: e.target.checked, attuned: e.target.checked ? f.attuned : false })}
+          />
+          Requires attunement
+        </label>
+      )}
+      {!hidesAttunement(f.category, f.subtype) && f.requiresAttunement && item.location !== 'senchez' && (
         <label className="check">
           <input type="checkbox" checked={f.attuned} onChange={(e) => set({ attuned: e.target.checked })} />
           Attuned to {holderById(item.location).name}

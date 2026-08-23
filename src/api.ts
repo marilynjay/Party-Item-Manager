@@ -3,19 +3,38 @@
 // dormant — to bring it back, restore the fetch-based version of this
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
-import { HOLDERS } from './types';
+import { HOLDERS, classifyLegacy } from './types';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
 const DB_KEY = 'pim-db';
 const LOG_CAP = 500;
 
+// Items saved before the category taxonomy carry a flat `type` string.
+function migrateTaxonomy<T extends { name: string }>(entry: T): T {
+  const legacy = entry as T & { type?: string; category?: string; subtype?: string };
+  if (legacy.category === undefined) {
+    const m = classifyLegacy(legacy.type ?? '', entry.name);
+    legacy.category = m.category;
+    legacy.subtype = legacy.subtype ?? m.subtype;
+    delete legacy.type;
+  }
+  return entry;
+}
+
 function load(): AppState {
   try {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const db = JSON.parse(raw) as Partial<AppState>;
-      return { items: db.items ?? [], log: db.log ?? [], gold: (db.gold ?? {}) as Gold, platinum: (db.platinum ?? {}) as Gold, icons: db.icons ?? {}, custom: db.custom ?? [] };
+      return {
+        items: (db.items ?? []).map(migrateTaxonomy),
+        log: db.log ?? [],
+        gold: (db.gold ?? {}) as Gold,
+        platinum: (db.platinum ?? {}) as Gold,
+        icons: db.icons ?? {},
+        custom: (db.custom ?? []).map(migrateTaxonomy),
+      };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
@@ -78,7 +97,8 @@ function seedOnce(): void {
       db.items.push({
         id: newId(),
         name,
-        type: cat?.type ?? '',
+        category: (cat?.category ?? '') as Item['category'],
+        subtype: cat?.subtype ?? '',
         rarity: cat?.rarity ?? '',
         qty,
         weight: cat?.weight ?? null,
@@ -112,7 +132,8 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
   const item: Item = {
     id: newId(),
     name: fields.name.trim(),
-    type: fields.type ?? '',
+    category: fields.category ?? '',
+    subtype: fields.subtype ?? '',
     rarity: fields.rarity ?? '',
     qty: Math.max(1, Math.floor(fields.qty ?? 1) || 1),
     weight: fields.weight ?? null,
@@ -161,7 +182,8 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
       i.id !== item.id &&
       i.location === to &&
       i.name.toLowerCase() === item.name.toLowerCase() &&
-      i.type === item.type &&
+      i.category === item.category &&
+      i.subtype === item.subtype &&
       i.rarity === item.rarity
   );
 
