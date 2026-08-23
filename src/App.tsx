@@ -11,18 +11,58 @@ import { GoldTracker } from './components/GoldTracker';
 import { IconPicker } from './components/IconPicker';
 import { PP_IN_GP } from './types';
 
-// A holder's coin line, shown on their own tab when they carry anything.
-function PurseLine({ gp, pp }: { gp: number; pp: number }) {
-  if (gp <= 0 && pp <= 0) return null;
+// A holder's coin line, shown on their own tab when they carry anything;
+// tapping it opens an inline gp/pp editor.
+function PurseLine({ name, gp, pp, onSave }: { name: string; gp: number; pp: number; onSave: (gp: number, pp: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [gpVal, setGpVal] = useState('');
+  const [ppVal, setPpVal] = useState('');
+  if (gp <= 0 && pp <= 0 && !editing) return null;
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="purse-line muted"
+        title={`Change ${name}’s coins`}
+        onClick={() => {
+          setGpVal(String(gp));
+          setPpVal(String(pp));
+          setEditing(true);
+        }}
+      >
+        🟡 {gp.toLocaleString()} gp
+        {pp > 0 && (
+          <>
+            {' '}+ ⚪ {pp.toLocaleString()} pp <span className="purse-worth">(= {(gp + pp * PP_IN_GP).toLocaleString()} gp)</span>
+          </>
+        )}
+        <span className="purse-edit-hint">✎</span>
+      </button>
+    );
+  }
+
+  const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
   return (
-    <div className="purse-line muted">
-      🪙 {gp.toLocaleString()} gp
-      {pp > 0 && (
-        <>
-          {' '}+ {pp.toLocaleString()} pp <span className="purse-worth">(= {(gp + pp * PP_IN_GP).toLocaleString()} gp)</span>
-        </>
-      )}
-    </div>
+    <form
+      className="purse-line purse-editing"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(parse(gpVal), parse(ppVal));
+        setEditing(false);
+      }}
+    >
+      <label className="coin-field">
+        <input autoFocus type="number" min={0} value={gpVal} onChange={(e) => setGpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setEditing(false)} />
+        gp
+      </label>
+      <label className="coin-field">
+        <input type="number" min={0} value={ppVal} onChange={(e) => setPpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setEditing(false)} />
+        pp
+      </label>
+      <button type="submit" title="Save">✓</button>
+      <button type="button" className="link-button" title="Cancel" onClick={() => setEditing(false)}>✕</button>
+    </form>
   );
 }
 
@@ -194,7 +234,14 @@ export function App() {
           <LogPanel log={state.log} />
         ) : (
           <>
-            {scopeHolder && <PurseLine gp={state.gold[scopeHolder.id] ?? 0} pp={state.platinum[scopeHolder.id] ?? 0} />}
+            {scopeHolder && (
+              <PurseLine
+                name={scopeHolder.name}
+                gp={state.gold[scopeHolder.id] ?? 0}
+                pp={state.platinum[scopeHolder.id] ?? 0}
+                onSave={(gp, pp) => run(() => api.setPurse(scopeHolder.id, gp, pp, actor))}
+              />
+            )}
             <div className="list-tools">
               <FilterBar filters={filters} onChange={setFilters} />
               <button type="button" className="add-big add-small" onClick={() => setAdding(true)}>
