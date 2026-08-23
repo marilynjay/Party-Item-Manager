@@ -1,3 +1,4 @@
+import { AutoTextarea } from './AutoTextarea';
 import { useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
 import type { FormField, ItemStats } from '../types';
@@ -581,7 +582,7 @@ function ItemEditor({
         return (
           <label key={field} className="wide">
             Contents — what's written on it
-            <textarea rows={3} value={f.content} onChange={(e) => set({ content: e.target.value })} />
+            <AutoTextarea rows={3} value={f.content} onChange={(e) => set({ content: e.target.value })} />
           </label>
         );
     }
@@ -649,7 +650,7 @@ function ItemEditor({
       {editorField('content')}
       <label className="wide">
         {notesLabel(f.category, f.subtype)}
-        <textarea rows={3} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+        <AutoTextarea rows={3} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </label>
       {plan.advanced.length + sPlan.advanced.length > 0 && (
         <div className="wide">

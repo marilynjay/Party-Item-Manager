@@ -1,3 +1,4 @@
+import { AutoTextarea } from './AutoTextarea';
 import type { ItemStats, StatField } from '../types';
 import { DAMAGE_TYPES } from '../types';
 
@@ -181,7 +182,7 @@ export function StatFieldControl({ field, stats: s, onChange }: Props) {
           {s.cursed && (
             <label className="curse-text">
               What does the curse do?
-              <textarea
+              <AutoTextarea
                 rows={2}
                 placeholder="e.g. Once attuned, the wielder cannot let go of the blade…"
                 value={s.curseText ?? ''}

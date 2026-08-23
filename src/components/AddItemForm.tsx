@@ -1,3 +1,4 @@
+import { AutoTextarea } from './AutoTextarea';
 import { useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Item } from '../types';
 import type { FormField, ItemStats } from '../types';
@@ -178,7 +179,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         return (
           <label key={f} className="wide">
             Contents — what's written on it
-            <textarea rows={3} value={adv.content} onChange={(e) => setA({ content: e.target.value })} />
+            <AutoTextarea rows={3} value={adv.content} onChange={(e) => setA({ content: e.target.value })} />
           </label>
         );
     }
@@ -484,7 +485,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
           {sPlan.primary.map(statEl)}
           <label className="wide">
             {notesLabel(adv.category, adv.subtype)}
-            <textarea rows={2} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
+            <AutoTextarea rows={2} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
           </label>
           <div className="wide photo-field">
             {adv.image ? (
