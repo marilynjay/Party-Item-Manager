@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { HolderId, Item } from '../types';
 import { HOLDERS, ITEM_TYPES, RARITIES } from '../types';
+import type { CatalogItem } from '../catalog';
+import { searchCatalog } from '../catalog';
+import { CatalogBrowser } from './CatalogBrowser';
 
 interface Props {
   defaultLocation: HolderId;
@@ -23,6 +26,43 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
   const [location, setLocation] = useState<HolderId | 'auto'>('auto');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [adv, setAdv] = useState(blankAdvanced);
+  const [suggestions, setSuggestions] = useState<CatalogItem[]>([]);
+  const [sugIx, setSugIx] = useState(0);
+  const [picked, setPicked] = useState<CatalogItem | null>(null);
+  const [browsing, setBrowsing] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  const applyCatalog = (it: CatalogItem) => {
+    setName(it.name);
+    setAdv({
+      type: it.type,
+      rarity: it.rarity,
+      weight: it.weight === null ? '' : String(it.weight),
+      value: '',
+      magic: it.magic,
+      requiresAttunement: it.requiresAttunement,
+      notes: it.rules,
+    });
+    setPicked(it);
+    setSuggestions([]);
+    setBrowsing(false);
+    nameRef.current?.focus();
+  };
+
+  const onNameChange = (v: string) => {
+    setName(v);
+    setPicked(null);
+    setSuggestions(searchCatalog(v));
+    setSugIx(0);
+  };
+
+  const onNameKey = (e: React.KeyboardEvent) => {
+    if (suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSugIx((sugIx + 1) % suggestions.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSugIx((sugIx + suggestions.length - 1) % suggestions.length); }
+    else if (e.key === 'Enter') { e.preventDefault(); applyCatalog(suggestions[sugIx]); }
+    else if (e.key === 'Escape') setSuggestions([]);
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +83,8 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
     setQty(1);
     setAdv(blankAdvanced);
     setShowAdvanced(false);
+    setPicked(null);
+    setSuggestions([]);
   };
 
   const setA = (patch: Partial<typeof blankAdvanced>) => setAdv({ ...adv, ...patch });
@@ -50,12 +92,37 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
   return (
     <form className="add-form" onSubmit={submit}>
       <div className="add-row">
-        <input
-          className="add-name"
-          placeholder="Add an item… (e.g. Potion of Healing)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div className="suggest-wrap">
+          <input
+            ref={nameRef}
+            className="add-name"
+            placeholder="Add an item… (e.g. Potion of Healing)"
+            value={name}
+            autoComplete="off"
+            onChange={(e) => onNameChange(e.target.value)}
+            onKeyDown={onNameKey}
+            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+          />
+          {suggestions.length > 0 && (
+            <div className="suggest">
+              {suggestions.map((it, i) => (
+                <button
+                  key={it.name}
+                  type="button"
+                  className={`suggest-row ${i === sugIx ? 'active' : ''}`}
+                  onMouseDown={(e) => { e.preventDefault(); applyCatalog(it); }}
+                >
+                  <span>{it.name}</span>
+                  <span className="item-tags">
+                    {it.rarity && <span className={`tag rarity-${it.rarity.replace(/\s+/g, '-')}`}>{it.rarity}</span>}
+                    <span className="tag">{it.type}</span>
+                    {it.requiresAttunement && <span className="tag attune-tag">◇</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <input
           className="add-qty"
           type="number"
@@ -80,10 +147,20 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
         <button type="submit" disabled={!name.trim()}>
           Add
         </button>
+        <button type="button" className="link-button" onClick={() => setBrowsing(true)}>
+          📖 Browse
+        </button>
         <button type="button" className="link-button" onClick={() => setShowAdvanced(!showAdvanced)}>
           Advanced {showAdvanced ? '▴' : '▾'}
         </button>
       </div>
+      {picked && (
+        <div className="picked-note muted">
+          ✓ From the catalogue: {picked.rarity || 'mundane'} {picked.type}
+          {picked.requiresAttunement ? ', requires attunement' : ''}
+          {picked.weight !== null ? `, ${picked.weight} lb` : ''} — details filled in for you.
+        </div>
+      )}
       {showAdvanced && (
         <div className="add-advanced">
           <label>
@@ -140,6 +217,7 @@ export function AddItemForm({ defaultLocation, onAdd }: Props) {
           </label>
         </div>
       )}
+      {browsing && <CatalogBrowser onPick={applyCatalog} onClose={() => setBrowsing(false)} />}
     </form>
   );
 }

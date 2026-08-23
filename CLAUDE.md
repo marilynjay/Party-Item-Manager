@@ -29,6 +29,8 @@ There are no automated tests; verify changes via `npm run build` at minimum, ide
 - Party gold: per-holder integer gp, `setGold` in `src/api.ts` sets an absolute amount and logs the delta. `GoldTracker` shows the total, expanding to a per-holder editable breakdown.
 - Change log: capped at 500 entries, actor comes from the client's "Playing as" picker (localStorage).
 
+- Item catalogue: `src/catalog.ts` holds 252 SRD items (generated from the DM-Screen project's item list, enriched with SRD attunement flags and standard weights). It powers the quick-add autocomplete and the 📖 Browse modal (`CatalogBrowser`); picking an item prefills the advanced fields. One-off data fixes inline are fine.
+
 ## Conventions
 
 - Keep it dependency-light. Don't add a database, state library, or auth library without being asked.
