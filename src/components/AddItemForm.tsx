@@ -91,6 +91,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const [moreOpen, setMoreOpen] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
+  const blurTimer = useRef<number | undefined>(undefined);
 
   const target = location === 'auto' ? defaultLocation : location;
   const money = parseMoney(name);
@@ -222,6 +223,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   };
 
   const onNameChange = (v: string) => {
+    window.clearTimeout(blurTimer.current);
     setName(v);
     setPicked(null);
     setSuggestions(suggestFor(v, custom));
@@ -364,8 +366,28 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             autoComplete="off"
             onChange={(e) => onNameChange(e.target.value)}
             onKeyDown={onNameKey}
-            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+            onFocus={() => window.clearTimeout(blurTimer.current)}
+            onBlur={() => {
+              blurTimer.current = window.setTimeout(() => setSuggestions([]), 150);
+            }}
           />
+          {name.trim() !== '' && (
+            <button
+              type="button"
+              className="name-clear"
+              title="Clear"
+              onClick={() => {
+                setName('');
+                setPicked(null);
+                setAdv({ ...blankAdvanced, stats: {} });
+                setDetailsOpen(false);
+                setSuggestions([]);
+                nameRef.current?.focus();
+              }}
+            >
+              ✕
+            </button>
+          )}
           {suggestions.length > 0 && <div className="suggest">{suggestions.map(suggestionRow)}</div>}
         </div>
         {!detailsOpen && (

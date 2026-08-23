@@ -609,7 +609,22 @@ button.purse-line:hover { background: none; color: var(--text); }
 
 /* ---- catalogue autocomplete + browser ---- */
 
-.suggest-wrap { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.suggest-wrap { flex: 1; min-width: 200px; display: flex; flex-direction: column; position: relative; }
+.suggest-wrap .add-name { padding-right: 34px; }
+.name-clear {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.name-clear:hover { color: var(--text); background: var(--bg-hover); border-radius: 50%; }
 .suggest-wrap .add-name { width: 100%; min-width: 0; }
 
 /* In flow, not floating: suggestions push the qty/recipient controls down
