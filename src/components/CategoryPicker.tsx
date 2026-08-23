@@ -1,6 +1,12 @@
 import type { CategoryKey } from '../types';
 import { CATEGORIES, categoryOf } from '../types';
 
+// Subtypes people look for in the "wrong" category: shown there as a
+// pointer chip that files the item under its real home.
+const CROSS_LINKS: Partial<Record<CategoryKey, Array<[CategoryKey, string]>>> = {
+  supplies: [['consumable', 'food & drink']],
+};
+
 interface Props {
   category: CategoryKey;
   subtype: string;
@@ -44,6 +50,17 @@ export function CategoryPicker({ category, subtype, complete, onChange }: Props)
           {active.subtypes.map((s) => (
             <button key={s} type="button" className="chip chip-sub" onClick={() => onChange(category, s, true)}>
               {s}
+            </button>
+          ))}
+          {(CROSS_LINKS[category] ?? []).map(([toCat, toSub]) => (
+            <button
+              key={`${toCat}:${toSub}`}
+              type="button"
+              className="chip chip-sub chip-cross"
+              title={`Files under ${categoryOf(toCat)?.name}`}
+              onClick={() => onChange(toCat, toSub, true)}
+            >
+              {toSub} ↪
             </button>
           ))}
           <button type="button" className="chip chip-sub chip-skip" onClick={() => onChange(category, '', true)}>

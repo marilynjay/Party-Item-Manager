@@ -603,6 +603,7 @@ button.purse-line:hover { background: none; color: var(--text); }
 .cat-picker-subs { padding-left: 10px; border-left: 2px solid var(--border); }
 .chip-sub { font-size: 0.8rem !important; padding: 4px 10px !important; }
 .chip-skip { color: var(--text-muted); border-style: dashed; }
+.chip-cross { color: var(--gold); border-style: dashed; }
 .panel-hint { font-size: 0.83rem; }
 .add-bottom {
   background: var(--accent-strong);
