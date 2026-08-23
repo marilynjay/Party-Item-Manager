@@ -405,6 +405,9 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .attune-pair { display: flex; flex-direction: column; gap: 8px; align-self: end; padding-bottom: 8px; }
 .attune-pair .check { align-self: auto; padding-bottom: 0; }
 .charges-group { display: contents; }
+.cursed-pair { display: flex; flex-direction: column; gap: 8px; }
+.curse-text { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--text-muted); }
+.curse-text textarea { resize: vertical; min-height: 52px; line-height: 1.45; }
 .charges-inputs { display: flex; align-items: center; gap: 6px; }
 .charges-inputs input { width: 64px; text-align: center; }
 .str-req input { width: 56px; }

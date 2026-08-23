@@ -20,6 +20,7 @@ export interface ItemStats {
   capacity?: string;
   language?: string;
   cursed?: boolean;
+  curseText?: string;
 }
 
 export interface CatalogItem {

@@ -26,7 +26,10 @@ export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | 
   if (has('dc') && stats.dc?.trim()) out.dc = stats.dc.trim();
   if (has('capacity') && stats.capacity?.trim()) out.capacity = stats.capacity.trim();
   if (has('language') && stats.language?.trim()) out.language = stats.language.trim();
-  if (has('cursed') && stats.cursed) out.cursed = true;
+  if (has('cursed') && stats.cursed) {
+    out.cursed = true;
+    if (stats.curseText?.trim()) out.curseText = stats.curseText.trim();
+  }
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -170,10 +173,23 @@ export function StatFieldControl({ field, stats: s, onChange }: Props) {
       );
     case 'cursed':
       return (
-        <label className="check">
-          <input type="checkbox" checked={!!s.cursed} onChange={(e) => onChange({ cursed: e.target.checked })} />
-          💀 Cursed <span className="muted">(shows only when expanded)</span>
-        </label>
+        <span className="cursed-pair wide">
+          <label className="check">
+            <input type="checkbox" checked={!!s.cursed} onChange={(e) => onChange({ cursed: e.target.checked })} />
+            💀 Cursed <span className="muted">(shows only when expanded)</span>
+          </label>
+          {s.cursed && (
+            <label className="curse-text">
+              What does the curse do?
+              <textarea
+                rows={2}
+                placeholder="e.g. Once attuned, the wielder cannot let go of the blade…"
+                value={s.curseText ?? ''}
+                onChange={(e) => onChange({ curseText: e.target.value })}
+              />
+            </label>
+          )}
+        </span>
       );
   }
 }

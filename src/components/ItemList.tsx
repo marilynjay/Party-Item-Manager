@@ -405,7 +405,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge }
   if (s.spellLevel || s.dc) rows.push(['Spell', [s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')]);
   if (s.capacity) rows.push(['Capacity', s.capacity]);
   if (s.language) rows.push(['Language', s.language]);
-  if (s.cursed) rows.push(['💀 Cursed', 'Yes — someone should probably mention that.']);
+  if (s.cursed) rows.push(['💀 Cursed', s.curseText || 'Yes — someone should probably mention that.']);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
   if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
