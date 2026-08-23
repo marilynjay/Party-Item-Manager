@@ -1,5 +1,5 @@
 import type { HolderId, Icons, Item } from '../types';
-import { ATTUNEMENT_SLOTS, BAG_CAPACITY_LB, HOLDERS, holderIcon } from '../types';
+import { ATTUNEMENT_SLOTS, HOLDERS, holderIcon } from '../types';
 
 export type Scope = 'home' | 'all' | 'log' | HolderId;
 
@@ -15,7 +15,6 @@ const stackWeight = (i: Item) => (i.weight === null ? 0 : i.weight * i.qty);
 
 export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props) {
   const bagWeight = items.filter((i) => i.location === 'senchez').reduce((s, i) => s + stackWeight(i), 0);
-  const overCap = bagWeight > BAG_CAPACITY_LB;
 
   // `short` swaps in on narrow screens; home/all/log are "utility" tabs that
   // drop their icon and read horizontally there.
@@ -68,19 +67,12 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
         'Senchez',
         holderIcon(icons, HOLDERS[5]),
         <span className="tab-badges">
-          <span className={`badge weight ${overCap ? 'over' : ''}`} title={`${bagWeight} / ${BAG_CAPACITY_LB} lb`}>
+          <span className="badge weight" title={`Senchez is carrying ${bagWeight} lb (no limit — homebrew bag)`}>
             {Math.round(bagWeight)} lb
           </span>
           <span className="badge">{items.filter((i) => i.location === 'senchez').length}</span>
         </span>
       )}
-      <div className="bag-meter" title={`Senchez: ${bagWeight} / ${BAG_CAPACITY_LB} lb`}>
-        <div
-          className={`bag-meter-fill ${overCap ? 'over' : ''}`}
-          style={{ width: `${Math.min(100, (bagWeight / BAG_CAPACITY_LB) * 100)}%` }}
-        />
-      </div>
-      {overCap && <div className="bag-warning">⚠️ Senchez is over 500 lb!</div>}
       <div className="rail-spacer" />
       {tab('log', 'Change log', '🕯️', undefined, 'Log')}
     </nav>

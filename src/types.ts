@@ -19,7 +19,6 @@ export const HOLDERS: Holder[] = [
 export const MEMBERS = HOLDERS.filter((h) => h.kind === 'member');
 export const holderById = (id: HolderId): Holder => HOLDERS.find((h) => h.id === id)!;
 
-export const BAG_CAPACITY_LB = 500;
 export const ATTUNEMENT_SLOTS = 3;
 
 export type CategoryKey = 'gear' | 'accessory' | 'consumable' | 'arcana' | 'supplies' | 'papers' | 'treasure' | 'other' | '';
