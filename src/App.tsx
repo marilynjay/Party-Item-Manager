@@ -76,6 +76,9 @@ export function App() {
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [allMode, setAllMode] = useState<'holder' | 'category'>(
+    () => (localStorage.getItem('pim-all-mode') === 'category' ? 'category' : 'holder')
+  );
   const [pickingIcon, setPickingIcon] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -248,6 +251,23 @@ export function App() {
                 onSave={(gp, pp) => run(() => api.setPurse(scopeHolder.id, gp, pp, actor))}
               />
             )}
+            {scope === 'all' && (
+              <div className="group-toggle">
+                {(['holder', 'category'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`chip ${allMode === m ? 'chip-on' : ''}`}
+                    onClick={() => {
+                      setAllMode(m);
+                      localStorage.setItem('pim-all-mode', m);
+                    }}
+                  >
+                    {m === 'holder' ? 'By holder' : 'By category'}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="list-tools">
               <FilterBar filters={filters} onChange={setFilters} />
               <button type="button" className="add-big add-small" onClick={() => setAdding(true)}>
@@ -257,9 +277,10 @@ export function App() {
             <ItemList
               items={visible}
               icons={state.icons}
-              collapseScope={scope}
+              collapseScope={scope === 'all' ? `all-${allMode}` : scope}
               filtering={filtering}
-              groupByHolder={scope === 'all'}
+              groupByHolder={scope === 'all' && allMode === 'holder'}
+              holderChips={scope === 'all' && allMode === 'category'}
               highlightMagic={filters.magicOnly}
               attunedCounts={attunedCounts}
               attunementSlots={ATTUNEMENT_SLOTS}

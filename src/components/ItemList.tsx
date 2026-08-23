@@ -14,6 +14,7 @@ interface Props {
   items: Item[];
   icons: Icons;
   groupByHolder: boolean;
+  holderChips?: boolean;
   collapseScope: string;
   filtering: boolean;
   highlightMagic: boolean;
@@ -143,6 +144,7 @@ export function ItemList(props: Props) {
 function ItemRow({
   item,
   icons,
+  holderChips,
   isMagic,
   attunedCounts,
   attunementSlots,
@@ -217,6 +219,11 @@ function ItemRow({
           {item.name}
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
         </span>
+        {holderChips && (
+          <span className="holder-chip muted">
+            {holderIcon(icons, holderById(item.location))} {holderById(item.location).name}
+          </span>
+        )}
         {view !== 'closed' && (
           <span className="item-tags">
             {categoryLabel(item.category, item.subtype) && <span className="tag">{categoryLabel(item.category, item.subtype)}</span>}
