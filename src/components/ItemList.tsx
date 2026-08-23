@@ -197,6 +197,7 @@ function ItemRow({
       >
         {menuOpen ? '✕' : '➤'}
       </button>
+      {view !== 'closed' && (
       <button
         type="button"
         className="item-trash"
@@ -209,6 +210,7 @@ function ItemRow({
       >
         🗑
       </button>
+      )}
       <div className="item-main" onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}>
         <span className="item-name">
           <span className="item-icon">{itemIcon(item)}</span>
