@@ -139,6 +139,7 @@ export function planHas(category: CategoryKey, subtype: string, field: FormField
 // stealth-disadvantage check with the Str requirement; 'charges' bundles
 // current/max/recharge. Cursed rides along wherever magic does.
 export type StatField =
+  | 'heal'
   | 'dmg' | 'dtype' | 'bonus' | 'properties'
   | 'ac' | 'armorClass' | 'stealthStr'
   | 'charges' | 'spellLevel' | 'dc'
@@ -155,8 +156,10 @@ export function statPlan(category: CategoryKey, subtype: string): StatPlan {
     }
     if (category === 'arcana' && ['wand', 'staff', 'rod', 'focus'].includes(subtype)) return { primary: ['charges'], advanced: [] };
     if (category === 'accessory' && subtype === 'ring') return { primary: [], advanced: ['charges'] };
+    if (category === 'consumable' && subtype === 'potion') return { primary: ['heal'], advanced: [] };
+    if (category === 'consumable' && subtype === 'food & drink') return { primary: [], advanced: ['heal'] };
     if (category === 'consumable' && subtype === 'scroll') return { primary: ['spellLevel', 'dc'], advanced: [] };
-    if (category === 'consumable' && subtype === 'alchemical') return { primary: ['dmg', 'dc'], advanced: [] };
+    if (category === 'consumable' && subtype === 'alchemical') return { primary: ['dmg', 'dc'], advanced: ['heal'] };
     if (category === 'supplies' && subtype === 'container') return { primary: ['capacity'], advanced: [] };
     if (category === 'papers') return { primary: [], advanced: ['language'] };
     return { primary: [], advanced: [] };

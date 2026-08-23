@@ -11,6 +11,7 @@ export interface ItemStats {
   armorClass?: string;
   stealthDis?: boolean;
   strReq?: string;
+  heal?: string;
   charges?: number;
   chargesMax?: number;
   recharge?: string;
@@ -132,7 +133,7 @@ export const CATALOG: CatalogItem[] = [
   { name: "Iron Flask", category: "supplies", subtype: "container", rarity: "legendary", magic: true, requiresAttunement: false, weight: null, rules: "Trap an extraplanar creature inside; command it when released." },
   { name: "Javelin", category: "gear", subtype: "weapon", rarity: "", magic: false, requiresAttunement: false, weight: 2, stats: {"dmg":"1d6","dtype":"piercing"}, rules: "Simple melee — thrown 30/120." },
   { name: "Javelin of Lightning", category: "gear", subtype: "weapon", rarity: "uncommon", magic: true, requiresAttunement: false, weight: 2, stats: {"dmg":"1d6","dtype":"piercing"}, rules: "Throw as lightning bolt: line 4d6 lightning, DC 13 DEX (recharges at dawn)." },
-  { name: "Keoghtom's Ointment", category: "consumable", subtype: "alchemical", rarity: "uncommon", magic: true, requiresAttunement: false, weight: null, stats: {"charges":3,"chargesMax":3}, rules: "Apply a dose: heal 2d8+2, cure poison and disease (1d4+1 doses)." },
+  { name: "Keoghtom's Ointment", category: "consumable", subtype: "alchemical", rarity: "uncommon", magic: true, requiresAttunement: false, weight: null, stats: {"heal":"2d8+2","charges":3,"chargesMax":3}, rules: "Apply a dose: heal 2d8+2, cure poison and disease (1d4+1 doses)." },
   { name: "Lance", category: "gear", subtype: "weapon", rarity: "", magic: false, requiresAttunement: false, weight: 6, stats: {"dmg":"1d10","dtype":"piercing"}, rules: "Martial melee — reach 10 ft, mounted." },
   { name: "Lantern of Revealing", category: "supplies", subtype: "camp gear", rarity: "uncommon", magic: true, requiresAttunement: false, weight: null, rules: "Light reveals invisible creatures and objects." },
   { name: "Leather Armor", category: "gear", subtype: "armor", rarity: "", magic: false, requiresAttunement: false, weight: 10, stats: {"ac":"11 + Dex","armorClass":"light"}, rules: "Light armor — AC 11 + DEX." },
@@ -178,10 +179,10 @@ export const CATALOG: CatalogItem[] = [
   { name: "Potion of Frost Giant Strength", category: "consumable", subtype: "potion", rarity: "rare", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: Strength 23 for 1 hour." },
   { name: "Potion of Gaseous Form", category: "consumable", subtype: "potion", rarity: "rare", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: Gaseous Form for 1 hour." },
   { name: "Potion of Growth", category: "consumable", subtype: "potion", rarity: "uncommon", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: Enlarge effect for 1d4 hours." },
-  { name: "Potion of Healing", category: "consumable", subtype: "potion", rarity: "common", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: regain 2d4+2 HP." },
-  { name: "Potion of Healing (Greater)", category: "consumable", subtype: "potion", rarity: "uncommon", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: regain 4d4+4 HP." },
-  { name: "Potion of Healing (Superior)", category: "consumable", subtype: "potion", rarity: "rare", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: regain 8d4+8 HP." },
-  { name: "Potion of Healing (Supreme)", category: "consumable", subtype: "potion", rarity: "very rare", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: regain 10d4+20 HP." },
+  { name: "Potion of Healing", category: "consumable", subtype: "potion", rarity: "common", magic: true, requiresAttunement: false, weight: 0.5, stats: {"heal":"2d4+2"}, rules: "Drink: regain 2d4+2 HP." },
+  { name: "Potion of Healing (Greater)", category: "consumable", subtype: "potion", rarity: "uncommon", magic: true, requiresAttunement: false, weight: 0.5, stats: {"heal":"4d4+4"}, rules: "Drink: regain 4d4+4 HP." },
+  { name: "Potion of Healing (Superior)", category: "consumable", subtype: "potion", rarity: "rare", magic: true, requiresAttunement: false, weight: 0.5, stats: {"heal":"8d4+8"}, rules: "Drink: regain 8d4+8 HP." },
+  { name: "Potion of Healing (Supreme)", category: "consumable", subtype: "potion", rarity: "very rare", magic: true, requiresAttunement: false, weight: 0.5, stats: {"heal":"10d4+20"}, rules: "Drink: regain 10d4+20 HP." },
   { name: "Potion of Heroism", category: "consumable", subtype: "potion", rarity: "rare", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: 10 temp HP + Bless for 1 hour." },
   { name: "Potion of Hill Giant Strength", category: "consumable", subtype: "potion", rarity: "uncommon", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: Strength 21 for 1 hour." },
   { name: "Potion of Invisibility", category: "consumable", subtype: "potion", rarity: "rare", magic: true, requiresAttunement: false, weight: 0.5, rules: "Drink: Invisible for 1 hour." },

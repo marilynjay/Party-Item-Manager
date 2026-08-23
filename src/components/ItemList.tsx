@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
 import type { FormField, ItemStats } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
+import { CATEGORIES, HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
 import { StatFieldControl, cleanStats } from './StatFields';
+import { DiceGroup } from './Dice';
+import { parseRoll, rollDice } from '../dice';
+import type { RollResult } from '../dice';
 import { CategoryPicker } from './CategoryPicker';
 import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
 import { compressImage } from '../image';
@@ -17,7 +20,7 @@ interface Props {
   isMagic: (i: Item) => boolean;
   emptyMessage: string;
   onMove: (id: string, to: HolderId, qty: number) => void;
-  onConsume: (id: string) => void;
+  onConsume: (id: string, note?: string) => void;
   onSpend: (id: string) => void;
   onRecharge: (id: string) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
@@ -26,11 +29,52 @@ interface Props {
 
 const rarityClass = (r: string) => 'rarity-' + r.replace(/\s+/g, '-');
 
+const catIndex = (c: string) => {
+  const i = CATEGORIES.findIndex((x) => x.key === c);
+  return i < 0 ? CATEGORIES.length : i; // uncategorized sorts last
+};
+const subIndex = (c: string, s2: string) => {
+  const cat = CATEGORIES.find((x) => x.key === c);
+  if (!cat || !s2) return 99;
+  const i = cat.subtypes.indexOf(s2);
+  return i < 0 ? 99 : i;
+};
+const byTaxonomy = (a: Item, b: Item) =>
+  catIndex(a.category) - catIndex(b.category) ||
+  subIndex(a.category, a.subtype) - subIndex(b.category, b.subtype) ||
+  a.name.localeCompare(b.name);
+
 export function ItemList(props: Props) {
   const { items, groupByHolder, emptyMessage } = props;
   if (items.length === 0) return <div className="empty muted">{emptyMessage}</div>;
 
-  if (!groupByHolder) return <ul className="item-list">{items.map((i) => <ItemRow key={i.id} item={i} {...props} />)}</ul>;
+  if (!groupByHolder) {
+    // one holder's inventory: sections per category, empties omitted
+    const sorted = [...items].sort(byTaxonomy);
+    const groups: Array<{ key: string; label: string; items: Item[] }> = [];
+    for (const cat of CATEGORIES) {
+      const inCat = sorted.filter((i) => i.category === cat.key);
+      if (inCat.length) groups.push({ key: cat.key, label: `${cat.emoji} ${cat.name}`, items: inCat });
+    }
+    const loose = sorted.filter((i) => !CATEGORIES.some((c) => c.key === i.category));
+    if (loose.length) groups.push({ key: 'loose', label: 'Uncategorized', items: loose });
+    return (
+      <>
+        {groups.map((g) => (
+          <section key={g.key} className="cat-group">
+            <h3 className="cat-group-heading muted">
+              {g.label} <span className="cat-group-count">· {g.items.length}</span>
+            </h3>
+            <ul className="item-list">
+              {g.items.map((i) => (
+                <ItemRow key={i.id} item={i} {...props} />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </>
+    );
+  }
 
   return (
     <>
@@ -43,6 +87,7 @@ export function ItemList(props: Props) {
           <ul className="item-list">
             {items
               .filter((i) => i.location === h.id)
+              .sort(byTaxonomy)
               .map((i) => (
                 <ItemRow key={i.id} item={i} {...props} />
               ))}
@@ -68,6 +113,7 @@ function ItemRow({
 }: Props & { item: Item }) {
   const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [rollFor, setRollFor] = useState(false);
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   const [moveQty, setMoveQty] = useState(1);
 
@@ -180,7 +226,14 @@ function ItemRow({
             )}
             <div className="item-menu-heading muted">Or</div>
             <div className="item-menu-actions">
-              <button type="button" onClick={() => { setMenuOpen(false); onConsume(item.id); }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  if (item.stats?.heal && parseRoll(item.stats.heal)) setRollFor(true);
+                  else onConsume(item.id);
+                }}
+              >
                 🧪 Use one
               </button>
               <button
@@ -201,6 +254,17 @@ function ItemRow({
             </button>
           </div>
         </div>
+      )}
+      {rollFor && item.stats?.heal && (
+        <RollDialog
+          itemName={item.name}
+          formula={item.stats.heal}
+          onConsume={(note) => {
+            setRollFor(false);
+            onConsume(item.id, note);
+          }}
+          onCancel={() => setRollFor(false)}
+        />
       )}
       {view === 'detail' && (
         <ItemDetail item={item} onEdit={() => setView('edit')} onSpend={() => onSpend(item.id)} onRecharge={() => onRecharge(item.id)} />
@@ -544,5 +608,66 @@ function ItemEditor({
         />
       )}
     </form>
+  );
+}
+
+
+// Drink-a-potion dialog: roll in the app (with the tumble) or roll real dice.
+function RollDialog({
+  itemName,
+  formula,
+  onConsume,
+  onCancel,
+}: {
+  itemName: string;
+  formula: string;
+  onConsume: (note?: string) => void;
+  onCancel: () => void;
+}) {
+  const [result, setResult] = useState<RollResult | null>(null);
+  const [settled, setSettled] = useState(false);
+  const parsed = parseRoll(formula)!;
+
+  return (
+    <div className="overlay" onClick={result ? undefined : onCancel}>
+      <div className="modal roll-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>🧪 {itemName}</h2>
+          {!result && <button type="button" className="link-button" onClick={onCancel}>✕</button>}
+        </div>
+        {!result ? (
+          <>
+            <p className="muted roll-blurb">Heals {formula}. Who's rolling?</p>
+            <div className="roll-choices">
+              <button type="button" className="coin-add" onClick={() => setResult(rollDice(parsed))}>
+                🎲 Roll it here
+              </button>
+              <button type="button" onClick={() => onConsume(undefined)}>
+                I'll roll my own dice
+              </button>
+            </div>
+            <button type="button" className="link-button send-cancel" onClick={onCancel}>
+              Cancel — don't use it
+            </button>
+          </>
+        ) : (
+          <div className="roll-stage">
+            <DiceGroup sides={parsed.d} rolls={result.rolls} onSettled={() => setSettled(true)} />
+            <div className={`roll-total ${settled ? 'shown' : ''}`}>
+              {result.rolls.join(' + ')}
+              {result.mod !== 0 && ` ${result.mod > 0 ? '+' : '−'} ${Math.abs(result.mod)}`} ={' '}
+              <strong>{result.total} HP</strong>
+            </div>
+            <button
+              type="button"
+              className={`coin-add roll-done ${settled ? 'shown' : ''}`}
+              onClick={() => onConsume(`rolled ${formula} = ${result.total} HP`)}
+            >
+              Done
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -23,6 +23,11 @@ function migrateTaxonomy<T extends { name: string }>(entry: T): T {
   if (legacy.category === 'papers' && (legacy.subtype === 'gems' || legacy.subtype === 'art')) {
     legacy.category = 'treasure';
   }
+  // items created before stats existed inherit their catalogue entry's stats
+  if ((legacy as { stats?: unknown }).stats === undefined) {
+    const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
+    if (cat?.stats) (legacy as { stats?: unknown }).stats = { ...cat.stats };
+  }
   return entry;
 }
 
@@ -116,6 +121,7 @@ function seedOnce(): void {
         attuned: Boolean(attuned),
         location,
         notes: cat?.rules ?? '',
+        stats: cat?.stats ? { ...cat.stats } : undefined,
         createdAt: now,
         updatedAt: now,
       });
@@ -280,17 +286,18 @@ export function rechargeItem(id: string, actor: string): Promise<{ ok: true }> {
 }
 
 // Use up one from a stack (drink the potion, throw the dagger of returning-nowhere).
-export function consumeItem(id: string, actor: string): Promise<{ ok: true }> {
+export function consumeItem(id: string, actor: string, note?: string): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  const suffix = note ? ` — ${note}` : '';
   if (item.qty > 1) {
     item.qty -= 1;
     item.updatedAt = Date.now();
-    addLog(db, actor, `used a ${item.name} (${item.qty} left)`);
+    addLog(db, actor, `used a ${item.name}${suffix} (${item.qty} left)`);
   } else {
     db.items = db.items.filter((i) => i.id !== id);
-    addLog(db, actor, `used the last ${item.name}`);
+    addLog(db, actor, `used the last ${item.name}${suffix}`);
   }
   save(db);
   return Promise.resolve({ ok: true });

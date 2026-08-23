@@ -729,3 +729,45 @@ button.purse-line:hover { background: none; color: var(--text); }
 @media (max-width: 720px) {
   .home { margin-top: 2vh; }
 }
+
+
+/* ---- category groups in inventories ---- */
+
+.cat-group { margin-bottom: 18px; }
+.cat-group-heading {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin: 0 0 6px 2px;
+  font-weight: 600;
+}
+.cat-group-count { opacity: 0.7; }
+
+/* ---- dice (ported from DM-Screen) ---- */
+
+.die { flex-shrink: 0; transform-origin: 50% 50%; }
+.die.rolling { animation: dietumble 0.95s cubic-bezier(0.3, 0.7, 0.3, 1); }
+@keyframes dietumble {
+  0% { transform: rotate(0deg) scale(0.8); }
+  20% { transform: rotate(160deg) scale(1.1); }
+  35% { transform: rotate(128deg) scale(1); }
+  60% { transform: rotate(-150deg) scale(1.07); }
+  75% { transform: rotate(-116deg) scale(1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .die.rolling { animation: none; } }
+.die .shell { fill: var(--bg-hover); stroke: var(--accent); }
+.die .facet { fill: none; stroke: rgba(180, 140, 242, 0.35); stroke-width: 0.8; }
+.die text { fill: var(--text); font-weight: 700; }
+.dice-group { display: inline-flex; gap: 8px; }
+
+.roll-modal { width: 340px; align-items: center; text-align: center; }
+.roll-blurb { margin: 0; }
+.roll-choices { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.roll-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 0 4px; }
+.roll-total { font-size: 1.05rem; opacity: 0; transition: opacity 0.25s ease; }
+.roll-total strong { color: var(--gold); font-size: 1.3rem; }
+.roll-total.shown { opacity: 1; }
+.roll-done { width: 100%; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+.roll-done.shown { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .roll-total, .roll-done { transition: none; } }

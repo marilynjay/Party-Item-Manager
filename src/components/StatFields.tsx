@@ -5,6 +5,7 @@ import { DAMAGE_TYPES } from '../types';
 export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | undefined {
   const out: ItemStats = {};
   const has = (f: StatField) => allowed.includes(f);
+  if (has('heal') && stats.heal?.trim()) out.heal = stats.heal.trim();
   if (has('dmg') && stats.dmg?.trim()) out.dmg = stats.dmg.trim();
   if (has('dtype') && stats.dtype) out.dtype = stats.dtype;
   if (has('bonus') && stats.bonus) out.bonus = stats.bonus;
@@ -40,6 +41,13 @@ interface Props {
 export function StatFieldControl({ field, stats: s, onChange }: Props) {
   const numOr = (v: string) => (v === '' ? undefined : Math.max(0, parseInt(v, 10) || 0));
   switch (field) {
+    case 'heal':
+      return (
+        <label>
+          Healing
+          <input placeholder="e.g. 2d4+2" value={s.heal ?? ''} onChange={(e) => onChange({ heal: e.target.value })} />
+        </label>
+      );
     case 'dmg':
       return (
         <label>
