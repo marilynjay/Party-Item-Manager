@@ -167,22 +167,39 @@ export function App() {
               onSetPurse={(holder, gp, pp) => run(() => api.setPurse(holder, gp, pp, actor))}
               onGive={(holder, amount, unit) => run(() => api.addMoney(holder, amount, unit, actor))}
             />
+            <FilterBar filters={filters} onChange={setFilters} />
             <button type="button" className="add-big" onClick={() => setAdding(true)}>
               <span className="add-big-plus">＋</span> Add
             </button>
-            {addModal}
+            {filtering && (
+              <div className="home-results">
+                <ItemList
+                  items={visible}
+                  icons={state.icons}
+                  groupByHolder
+                  highlightMagic={filters.magicOnly}
+                  attunedCounts={attunedCounts}
+                  attunementSlots={ATTUNEMENT_SLOTS}
+                  isMagic={isMagic}
+                  emptyMessage="Nothing matches that search."
+                  onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
+                  onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
+                  onDelete={(id) => run(() => api.deleteItem(id, actor))}
+                />
+              </div>
+            )}
           </div>
         ) : scope === 'log' ? (
           <LogPanel log={state.log} />
         ) : (
           <>
             {scopeHolder && <PurseLine gp={state.gold[scopeHolder.id] ?? 0} pp={state.platinum[scopeHolder.id] ?? 0} />}
-            <AddItemForm
-              defaultLocation={isHolderScope ? scope : 'senchez'}
-              onAdd={(fields) => run(() => api.createItem(fields, actor))}
-              onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, amount, unit, actor))}
-            />
-            <FilterBar filters={filters} onChange={setFilters} />
+            <div className="list-tools">
+              <FilterBar filters={filters} onChange={setFilters} />
+              <button type="button" className="add-big add-small" onClick={() => setAdding(true)}>
+                <span className="add-big-plus">＋</span> Add
+              </button>
+            </div>
             <ItemList
               items={visible}
               icons={state.icons}
@@ -200,6 +217,7 @@ export function App() {
             />
           </>
         )}
+        {addModal}
         {pickingIcon && scopeHolder && (
           <IconPicker
             holder={scopeHolder}

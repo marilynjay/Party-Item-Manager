@@ -231,14 +231,29 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 
 /* ---- filters ---- */
 
-.filter-bar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  align-items: center;
+.filter-min { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.search-min {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 8px 4px;
+  color: var(--text);
 }
-.filter-search { flex: 1; min-width: 180px; }
+.search-min:focus { outline: none; border-bottom-color: var(--accent-strong); }
+.search-min::placeholder { color: var(--text-muted); opacity: 0.7; }
+.filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.list-tools {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.add-small { padding: 8px 20px; font-size: 1rem; box-shadow: none; flex-shrink: 0; }
+.home .filter-min { width: 100%; }
+.home-results { width: 100%; }
 
 .chip {
   border-radius: 20px;

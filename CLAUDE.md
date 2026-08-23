@@ -29,7 +29,7 @@ There are no automated tests; verify changes via `npm run build` at minimum, ide
 - Party money: per-holder integer gp and pp (`gold`/`platinum` in state, 1 pp = 10 gp via `PP_IN_GP`). All displayed totals are gp-equivalent; the split shows in the ledger row editor and the holder-tab purse line. `setPurse` sets a purse outright, `addMoney` adds coins; both log. Typing "25 gp" / "3 pp" into the quick-add box routes to `addMoney` instead of creating an item (`parseMoney` in `AddItemForm`).
 - Change log: capped at 500 entries, actor comes from the client's "Playing as" picker (localStorage).
 
-- Home tab (default scope): shows only the party-gold line (click for the per-holder breakdown) and a floating + button that opens the add form in a modal.
+- Home tab (default scope): the party-gold number (click for the ledger breakdown), a quiet search field that searches the whole party (results grouped by holder), and the + Add pill. Adding everywhere goes through the same modal (`AddItemForm`); there is no inline add form. The search field (`FilterBar`) reveals type/rarity/magic controls only on focus or when a filter is active.
 - Holder icons: per-holder emoji stored in state (`icons`), editable from the holder's own tab via the heading icon (`IconPicker`); defaults live on `HOLDERS`. The phone rail shows icons only.
 - Item catalogue: `src/catalog.ts` holds 252 SRD items (generated from the DM-Screen project's item list, enriched with SRD attunement flags and standard weights). It powers the quick-add autocomplete and the 📖 Browse modal (`CatalogBrowser`); picking an item prefills the advanced fields. One-off data fixes inline are fine.
 
