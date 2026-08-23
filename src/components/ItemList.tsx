@@ -291,6 +291,7 @@ function ItemEditor({
   });
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
   const [pickingIcon, setPickingIcon] = useState(false);
+  const [catDone, setCatDone] = useState(item.category !== '');
   const [photoError, setPhotoError] = useState('');
   const shownIcon = f.icon || itemIcon({ ...item, icon: '', name: f.name, category: f.category, subtype: f.subtype });
 
@@ -343,7 +344,15 @@ function ItemEditor({
         <input type="number" min={1} value={f.qty} onChange={(e) => set({ qty: Math.max(1, Number(e.target.value) || 1) })} />
       </label>
       <div className="wide">
-        <CategoryPicker category={f.category} subtype={f.subtype} onChange={(category, subtype) => set({ category, subtype })} />
+        <CategoryPicker
+          category={f.category}
+          subtype={f.subtype}
+          complete={catDone}
+          onChange={(category, subtype, done) => {
+            set({ category, subtype });
+            setCatDone(done);
+          }}
+        />
       </div>
       <label>
         Rarity

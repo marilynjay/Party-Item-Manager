@@ -61,6 +61,7 @@ function suggestFor(name: string, custom: CatalogItem[]): Suggestion[] {
 const blankAdvanced = {
   category: '' as CategoryKey,
   subtype: '',
+  catDone: false,
   rarity: '',
   weight: '' as string,
   value: '',
@@ -76,7 +77,6 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const [location, setLocation] = useState<HolderId | 'auto'>('auto');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [adv, setAdv] = useState(blankAdvanced);
-  const [saveCustom, setSaveCustom] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [sugIx, setSugIx] = useState(0);
   const [picked, setPicked] = useState<CatalogItem | null>(null);
@@ -97,6 +97,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     setAdv({
       category: it.category as CategoryKey,
       subtype: it.subtype,
+      catDone: true,
       rarity: it.rarity,
       weight: it.weight === null ? '' : String(it.weight),
       value: '',
@@ -151,7 +152,6 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     setName('');
     setQty(1);
     setAdv(blankAdvanced);
-    setSaveCustom(false);
     setDetailsOpen(false);
     setPicked(null);
     setSuggestions([]);
@@ -181,7 +181,8 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       attuned: !noAttune && adv.attuned,
       notes: adv.notes,
     });
-    if (saveCustom) {
+    // anything built through the custom-item panel joins the party catalogue
+    if (!picked && adv.catDone) {
       void onSaveCustom({
         name: name.trim(),
         category: adv.category,
@@ -318,16 +319,23 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       {detailsOpen && (
         <div className="add-advanced">
           <div className="details-head wide">
-            <span className="item-menu-heading muted">Item details</span>
+            <span className="item-menu-heading muted">Custom item</span>
             <button type="button" className="link-button" onClick={() => setDetailsOpen(false)}>▴ hide</button>
           </div>
           <div className="wide">
             <CategoryPicker
               category={adv.category}
               subtype={adv.subtype}
-              onChange={(category, subtype) => setA({ category, subtype })}
+              complete={adv.catDone}
+              onChange={(category, subtype, catDone) => setA({ category, subtype, catDone })}
             />
           </div>
+          {!adv.catDone && (
+            <div className="wide muted panel-hint">
+              Pick a category{adv.category ? ' and subtype' : ''} — the rest of the form appears once you have.
+            </div>
+          )}
+          {adv.catDone && (<>
           <label>
             Rarity
             <select value={adv.rarity} onChange={(e) => setA({ rarity: e.target.value })}>
@@ -384,10 +392,10 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             Notes
             <textarea rows={3} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
           </label>
-          <label className="check wide" title="Saved items autocomplete and appear in Browse under ✦ Custom">
-            <input type="checkbox" checked={saveCustom} onChange={(e) => setSaveCustom(e.target.checked)} />
-            ✦ Save to our catalogue for next time
-          </label>
+          {!picked && (
+            <div className="wide muted panel-hint">✦ Saved to the party catalogue automatically.</div>
+          )}
+          </>)}
         </div>
       )}
       {browsing && (
