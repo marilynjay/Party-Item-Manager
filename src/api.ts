@@ -4,6 +4,7 @@
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
 import { HOLDERS } from './types';
+import { CATALOG } from './catalog';
 
 const DB_KEY = 'pim-db';
 const LOG_CAP = 500;
@@ -34,6 +35,73 @@ function addLog(db: AppState, actor: string, text: string): void {
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+// ---- one-time playtest seed -------------------------------------------
+// Stocks this browser once with sample gear and gold so the app isn't empty
+// during playtesting. Additive (never touches existing items) and guarded by
+// a flag, so it runs a single time per browser. Delete anything freely.
+const SEED_FLAG = 'pim-seed-v1';
+
+const SEED_ITEMS: Array<[string, HolderId, number, boolean?]> = [
+  ['Dagger of Venom', 'yiptik', 1],
+  ['Boots of Elvenkind', 'yiptik', 1],
+  ['Shield, +1', 'radish', 1],
+  ['Potion of Healing (Greater)', 'radish', 1],
+  ['Longbow', 'tuffany', 1],
+  ['Quiver of Ehlonna', 'tuffany', 1],
+  ['Wand of Magic Missiles', 'astrielle', 1],
+  ['Pearl of Power', 'astrielle', 1, true],
+  ['Greataxe', 'hyrroh', 1],
+  ['Gauntlets of Ogre Power', 'hyrroh', 1, true],
+  ['Potion of Healing', 'senchez', 3],
+  ['Spell Scroll (2nd Level)', 'senchez', 2],
+  ['Rope of Climbing', 'senchez', 1],
+  ['Bag of Tricks', 'senchez', 1],
+  ['Alchemy Jug', 'senchez', 1],
+  ['Chain Mail', 'senchez', 1],
+  ['Immovable Rod', 'senchez', 1],
+  ['Driftglobe', 'senchez', 1],
+  ['Oil of Slipperiness', 'senchez', 1],
+  ['Lantern of Revealing', 'senchez', 1],
+];
+
+const SEED_GOLD: Partial<Record<HolderId, number>> = { radish: 150, astrielle: 75, senchez: 2000 };
+
+function seedOnce(): void {
+  try {
+    if (localStorage.getItem(SEED_FLAG)) return;
+    const db = load();
+    const now = Date.now();
+    for (const [name, location, qty, attuned] of SEED_ITEMS) {
+      const cat = CATALOG.find((c) => c.name === name);
+      db.items.push({
+        id: newId(),
+        name,
+        type: cat?.type ?? '',
+        rarity: cat?.rarity ?? '',
+        qty,
+        weight: cat?.weight ?? null,
+        value: '',
+        magic: cat?.magic ?? false,
+        requiresAttunement: cat?.requiresAttunement ?? false,
+        attuned: Boolean(attuned),
+        location,
+        notes: cat?.rules ?? '',
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    for (const [holder, gp] of Object.entries(SEED_GOLD) as Array<[HolderId, number]>) {
+      db.gold[holder] = Math.max(0, Math.floor(Number(db.gold[holder]) || 0)) + gp;
+    }
+    addLog(db, 'Senchez', 'coughed up a pile of sample gear and gold for playtesting');
+    save(db);
+    localStorage.setItem(SEED_FLAG, '1');
+  } catch {
+    // storage unavailable — nothing to seed
+  }
+}
+seedOnce();
 
 export const getState = (): Promise<AppState> => Promise.resolve(clone(load()));
 
