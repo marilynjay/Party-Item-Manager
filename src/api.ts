@@ -42,13 +42,14 @@ function load(): AppState {
         gold: (db.gold ?? {}) as Gold,
         platinum: (db.platinum ?? {}) as Gold,
         icons: db.icons ?? {},
+        portraits: db.portraits ?? {},
         custom: (db.custom ?? []).map(migrateTaxonomy),
       };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
   }
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, custom: [] };
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, custom: [] };
 }
 
 function save(db: AppState): void {
@@ -389,6 +390,21 @@ export function deleteItem(id: string, actor: string): Promise<{ ok: true }> {
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   db.items = db.items.filter((i) => i.id !== id);
   addLog(db, actor, `discarded ${item.name} from ${holderName(item.location)}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// A holder's portrait photo; undefined removes it.
+export function setPortrait(holder: HolderId, image: string | undefined, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  if (image) {
+    db.portraits[holder] = image;
+    addLog(db, actor, `gave ${holderName(holder)} a portrait 🖼️`);
+  } else {
+    if (!db.portraits[holder]) return Promise.resolve({ ok: true });
+    delete db.portraits[holder];
+    addLog(db, actor, `removed ${holderName(holder)}’s portrait`);
+  }
   save(db);
   return Promise.resolve({ ok: true });
 }

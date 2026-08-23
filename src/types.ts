@@ -261,6 +261,8 @@ export interface LogEntry {
 
 export type Gold = Record<HolderId, number>;
 export type Icons = Partial<Record<HolderId, string>>;
+// Holder portraits: compressed data-URL photos, like item pictures.
+export type Portraits = Partial<Record<HolderId, string>>;
 
 // Standard 5e exchange rate: 1 platinum = 10 gold.
 export const PP_IN_GP = 10;
@@ -275,6 +277,7 @@ export interface AppState {
   gold: Gold;
   platinum: Gold;
   icons: Icons;
+  portraits: Portraits;
   custom: CatalogItem[];
 }
 

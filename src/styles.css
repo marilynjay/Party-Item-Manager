@@ -24,7 +24,7 @@ body {
   font-size: 15px;
 }
 
-h1 { font-size: 1.3rem; margin: 0; }
+h1 { font-size: 1.3rem; margin: 0; display: flex; align-items: center; }
 h2 { font-size: 1rem; margin: 0; }
 
 .muted { color: var(--text-muted); }
@@ -78,6 +78,40 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
+
+/* ---- holder portraits ---- */
+.portrait-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 0;
+  cursor: zoom-in;
+}
+.portrait-btn, .portrait-add { margin-right: 10px; flex-shrink: 0; }
+.portrait-img {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+.portrait-btn:hover .portrait-img { border-color: var(--accent); }
+.portrait-add {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.portrait-add:hover { opacity: 1; border-color: var(--accent); }
+.portrait-zoom { flex-direction: column; gap: 8px; }
+.portrait-zoom img { max-height: 80vh; }
+.portrait-zoom-actions { display: flex; align-items: center; gap: 10px; }
 
 .actor-picker { color: var(--text-muted); font-size: 0.9rem; }
 .actor-picker select { margin-left: 6px; }

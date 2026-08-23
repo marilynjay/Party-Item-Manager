@@ -10,6 +10,74 @@ import { LogPanel } from './components/LogPanel';
 import { GoldTracker } from './components/GoldTracker';
 import { HOLDER_ICON_PRESETS, IconPicker } from './components/IconPicker';
 import { PP_IN_GP } from './types';
+import { compressImage } from './image';
+
+// The holder's portrait beside their inventory heading: a round photo
+// (tap to enlarge, with replace/remove) or a quiet camera button to add one.
+function HolderPortrait({
+  name,
+  image,
+  onSave,
+  onError,
+}: {
+  name: string;
+  image: string | undefined;
+  onSave: (image: string | undefined) => void;
+  onError: (message: string) => void;
+}) {
+  const [zoomed, setZoomed] = useState(false);
+
+  const onFile = (file: File | undefined) => {
+    if (!file) return;
+    compressImage(file)
+      .then((dataUrl) => {
+        setZoomed(false);
+        onSave(dataUrl);
+      })
+      .catch((e: Error) => onError(e.message));
+  };
+
+  if (!image) {
+    return (
+      <label className="portrait-add" title={`Add a picture of ${name}`}>
+        📷
+        <input type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+      </label>
+    );
+  }
+
+  return (
+    <>
+      <button type="button" className="portrait-btn" title={`${name}’s portrait — tap to enlarge`} onClick={() => setZoomed(true)}>
+        <img className="portrait-img" src={image} alt={name} />
+      </button>
+      {zoomed && (
+        <div className="overlay photo-zoom portrait-zoom" onClick={() => setZoomed(false)}>
+          <img src={image} alt={name} onClick={(e) => e.stopPropagation()} />
+          <div className="portrait-zoom-actions" onClick={(e) => e.stopPropagation()}>
+            <label className="link-button photo-pick">
+              Replace picture
+              <input type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+            </label>
+            <button
+              type="button"
+              className="link-button danger-link"
+              onClick={() => {
+                if (confirm(`Remove ${name}’s portrait?`)) {
+                  setZoomed(false);
+                  onSave(undefined);
+                }
+              }}
+            >
+              Remove
+            </button>
+            <button type="button" className="link-button" onClick={() => setZoomed(false)}>✕ Close</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 // A holder's coin line, shown on their own tab when they carry anything;
 // tapping it opens an inline gp/pp editor.
@@ -70,7 +138,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, custom: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, custom: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -171,6 +239,12 @@ export function App() {
               'Change log'
             ) : (
               <>
+                <HolderPortrait
+                  name={scopeHolder!.name}
+                  image={state.portraits[scopeHolder!.id]}
+                  onSave={(image) => run(() => api.setPortrait(scopeHolder!.id, image, actor))}
+                  onError={setError}
+                />
                 <button
                   type="button"
                   className="heading-icon"
