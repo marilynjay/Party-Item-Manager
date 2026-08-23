@@ -200,7 +200,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   padding: 12px;
   margin-bottom: 14px;
 }
-.add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
 .add-name { flex: 1; min-width: 200px; }
 .add-qty { width: 70px; }
 
@@ -542,20 +542,17 @@ button.purse-line:hover { background: none; color: var(--text); }
 
 /* ---- catalogue autocomplete + browser ---- */
 
-.suggest-wrap { position: relative; flex: 1; min-width: 200px; display: flex; }
+.suggest-wrap { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
 .suggest-wrap .add-name { width: 100%; min-width: 0; }
 
+/* In flow, not floating: suggestions push the qty/recipient controls down
+   instead of covering them. */
 .suggest {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 30;
+  margin-top: 6px;
   background: var(--bg-raised);
   border: 1px solid var(--accent-strong);
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 .suggest-row {
   display: flex;
