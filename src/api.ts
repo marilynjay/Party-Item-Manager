@@ -19,6 +19,10 @@ function migrateTaxonomy<T extends { name: string }>(entry: T): T {
     legacy.subtype = legacy.subtype ?? m.subtype;
     delete legacy.type;
   }
+  // gems and art moved from Papers into their own Treasure category
+  if (legacy.category === 'papers' && (legacy.subtype === 'gems' || legacy.subtype === 'art')) {
+    legacy.category = 'treasure';
+  }
   return entry;
 }
 

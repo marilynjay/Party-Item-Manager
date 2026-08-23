@@ -22,7 +22,7 @@ export const holderById = (id: HolderId): Holder => HOLDERS.find((h) => h.id ===
 export const BAG_CAPACITY_LB = 500;
 export const ATTUNEMENT_SLOTS = 3;
 
-export type CategoryKey = 'gear' | 'accessory' | 'consumable' | 'arcana' | 'supplies' | 'papers' | 'other' | '';
+export type CategoryKey = 'gear' | 'accessory' | 'consumable' | 'arcana' | 'supplies' | 'papers' | 'treasure' | 'other' | '';
 
 export interface ItemCategory {
   key: CategoryKey;
@@ -37,7 +37,8 @@ export const CATEGORIES: ItemCategory[] = [
   { key: 'consumable', name: 'Consumables', emoji: '🧪', subtypes: ['potion', 'scroll', 'food & drink', 'alchemical'] },
   { key: 'arcana', name: 'Arcana', emoji: '🪄', subtypes: ['wand', 'staff', 'rod', 'focus', 'spellbook'] },
   { key: 'supplies', name: 'Supplies', emoji: '🎒', subtypes: ['tool', 'container', 'camp gear', 'instrument'] },
-  { key: 'papers', name: 'Papers & treasure', emoji: '📜', subtypes: ['note', 'map', 'deed', 'book', 'gems', 'art'] },
+  { key: 'papers', name: 'Information', emoji: '📜', subtypes: ['note', 'map', 'deed', 'book'] },
+  { key: 'treasure', name: 'Treasure', emoji: '👑', subtypes: ['gems', 'art'] },
   { key: 'other', name: 'Other', emoji: '❔', subtypes: [] },
 ];
 
@@ -79,7 +80,7 @@ const SUBTYPE_ICONS: Record<string, string> = {
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
-  gear: '⚔️', accessory: '💍', consumable: '🧪', arcana: '🪄', supplies: '🎒', papers: '📜', other: '📦',
+  gear: '⚔️', accessory: '💍', consumable: '🧪', arcana: '🪄', supplies: '🎒', papers: '📜', treasure: '👑', other: '📦',
 };
 
 export function defaultIcon(category: CategoryKey, subtype: string, name: string): string {
@@ -105,8 +106,10 @@ export function formPlan(category: CategoryKey, subtype: string): FormPlan {
     case 'papers':
       if (PAPERY.includes(subtype)) return { primary: ['content'], advanced: ['rarity', 'value', 'magic'] };
       if (subtype === 'book') return { primary: ['content', 'weight'], advanced: ['rarity', 'value', 'magic', 'attunement'] };
-      if (subtype === 'gems' || subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic', 'attunement'] };
       return { primary: ['content', ...GENERIC.primary], advanced: [] };
+    case 'treasure':
+      if (subtype === 'gems' || subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic', 'attunement'] };
+      return { primary: ['value', 'weight', 'rarity', 'magic', 'attunement'], advanced: [] };
     case 'consumable':
       if (subtype === 'food & drink') return { primary: ['weight'], advanced: ['rarity', 'value', 'magic'] };
       if (subtype) return { primary: ['rarity'], advanced: ['weight', 'value', 'magic', 'attunement'] };
@@ -142,7 +145,7 @@ export function classifyLegacy(type: string, name: string): { category: Category
     'ammunition': ['gear', 'ammunition'], 'ring': ['accessory', 'ring'],
     'potion': ['consumable', 'potion'], 'scroll': ['consumable', 'scroll'],
     'wand': ['arcana', 'wand'], 'staff': ['arcana', 'staff'], 'rod': ['arcana', 'rod'],
-    'tool': ['supplies', 'tool'], 'gear': ['supplies', ''], 'treasure': ['papers', 'gems'],
+    'tool': ['supplies', 'tool'], 'gear': ['supplies', ''], 'treasure': ['treasure', 'gems'],
     'other': ['other', ''],
   };
   const key = (type || '').toLowerCase();
