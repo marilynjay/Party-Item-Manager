@@ -1,5 +1,5 @@
 import { AutoTextarea } from './AutoTextarea';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item, JournalEntry } from '../types';
 import type { FormField, ItemStats } from '../types';
 import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
@@ -10,6 +10,8 @@ import type { RollResult } from '../dice';
 import { CategoryPicker } from './CategoryPicker';
 import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
 import { compressImage } from '../image';
+import { SPELL_NAMES, findSpellInName } from '../spellIndex';
+import { SpellCard } from './SpellCard';
 
 interface Props {
   items: Item[];
@@ -397,9 +399,15 @@ const previewText = (n: string) =>
 
 function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void }) {
   const [zoomed, setZoomed] = useState(false);
+  const [spellView, setSpellView] = useState<string | null>(null);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
   const s = item.stats ?? {};
+  // a scroll named after a known spell ("Spell Scroll: Fireball") gets a lookup card too
+  const scrollSpell = useMemo(
+    () => (item.subtype === 'scroll' ? findSpellInName(item.name) : null),
+    [item.subtype, item.name]
+  );
   if (cat) rows.push(['Type', `${cat.emoji} ${cat.name}${item.subtype ? ' · ' + item.subtype : ''}`]);
   if (s.dmg || s.dtype || s.bonus)
     rows.push(['Damage', [s.dmg, s.dtype, s.bonus ? `+${s.bonus}` : ''].filter(Boolean).join(' ')]);
@@ -418,7 +426,18 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
         )}
       </span>,
     ]);
-  if (s.spellLevel || s.dc) rows.push(['Spell', [s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')]);
+  if (s.spellLevel || s.dc || scrollSpell)
+    rows.push([
+      'Spell',
+      <span className="charges-row">
+        {[s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')}
+        {scrollSpell && (
+          <button type="button" className="charge-btn" title="Read the spell" onClick={() => setSpellView(scrollSpell)}>
+            📖 {SPELL_NAMES.get(scrollSpell)}
+          </button>
+        )}
+      </span>,
+    ]);
   if (s.capacity) rows.push(['Capacity', s.capacity]);
   if (s.language) rows.push(['Language', s.language]);
   if (s.cursed) rows.push(['💀 Cursed', s.curseText || 'Yes — someone should probably mention that.']);
@@ -462,7 +481,18 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           <span className="item-menu-heading muted">Spells</span>
           {parseSpellLines(s.spells).map((sp, i) => (
             <div className="spell-row" key={sp.name + i}>
-              <span className="spell-name">{sp.name}</span>
+              {SPELL_NAMES.has(sp.name.trim().toLowerCase()) ? (
+                <button
+                  type="button"
+                  className="spell-name spell-link"
+                  title="Read the spell"
+                  onClick={() => setSpellView(sp.name.trim().toLowerCase())}
+                >
+                  {sp.name}
+                </button>
+              ) : (
+                <span className="spell-name">{sp.name}</span>
+              )}
               <span className="spell-cost muted">⚡{sp.cost}</span>
               {s.charges !== undefined && (
                 <button
@@ -506,6 +536,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
       )}
       {item.notes && <p className="item-detail-notes">{item.notes}</p>}
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
+      {spellView && <SpellCard name={spellView} onClose={() => setSpellView(null)} />}
       <div className="item-detail-actions">
         {onUse && (
           <button type="button" className="detail-use" onClick={onUse}>
