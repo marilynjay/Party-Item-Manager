@@ -174,9 +174,12 @@ export function updateItem(id: string, fields: Partial<Item>, actor: string): Pr
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   const before = item.location;
+  const attuneOnly = Object.keys(fields).length === 1 && fields.attuned !== undefined;
   Object.assign(item, fields, { updatedAt: Date.now() });
   if (fields.location !== undefined && fields.location !== before) {
     addLog(db, actor, `moved ${item.name} from ${holderName(before)} to ${holderName(item.location)}`);
+  } else if (attuneOnly) {
+    addLog(db, actor, fields.attuned ? `${holderName(item.location)} attuned to ${item.name} ◈` : `${holderName(item.location)} ended attunement to ${item.name}`);
   } else {
     addLog(db, actor, `edited ${item.name}`);
   }

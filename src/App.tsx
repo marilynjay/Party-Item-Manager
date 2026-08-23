@@ -184,17 +184,19 @@ export function App() {
               </>
             )}
           </h1>
-          <label className="actor-picker">
-            Playing as{' '}
-            <select value={actor} onChange={(e) => setActor(e.target.value)}>
-              <option value="">— pick —</option>
-              {MEMBERS.map((m) => (
-                <option key={m.id} value={m.name}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {scope === 'home' && (
+            <label className="actor-picker">
+              Playing as{' '}
+              <select value={actor} onChange={(e) => setActor(e.target.value)}>
+                <option value="">— pick —</option>
+                {MEMBERS.map((m) => (
+                  <option key={m.id} value={m.name}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </header>
 
         {error && (
@@ -243,6 +245,15 @@ export function App() {
           <LogPanel log={state.log} />
         ) : (
           <>
+            {scopeHolder && scopeHolder.kind === 'member' && (() => {
+              const att = state.items.filter((i) => i.location === scopeHolder.id && i.attuned);
+              if (att.length === 0) return null;
+              return (
+                <div className="attuned-line muted">
+                  ◈ Attuned ({att.length}/{ATTUNEMENT_SLOTS}): {att.map((i) => i.name).join(' · ')}
+                </div>
+              );
+            })()}
             {scopeHolder && (
               <PurseLine
                 name={scopeHolder.name}

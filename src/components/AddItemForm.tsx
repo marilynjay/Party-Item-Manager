@@ -412,13 +412,28 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         </div>
       )}
       {picked && !money && (
-        <div className="picked-note muted">
-          ✓ From the catalogue: {picked.rarity || 'mundane'} {categoryLabel(picked.category as CategoryKey, picked.subtype)}
-          {picked.requiresAttunement ? ', requires attunement' : ''}
-          {picked.weight !== null ? `, ${picked.weight} lb` : ''} — details filled in.{' '}
+        <div className="picked-card">
+          <div className="picked-card-head">
+            <span className="picked-card-name">
+              {defaultIcon(picked.category as CategoryKey, picked.subtype, picked.name)} <strong>{picked.name}</strong>
+            </span>
+            <span className="item-tags">
+              {picked.rarity && <span className={`tag rarity-${picked.rarity.replace(/\s+/g, '-')}`}>{picked.rarity}</span>}
+              {categoryLabel(picked.category as CategoryKey, picked.subtype) && (
+                <span className="tag">{categoryLabel(picked.category as CategoryKey, picked.subtype)}</span>
+              )}
+              {picked.requiresAttunement && <span className="tag attune-tag">◇ attunement</span>}
+              {picked.stats?.dmg && <span className="tag">{picked.stats.dmg}{picked.stats.dtype ? ` ${picked.stats.dtype}` : ''}{picked.stats.bonus ? ` +${picked.stats.bonus}` : ''}</span>}
+              {picked.stats?.ac && <span className="tag">AC {picked.stats.ac}</span>}
+              {picked.stats?.chargesMax !== undefined && <span className="tag charges-tag">⚡ {picked.stats.chargesMax}</span>}
+              {picked.stats?.heal && <span className="tag">heals {picked.stats.heal}</span>}
+              {picked.weight !== null && <span className="tag muted-tag">{picked.weight} lb</span>}
+            </span>
+          </div>
+          {picked.rules && <div className="picked-card-rules muted">{picked.rules}</div>}
           {!detailsOpen && (
             <button type="button" className="link-button picked-tweak" onClick={() => setDetailsOpen(true)}>
-              ✎ adjust
+              ✎ adjust details
             </button>
           )}
         </div>

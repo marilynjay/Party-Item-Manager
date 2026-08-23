@@ -185,6 +185,14 @@ function ItemRow({
 
   const holderAttuned = item.location !== 'senchez' ? (attunedCounts.get(item.location) ?? 0) : 0;
 
+  const toggleAttune = () => {
+    if (!item.requiresAttunement || item.location === 'senchez') return;
+    if (!item.attuned && holderAttuned >= attunementSlots) {
+      if (!confirm(`${holderById(item.location).name} already has ${holderAttuned}/${attunementSlots} attunement slots in use. Attune anyway?`)) return;
+    }
+    onUpdate(item.id, { attuned: !item.attuned });
+  };
+
   return (
     <li className={`item-row ${isMagic(item) ? 'magic' : ''}`}>
       <button
@@ -229,9 +237,17 @@ function ItemRow({
             {categoryLabel(item.category, item.subtype) && <span className="tag">{categoryLabel(item.category, item.subtype)}</span>}
             {item.rarity && <span className={`tag ${rarityClass(item.rarity)}`}>{item.rarity}</span>}
             {item.requiresAttunement && (
-              <span className={`tag attune-tag ${item.attuned ? 'attuned' : ''}`}>
+              <button
+                type="button"
+                className={`tag attune-tag attune-toggle ${item.attuned ? 'attuned' : ''}`}
+                title={item.location === 'senchez' ? 'Attunement needs a wielder, not a bag' : item.attuned ? 'Tap to end attunement' : `Tap to attune ${holderById(item.location).name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAttune();
+                }}
+              >
                 {item.attuned ? '◈ attuned' : '◇ attunement'}
-              </span>
+              </button>
             )}
             {item.stats?.charges !== undefined && (
               <span className="tag charges-tag">⚡ {item.stats.charges}{item.stats.chargesMax !== undefined ? `/${item.stats.chargesMax}` : ''}</span>
@@ -338,6 +354,7 @@ function ItemRow({
           item={item}
           onEdit={() => setView('edit')}
           onUse={item.category === 'consumable' ? useOne : undefined}
+          onToggleAttune={item.requiresAttunement && item.location !== 'senchez' ? toggleAttune : undefined}
           onSpend={() => onSpend(item.id)}
           onRecharge={() => onRecharge(item.id)}
         />
@@ -362,7 +379,7 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit, onUse, onSpend, onRecharge }: { item: Item; onEdit: () => void; onUse?: () => void; onSpend: () => void; onRecharge: () => void }) {
+function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void }) {
   const [zoomed, setZoomed] = useState(false);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
@@ -395,7 +412,17 @@ function ItemDetail({ item, onEdit, onUse, onSpend, onRecharge }: { item: Item; 
     rows.push(['Weight', item.qty > 1 ? `${item.weight} lb each · ${item.weight * item.qty} lb total` : `${item.weight} lb`]);
   if (item.value) rows.push(['Value', item.value]);
   if (item.requiresAttunement)
-    rows.push(['Attunement', item.attuned ? `◈ Attuned to ${holderById(item.location).name}` : '◇ Required, not attuned']);
+    rows.push([
+      'Attunement',
+      <span className="charges-row">
+        {item.attuned ? `◈ Attuned to ${holderById(item.location).name}` : '◇ Required, not attuned'}
+        {onToggleAttune && (
+          <button type="button" className="charge-btn" onClick={onToggleAttune}>
+            {item.attuned ? 'End attunement' : `Attune ${holderById(item.location).name}`}
+          </button>
+        )}
+      </span>,
+    ]);
   else if (item.magic) rows.push(['Magic', 'Yes']);
 
   return (
