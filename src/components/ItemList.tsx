@@ -112,8 +112,8 @@ function ItemRow({
             {item.value && <span className="tag muted-tag">{item.value}</span>}
           </span>
         )}
-        {item.notes && view === 'closed' && (
-          <span className="item-notes-preview muted">{previewText(item.notes)}</span>
+        {(item.content || item.notes) && view === 'closed' && (
+          <span className="item-notes-preview muted">{previewText(item.content || item.notes)}</span>
         )}
       </div>
       {menuOpen && (
