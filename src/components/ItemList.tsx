@@ -313,7 +313,7 @@ function ItemEditor({
       className="item-editor"
       onSubmit={(e) => {
         e.preventDefault();
-        const noWeight = hidesWeight(f.category);
+        const noWeight = hidesWeight(f.category, f.subtype);
         const noAttune = hidesAttunement(f.category, f.subtype);
         onUpdate({
           name: f.name,
@@ -367,7 +367,7 @@ function ItemEditor({
           ))}
         </select>
       </label>
-      {!hidesWeight(f.category) && (
+      {!hidesWeight(f.category, f.subtype) && (
         <label>
           Weight (lb each)
           <input type="number" min={0} step="0.1" value={f.weight} onChange={(e) => set({ weight: e.target.value })} />

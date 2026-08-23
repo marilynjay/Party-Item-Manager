@@ -47,7 +47,7 @@ export function CategoryPicker({ category, subtype, complete, onChange }: Props)
             </button>
           ))}
           <button type="button" className="chip chip-sub chip-skip" onClick={() => onChange(category, '', true)}>
-            none of these
+            other
           </button>
         </div>
       </div>
@@ -67,7 +67,7 @@ export function CategoryPicker({ category, subtype, complete, onChange }: Props)
             title="Change subtype"
             onClick={() => onChange(category, '', false)}
           >
-            {subtype || 'no subtype'} ✕
+            {subtype || 'other'} ✕
           </button>
         )}
       </div>

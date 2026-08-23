@@ -91,10 +91,14 @@ export function defaultIcon(category: CategoryKey, subtype: string, name: string
 export const itemIcon = (i: Pick<Item, 'icon' | 'category' | 'subtype' | 'name'>): string =>
   i.icon || defaultIcon(i.category, i.subtype, i.name);
 
-// Papers don't encumber; you can't attune to a sandwich or a deed.
-export const hidesWeight = (category: CategoryKey): boolean => category === 'papers';
+// Paper doesn't encumber and you can't attune to a sandwich or a deed —
+// but only for the subtypes that are actually paper. "Other" and weighty
+// treasure (gems, art, books) keep the full generic form.
+const PAPERY = ['note', 'map', 'deed'];
+export const hidesWeight = (category: CategoryKey, subtype: string): boolean =>
+  category === 'papers' && PAPERY.includes(subtype);
 export const hidesAttunement = (category: CategoryKey, subtype: string): boolean =>
-  category === 'papers' || (category === 'consumable' && subtype === 'food & drink');
+  (category === 'papers' && PAPERY.includes(subtype)) || (category === 'consumable' && subtype === 'food & drink');
 
 // Maps the old flat type strings (and "wondrous item" by name) onto the
 // category/subtype taxonomy. Used to migrate stored items and the catalogue.

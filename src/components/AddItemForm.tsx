@@ -164,7 +164,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       onClose();
       return;
     }
-    const noWeight = hidesWeight(adv.category);
+    const noWeight = hidesWeight(adv.category, adv.subtype);
     const noAttune = hidesAttunement(adv.category, adv.subtype);
     const weight = noWeight || adv.weight === '' ? null : Number(adv.weight);
     void onAdd({
@@ -347,7 +347,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
               ))}
             </select>
           </label>
-          {!hidesWeight(adv.category) && (
+          {!hidesWeight(adv.category, adv.subtype) && (
             <label>
               Weight (lb each)
               <input
