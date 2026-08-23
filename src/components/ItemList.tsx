@@ -457,7 +457,28 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           <img src={item.image} alt={item.name} />
         </div>
       )}
-      {item.notes && <p className="item-detail-notes">{item.notes}</p>}
+      {s.spells && (
+        <div className="spell-list">
+          <span className="item-menu-heading muted">Spells</span>
+          {parseSpellLines(s.spells).map((sp, i) => (
+            <div className="spell-row" key={sp.name + i}>
+              <span className="spell-name">{sp.name}</span>
+              <span className="spell-cost muted">⚡{sp.cost}</span>
+              {s.charges !== undefined && (
+                <button
+                  type="button"
+                  className="charge-btn"
+                  disabled={(s.charges ?? 0) < sp.cost}
+                  title={(s.charges ?? 0) < sp.cost ? 'Not enough charges' : `Spend ${sp.cost} charge${sp.cost === 1 ? '' : 's'}`}
+                  onClick={() => onCast(sp.name, sp.cost)}
+                >
+                  Cast
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {item.content && (
         <div className="item-detail-contents">
           <span className="item-menu-heading muted">Contents</span>
@@ -483,28 +504,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           ))}
         </dl>
       )}
-      {s.spells && (
-        <div className="spell-list">
-          <span className="item-menu-heading muted">Spells</span>
-          {parseSpellLines(s.spells).map((sp, i) => (
-            <div className="spell-row" key={sp.name + i}>
-              <span className="spell-name">{sp.name}</span>
-              <span className="spell-cost muted">⚡{sp.cost}</span>
-              {s.charges !== undefined && (
-                <button
-                  type="button"
-                  className="charge-btn"
-                  disabled={(s.charges ?? 0) < sp.cost}
-                  title={(s.charges ?? 0) < sp.cost ? 'Not enough charges' : `Spend ${sp.cost} charge${sp.cost === 1 ? '' : 's'}`}
-                  onClick={() => onCast(sp.name, sp.cost)}
-                >
-                  Cast
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {item.notes && <p className="item-detail-notes">{item.notes}</p>}
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
       <div className="item-detail-actions">
         {onUse && (
