@@ -115,7 +115,10 @@ export function formPlan(category: CategoryKey, subtype: string): FormPlan {
       if (subtype) return { primary: ['rarity'], advanced: ['weight', 'value', 'magic', 'attunement'] };
       return GENERIC;
     case 'gear':
-      return subtype ? { primary: ['rarity', 'weight', 'attunement'], advanced: ['value', 'magic'] } : GENERIC;
+      // damage stats carry a weapon's identity; rarity and weight are afterthoughts
+      if (subtype === 'weapon' || subtype === 'ammunition') return { primary: ['attunement'], advanced: ['rarity', 'weight', 'value', 'magic'] };
+      if (subtype === 'armor' || subtype === 'shield') return { primary: ['weight', 'attunement'], advanced: ['rarity', 'value', 'magic'] };
+      return GENERIC;
     case 'accessory':
     case 'arcana':
       return subtype ? { primary: ['rarity', 'attunement'], advanced: ['weight', 'value', 'magic'] } : GENERIC;
