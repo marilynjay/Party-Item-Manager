@@ -1,6 +1,9 @@
 import { AutoTextarea } from './AutoTextarea';
+import { useMemo, useRef, useState } from 'react';
 import type { ItemStats, StatField } from '../types';
 import { DAMAGE_TYPES } from '../types';
+import { SPELL_NAMES } from '../spellIndex';
+import { parseSpellLines } from '../dice';
 
 // Strip empty values; undefined result means "no stats worth storing".
 export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | undefined {
@@ -36,6 +39,101 @@ export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | 
 }
 
 const SPELL_LEVELS = ['cantrip', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+
+// The Spells box helps with the typing: suggestion chips complete long
+// names ("loc" → Locate Animals or Plants) with a default cost of 1 left
+// selected for overtyping, and a live check row shows which lines the
+// compendium recognizes (✓ opens a readable card in play; ? stays plain).
+function SpellsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const [cursor, setCursor] = useState(-1);
+
+  // the name being typed on the cursor's line, until a cost shows up
+  const partial = useMemo(() => {
+    if (cursor < 0 || cursor > value.length) return null;
+    const lineStart = value.lastIndexOf('\n', cursor - 1) + 1;
+    const nextBreak = value.indexOf('\n', cursor);
+    const lineEnd = nextBreak < 0 ? value.length : nextBreak;
+    const raw = value.slice(lineStart, lineEnd).replace(/^[-•·]\s*/, '');
+    if (/\d/.test(raw)) return null;
+    const name = raw.replace(/[\s—–:-]+$/, '').trim().toLowerCase();
+    if (name.length < 2 || SPELL_NAMES.has(name)) return null;
+    return { name, lineStart, lineEnd };
+  }, [value, cursor]);
+
+  const matches = useMemo(() => {
+    if (!partial) return [];
+    const starts: string[] = [];
+    const contains: string[] = [];
+    for (const [key, display] of SPELL_NAMES) {
+      if (key.startsWith(partial.name)) starts.push(display);
+      else if (key.includes(partial.name)) contains.push(display);
+    }
+    return [...starts, ...contains].slice(0, 5);
+  }, [partial]);
+
+  const complete = (display: string) => {
+    if (!partial) return;
+    const insert = `${display} — 1`;
+    onChange(value.slice(0, partial.lineStart) + insert + value.slice(partial.lineEnd));
+    const end = partial.lineStart + insert.length;
+    requestAnimationFrame(() => {
+      const ta = taRef.current;
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(end - 1, end); // the default cost, ready to overtype
+      }
+    });
+    setCursor(-1);
+  };
+
+  const lines = parseSpellLines(value);
+
+  return (
+    <label className="wide">
+      Spells <span className="muted">— one per line, cost last: Cure Wounds — 1</span>
+      <AutoTextarea
+        rows={3}
+        placeholder={'Animal Friendship — 1\nAwaken — 5\nWall of Thorns — 6'}
+        value={value}
+        onChange={(e) => {
+          taRef.current = e.target;
+          setCursor(e.target.selectionStart);
+          onChange(e.target.value);
+        }}
+        onSelect={(e) => {
+          taRef.current = e.currentTarget;
+          setCursor(e.currentTarget.selectionStart);
+        }}
+        onBlur={() => setTimeout(() => setCursor(-1), 150)}
+      />
+      {matches.length > 0 && (
+        <span className="spell-suggest">
+          {matches.map((m) => (
+            <button key={m} type="button" className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => complete(m)}>
+              {m}
+            </button>
+          ))}
+        </span>
+      )}
+      {lines.length > 0 && (
+        <span className="spell-check-row">
+          {lines.map((sp, i) =>
+            SPELL_NAMES.has(sp.name.trim().toLowerCase()) ? (
+              <span key={sp.name + i} className="spell-check known" title="In the compendium — tappable to read in play">
+                ✓ {sp.name}
+              </span>
+            ) : (
+              <span key={sp.name + i} className="spell-check muted" title="Not in the 2014 compendium — stays plain text">
+                ? {sp.name}
+              </span>
+            )
+          )}
+        </span>
+      )}
+    </label>
+  );
+}
 
 interface Props {
   field: StatField;
@@ -141,17 +239,7 @@ export function StatFieldControl({ field, stats: s, onChange }: Props) {
         </span>
       );
     case 'spells':
-      return (
-        <label className="wide">
-          Spells <span className="muted">— one per line, cost last: Cure Wounds — 1</span>
-          <AutoTextarea
-            rows={3}
-            placeholder={'Animal Friendship — 1\nAwaken — 5\nWall of Thorns — 6'}
-            value={s.spells ?? ''}
-            onChange={(e) => onChange({ spells: e.target.value })}
-          />
-        </label>
-      );
+      return <SpellsField value={s.spells ?? ''} onChange={(v) => onChange({ spells: v })} />;
     case 'spellLevel':
       return (
         <label>

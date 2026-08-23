@@ -502,6 +502,11 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   cursor: pointer;
 }
 .spell-link:hover { background: none; text-decoration-style: solid; }
+.spell-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.spell-suggest .chip { font-size: 0.82rem; }
+.spell-check-row { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 0.8rem; font-weight: 400; }
+.spell-check { white-space: nowrap; }
+.spell-check.known { color: var(--accent); }
 .spell-card { max-width: 480px; }
 .spell-card-meta { margin: 0; font-style: italic; font-size: 0.88rem; }
 .spell-card-grid { grid-template-columns: 1fr; gap: 4px; }

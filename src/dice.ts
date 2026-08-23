@@ -28,6 +28,6 @@ export function parseSpellLines(text: string): SpellLine[] {
     .map((line) => {
       const m = line.match(/^(.*?)[\s—–:-]*(\d+)\s*(?:charges?)?$/i);
       if (m && m[1].trim()) return { name: m[1].trim(), cost: Math.max(1, parseInt(m[2], 10)) };
-      return { name: line, cost: 1 };
+      return { name: line.replace(/[\s—–:-]+$/, ''), cost: 1 };
     });
 }
