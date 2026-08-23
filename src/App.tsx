@@ -226,6 +226,8 @@ export function App() {
                   emptyMessage="Nothing matches that search."
                   onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
                   onConsume={(id) => run(() => api.consumeItem(id, actor))}
+                  onSpend={(id) => run(() => api.spendCharge(id, actor))}
+                  onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
                   onDelete={(id) => run(() => api.deleteItem(id, actor))}
                 />
@@ -263,6 +265,8 @@ export function App() {
               }
               onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
               onConsume={(id) => run(() => api.consumeItem(id, actor))}
+              onSpend={(id) => run(() => api.spendCharge(id, actor))}
+              onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
               onDelete={(id) => run(() => api.deleteItem(id, actor))}
             />

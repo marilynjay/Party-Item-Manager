@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
-import type { FormField } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, holderById, holderIcon, itemIcon } from '../types';
+import type { FormField, ItemStats } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
+import { StatFieldControl, cleanStats } from './StatFields';
 import { CategoryPicker } from './CategoryPicker';
 import { ITEM_ICON_PRESETS, IconPicker } from './IconPicker';
 import { compressImage } from '../image';
@@ -17,6 +18,8 @@ interface Props {
   emptyMessage: string;
   onMove: (id: string, to: HolderId, qty: number) => void;
   onConsume: (id: string) => void;
+  onSpend: (id: string) => void;
+  onRecharge: (id: string) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
   onDelete: (id: string) => void;
 }
@@ -58,6 +61,8 @@ function ItemRow({
   attunementSlots,
   onMove,
   onConsume,
+  onSpend,
+  onRecharge,
   onUpdate,
   onDelete,
 }: Props & { item: Item }) {
@@ -107,6 +112,9 @@ function ItemRow({
               <span className={`tag attune-tag ${item.attuned ? 'attuned' : ''}`}>
                 {item.attuned ? '◈ attuned' : '◇ attunement'}
               </span>
+            )}
+            {item.stats?.charges !== undefined && (
+              <span className="tag charges-tag">⚡ {item.stats.charges}{item.stats.chargesMax !== undefined ? `/${item.stats.chargesMax}` : ''}</span>
             )}
             {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
             {item.value && <span className="tag muted-tag">{item.value}</span>}
@@ -194,7 +202,9 @@ function ItemRow({
           </div>
         </div>
       )}
-      {view === 'detail' && <ItemDetail item={item} onEdit={() => setView('edit')} />}
+      {view === 'detail' && (
+        <ItemDetail item={item} onEdit={() => setView('edit')} onSpend={() => onSpend(item.id)} onRecharge={() => onRecharge(item.id)} />
+      )}
       {view === 'edit' && (
         <ItemEditor
           item={item}
@@ -215,11 +225,33 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit }: { item: Item; onEdit: () => void }) {
+function ItemDetail({ item, onEdit, onSpend, onRecharge }: { item: Item; onEdit: () => void; onSpend: () => void; onRecharge: () => void }) {
   const [zoomed, setZoomed] = useState(false);
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
+  const s = item.stats ?? {};
   if (cat) rows.push(['Type', `${cat.emoji} ${cat.name}${item.subtype ? ' · ' + item.subtype : ''}`]);
+  if (s.dmg || s.dtype || s.bonus)
+    rows.push(['Damage', [s.dmg, s.dtype, s.bonus ? `+${s.bonus}` : ''].filter(Boolean).join(' ')]);
+  if (s.properties) rows.push(['Properties', s.properties]);
+  if (s.ac)
+    rows.push(['AC', [s.ac, s.armorClass, s.stealthDis ? 'Stealth dis.' : '', s.strReq ? `Str ${s.strReq}` : ''].filter(Boolean).join(' · ')]);
+  if (s.charges !== undefined || s.chargesMax !== undefined)
+    rows.push([
+      'Charges',
+      <span className="charges-row">
+        ⚡ {s.charges ?? '?'}{s.chargesMax !== undefined ? `/${s.chargesMax}` : ''}
+        {s.recharge && <span className="muted"> · {s.recharge}</span>}
+        <button type="button" className="charge-btn" disabled={(s.charges ?? 0) <= 0} onClick={onSpend}>− Spend</button>
+        {s.chargesMax !== undefined && (s.charges ?? 0) < s.chargesMax && (
+          <button type="button" className="charge-btn" onClick={onRecharge}>↺ Recharge</button>
+        )}
+      </span>,
+    ]);
+  if (s.spellLevel || s.dc) rows.push(['Spell', [s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')]);
+  if (s.capacity) rows.push(['Capacity', s.capacity]);
+  if (s.language) rows.push(['Language', s.language]);
+  if (s.cursed) rows.push(['💀 Cursed', 'Yes — someone should probably mention that.']);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
   if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
@@ -298,12 +330,13 @@ function ItemEditor({
     attuned: item.attuned,
     notes: item.notes,
     content: item.content ?? '',
+    stats: { ...(item.stats ?? {}) } as ItemStats,
   });
   const plan = formPlan(item.category, item.subtype);
+  const sPlan = statPlan(item.category, item.subtype);
   // surface the tucked-away fields if any of them already hold a value
   const [moreOpen, setMoreOpen] = useState(
-    Boolean(item.rarity || item.value || item.magic || item.requiresAttunement || item.weight !== null) &&
-      formPlan(item.category, item.subtype).advanced.length > 0
+    Boolean(item.rarity || item.value || item.magic || item.requiresAttunement || item.weight !== null || item.stats?.cursed || item.stats?.properties)
   );
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
   const [pickingIcon, setPickingIcon] = useState(false);
@@ -410,6 +443,7 @@ function ItemEditor({
           attuned: !noAttune && f.requiresAttunement ? f.attuned : false,
           notes: f.notes,
           content: planHas(f.category, f.subtype, 'content') ? f.content : '',
+          stats: cleanStats(f.stats, [...sPlan.primary, ...sPlan.advanced]),
         });
       }}
     >
@@ -440,12 +474,15 @@ function ItemEditor({
       {editorField('rarity')}
       {editorField('weight')}
       {editorField('value')}
+      {sPlan.primary.map((sf) => (
+        <StatFieldControl key={sf} field={sf} stats={f.stats} onChange={(patch) => set({ stats: { ...f.stats, ...patch } })} />
+      ))}
       {editorField('content')}
       <label className="wide">
         {notesLabel(f.category, f.subtype)}
         <textarea rows={3} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </label>
-      {plan.advanced.length > 0 && (
+      {plan.advanced.length + sPlan.advanced.length > 0 && (
         <div className="wide">
           <button type="button" className="link-button" onClick={() => setMoreOpen(!moreOpen)}>
             More options {moreOpen ? '▴' : '▾'}
@@ -458,6 +495,9 @@ function ItemEditor({
         {editorField('value', true)}
         {editorField('magic', true)}
         {editorField('attunement', true)}
+        {sPlan.advanced.map((sf) => (
+          <StatFieldControl key={sf} field={sf} stats={f.stats} onChange={(patch) => set({ stats: { ...f.stats, ...patch } })} />
+        ))}
       </>)}
       {editorField('magic')}
       {editorField('attunement')}

@@ -153,6 +153,7 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     notes: fields.notes ?? '',
     content: fields.content || undefined,
     image: fields.image || undefined,
+    stats: fields.stats && Object.keys(fields.stats).length ? fields.stats : undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -250,6 +251,30 @@ export function deleteCustomItem(name: string, actor: string): Promise<{ ok: tru
   if (!db.custom.some((c) => c.name.toLowerCase() === key)) return Promise.reject(new Error('Not in the catalogue'));
   db.custom = db.custom.filter((c) => c.name.toLowerCase() !== key);
   addLog(db, actor, `removed ${name} from the party catalogue`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// Tick a charge off a charged item; recharge restores it to max.
+export function spendCharge(id: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item || !item.stats || item.stats.charges === undefined) return Promise.reject(new Error('No charges to spend'));
+  if (item.stats.charges <= 0) return Promise.reject(new Error(`${item.name} is out of charges`));
+  item.stats.charges -= 1;
+  item.updatedAt = Date.now();
+  addLog(db, actor, `spent a charge of ${item.name} (${item.stats.charges} left)`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function rechargeItem(id: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item || !item.stats || item.stats.chargesMax === undefined) return Promise.reject(new Error('Nothing to recharge'));
+  item.stats.charges = item.stats.chargesMax;
+  item.updatedAt = Date.now();
+  addLog(db, actor, `recharged ${item.name} (${item.stats.chargesMax} charges)`);
   save(db);
   return Promise.resolve({ ok: true });
 }

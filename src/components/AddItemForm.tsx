@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Item } from '../types';
-import type { FormField } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, defaultIcon, formPlan, notesLabel, planHas, holderById } from '../types';
+import type { FormField, ItemStats } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, defaultIcon, formPlan, notesLabel, planHas, statPlan, holderById } from '../types';
+import { StatFieldControl, cleanStats } from './StatFields';
 import { compressImage } from '../image';
 import { CategoryPicker } from './CategoryPicker';
 import type { CatalogItem } from '../catalog';
@@ -73,6 +74,7 @@ const blankAdvanced = {
   notes: '',
   content: '',
   image: undefined as string | undefined,
+  stats: {} as ItemStats,
 };
 
 export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSaveCustom, onDeleteCustom, onClose }: Props) {
@@ -98,6 +100,11 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   // rarity above common already counts as magic in every filter
   const impliedMagic = adv.rarity !== '' && adv.rarity !== 'common';
   const plan = formPlan(adv.category, adv.subtype);
+  const sPlan = statPlan(adv.category, adv.subtype);
+  const setStats = (patch: Partial<ItemStats>) => setAdv((prev) => ({ ...prev, stats: { ...prev.stats, ...patch } }));
+  const statEl = (f: Parameters<typeof StatFieldControl>[0]['field']) => (
+    <StatFieldControl key={f} field={f} stats={adv.stats} onChange={setStats} />
+  );
 
   const onPhotoFile = (file: File | undefined) => {
     if (!file) return;
@@ -191,6 +198,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       notes: it.rules,
       content: '',
       image: undefined,
+      stats: it.stats ? { ...it.stats } : {},
     });
     setPicked(it);
     setSuggestions([]);
@@ -254,6 +262,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     const noAttune = !planHas(adv.category, adv.subtype, 'attunement');
     const weight = noWeight || adv.weight === '' ? null : Number(adv.weight);
     const content = planHas(adv.category, adv.subtype, 'content') ? adv.content : '';
+    const stats = cleanStats(adv.stats, [...sPlan.primary, ...sPlan.advanced]);
     void onAdd({
       name: name.trim(),
       qty,
@@ -269,6 +278,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       notes: adv.notes,
       content,
       image: adv.image,
+      stats,
     });
     // anything built through the custom-item panel joins the party catalogue
     if (!picked && adv.catDone) {
@@ -280,6 +290,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         magic: adv.magic || impliedMagic,
         requiresAttunement: !noAttune && adv.requiresAttunement,
         weight,
+        stats,
         rules: adv.notes,
       });
     }
@@ -426,6 +437,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
           )}
           {adv.catDone && (<>
           {plan.primary.map(fieldEl)}
+          {sPlan.primary.map(statEl)}
           <label className="wide">
             {notesLabel(adv.category, adv.subtype)}
             <textarea rows={2} value={adv.notes} onChange={(e) => setA({ notes: e.target.value })} />
@@ -450,14 +462,17 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             )}
             {photoError && <span className="muted photo-error">{photoError}</span>}
           </div>
-          {plan.advanced.length > 0 && (
+          {plan.advanced.length + sPlan.advanced.length > 0 && (
             <div className="wide">
               <button type="button" className="link-button" onClick={() => setMoreOpen(!moreOpen)}>
                 More options {moreOpen ? '▴' : '▾'}
               </button>
             </div>
           )}
-          {moreOpen && plan.advanced.map(fieldEl)}
+          {moreOpen && (<>
+            {plan.advanced.map(fieldEl)}
+            {sPlan.advanced.map(statEl)}
+          </>)}
           {!picked && (
             <div className="wide muted panel-hint">✦ Saved to the party catalogue automatically.</div>
           )}

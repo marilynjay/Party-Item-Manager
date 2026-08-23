@@ -398,6 +398,13 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .item-content-text { border-left: 3px solid var(--gold); padding-left: 10px; font-style: italic; white-space: pre-wrap; }
 .attune-pair { display: flex; flex-direction: column; gap: 8px; align-self: end; padding-bottom: 8px; }
 .attune-pair .check { align-self: auto; padding-bottom: 0; }
+.charges-group { display: contents; }
+.charges-inputs { display: flex; align-items: center; gap: 6px; }
+.charges-inputs input { width: 64px; text-align: center; }
+.str-req input { width: 56px; }
+.charges-tag { color: var(--gold); }
+.charges-row { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.charge-btn { font-size: 0.82rem; padding: 3px 10px; }
 
 .item-editor {
   width: 100%;

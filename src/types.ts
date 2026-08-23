@@ -131,6 +131,37 @@ export function planHas(category: CategoryKey, subtype: string, field: FormField
   return p.primary.includes(field) || p.advanced.includes(field);
 }
 
+// Type-specific mechanics: which stat controls each kind of item shows,
+// and whether up front or under More options. 'stealthStr' bundles the
+// stealth-disadvantage check with the Str requirement; 'charges' bundles
+// current/max/recharge. Cursed rides along wherever magic does.
+export type StatField =
+  | 'dmg' | 'dtype' | 'bonus' | 'properties'
+  | 'ac' | 'armorClass' | 'stealthStr'
+  | 'charges' | 'spellLevel' | 'dc'
+  | 'capacity' | 'language' | 'cursed';
+export interface StatPlan { primary: StatField[]; advanced: StatField[] }
+
+export function statPlan(category: CategoryKey, subtype: string): StatPlan {
+  const plan: StatPlan = (() => {
+    if (category === 'gear') {
+      if (subtype === 'weapon' || subtype === 'ammunition') return { primary: ['dmg', 'dtype', 'bonus'], advanced: ['properties'] };
+      if (subtype === 'armor') return { primary: ['ac', 'armorClass'], advanced: ['stealthStr'] };
+      if (subtype === 'shield') return { primary: ['ac'], advanced: [] };
+      return { primary: [], advanced: [] };
+    }
+    if (category === 'arcana' && ['wand', 'staff', 'rod', 'focus'].includes(subtype)) return { primary: ['charges'], advanced: [] };
+    if (category === 'accessory' && subtype === 'ring') return { primary: [], advanced: ['charges'] };
+    if (category === 'consumable' && subtype === 'scroll') return { primary: ['spellLevel', 'dc'], advanced: [] };
+    if (category === 'consumable' && subtype === 'alchemical') return { primary: ['dmg', 'dc'], advanced: [] };
+    if (category === 'supplies' && subtype === 'container') return { primary: ['capacity'], advanced: [] };
+    if (category === 'papers') return { primary: [], advanced: ['language'] };
+    return { primary: [], advanced: [] };
+  })();
+  if (planHas(category, subtype, 'magic')) plan.advanced.push('cursed');
+  return plan;
+}
+
 export const hidesWeight = (category: CategoryKey, subtype: string): boolean => !planHas(category, subtype, 'weight');
 export const hidesAttunement = (category: CategoryKey, subtype: string): boolean => !planHas(category, subtype, 'attunement');
 
@@ -174,12 +205,18 @@ export function classifyLegacy(type: string, name: string): { category: Category
 
 export const RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'] as const;
 
+export const DAMAGE_TYPES = [
+  'slashing', 'piercing', 'bludgeoning', 'fire', 'cold', 'lightning', 'thunder',
+  'acid', 'poison', 'necrotic', 'radiant', 'force', 'psychic',
+] as const;
+
 export interface Item {
   id: string;
   name: string;
   icon?: string;   // chosen emoji; display falls back to defaultIcon()
   image?: string;  // small data-URL photo (compressed client-side)
   content?: string; // papery items: the text written on the thing
+  stats?: ItemStats; // type-specific mechanics (damage, AC, charges, …)
   category: CategoryKey;
   subtype: string;
   rarity: string;
@@ -208,7 +245,9 @@ export type Icons = Partial<Record<HolderId, string>>;
 // Standard 5e exchange rate: 1 platinum = 10 gold.
 export const PP_IN_GP = 10;
 
-import type { CatalogItem } from './catalog';
+import type { CatalogItem, ItemStats } from './catalog';
+
+export type { ItemStats } from './catalog';
 
 export interface AppState {
   items: Item[];
