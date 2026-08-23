@@ -151,7 +151,7 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
       return (
         <button key={`coin-${s.unit}`} type="button" className={`suggest-row suggest-coin ${active}`}
           onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}>
-          <span>{s.unit === 'gp' ? '🪙' : '⚪'} Add {s.amount.toLocaleString()} {s.unit} to {holderName(target)}’s purse</span>
+          <span>{s.unit === 'gp' ? '🟡' : '⚪'} Add {s.amount.toLocaleString()} {s.unit} to {holderName(target)}’s purse</span>
         </button>
       );
     }
@@ -355,7 +355,7 @@ function CoinDialog({
           />
           <div className="coin-units">
             <button type="button" className={`chip ${unit === 'gp' ? 'chip-on' : ''}`} onClick={() => setUnit('gp')}>
-              🪙 Gold
+              🟡 Gold
             </button>
             <button type="button" className={`chip ${unit === 'pp' ? 'chip-on' : ''}`} onClick={() => setUnit('pp')}>
               ⚪ Platinum
