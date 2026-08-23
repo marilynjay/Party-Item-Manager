@@ -322,9 +322,37 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .rarity-legendary { color: var(--gold); }
 .rarity-artifact { color: #e08c5c; }
 
-.item-actions { display: flex; align-items: center; gap: 6px; }
-.move-select { font-size: 0.88rem; padding: 5px 8px; }
-.move-qty-form { display: flex; gap: 5px; align-items: center; }
+.item-row { position: relative; padding-right: 44px; }
+.item-send {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.item-send:hover { background: var(--bg-hover); border-color: var(--accent); }
+.item-send.open { color: var(--text-muted); }
+.item-menu {
+  width: 100%;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.item-menu-heading { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.item-menu-holders { display: flex; gap: 6px; flex-wrap: wrap; }
+.item-menu-actions { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 9px; }
+.item-menu-actions button { font-size: 0.88rem; }
+.move-qty-form { display: flex; gap: 6px; align-items: center; }
 .move-qty-form input { width: 62px; padding: 5px 8px; }
 .move-qty-form button { font-size: 0.88rem; padding: 5px 10px; }
 

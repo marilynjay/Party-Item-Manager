@@ -183,6 +183,7 @@ export function App() {
                   isMagic={isMagic}
                   emptyMessage="Nothing matches that search."
                   onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
+                  onConsume={(id) => run(() => api.consumeItem(id, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
                   onDelete={(id) => run(() => api.deleteItem(id, actor))}
                 />
@@ -212,6 +213,7 @@ export function App() {
                 filtering ? 'Nothing matches those filters.' : 'Nothing here yet — add something above.'
               }
               onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
+              onConsume={(id) => run(() => api.consumeItem(id, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
               onDelete={(id) => run(() => api.deleteItem(id, actor))}
             />

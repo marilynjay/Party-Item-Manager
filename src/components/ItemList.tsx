@@ -12,6 +12,7 @@ interface Props {
   isMagic: (i: Item) => boolean;
   emptyMessage: string;
   onMove: (id: string, to: HolderId, qty: number) => void;
+  onConsume: (id: string) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
   onDelete: (id: string) => void;
 }
@@ -52,15 +53,18 @@ function ItemRow({
   attunedCounts,
   attunementSlots,
   onMove,
+  onConsume,
   onUpdate,
   onDelete,
 }: Props & { item: Item }) {
   const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   const [moveQty, setMoveQty] = useState(1);
 
   const startMove = (to: HolderId) => {
     if (item.qty === 1) {
+      setMenuOpen(false);
       onMove(item.id, to, 1);
     } else {
       setMoveTo(to);
@@ -72,7 +76,19 @@ function ItemRow({
 
   return (
     <li className={`item-row ${isMagic(item) ? 'magic' : ''}`}>
-      <div className="item-main" onClick={() => setExpanded(!expanded)}>
+      <button
+        type="button"
+        className={`item-send ${menuOpen ? 'open' : ''}`}
+        title={menuOpen ? 'Close' : 'Give away, use, or discard'}
+        onClick={() => {
+          setMenuOpen(!menuOpen);
+          setMoveTo('');
+          setExpanded(false);
+        }}
+      >
+        {menuOpen ? '✕' : '➤'}
+      </button>
+      <div className="item-main" onClick={() => { setExpanded(!expanded); setMenuOpen(false); }}>
         <span className="item-name">
           {isMagic(item) && <span className="magic-spark">✨</span>}
           {item.name}
@@ -90,44 +106,62 @@ function ItemRow({
           {item.value && <span className="tag muted-tag">{item.value}</span>}
         </span>
       </div>
-      <div className="item-actions">
-        {moveTo === '' ? (
-          <select
-            className="move-select"
-            value=""
-            onChange={(e) => e.target.value && startMove(e.target.value as HolderId)}
-          >
-            <option value="">Give to…</option>
-            {HOLDERS.filter((h) => h.id !== item.location).map((h) => (
-              <option key={h.id} value={h.id}>
-                {holderIcon(icons, h)} {h.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className="move-qty-form">
-            <input
-              type="number"
-              min={1}
-              max={item.qty}
-              value={moveQty}
-              onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
-            />
+      {menuOpen && (
+        <div className="item-menu">
+          <div className="item-menu-heading muted">Give to</div>
+          {moveTo === '' ? (
+            <div className="item-menu-holders">
+              {HOLDERS.filter((h) => h.id !== item.location).map((h) => (
+                <button key={h.id} type="button" className="chip" onClick={() => startMove(h.id)}>
+                  {holderIcon(icons, h)} {h.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="move-qty-form">
+              <input
+                type="number"
+                min={1}
+                max={item.qty}
+                value={moveQty}
+                autoFocus
+                onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
+              />
+              <span className="muted">of {item.qty}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setMoveTo('');
+                  onMove(item.id, moveTo, moveQty);
+                }}
+              >
+                → {holderById(moveTo).name}
+              </button>
+              <button type="button" className="link-button" onClick={() => setMoveTo('')}>
+                ✕
+              </button>
+            </div>
+          )}
+          <div className="item-menu-actions">
+            <button type="button" onClick={() => { setMenuOpen(false); onConsume(item.id); }}>
+              🧪 Use one
+            </button>
             <button
               type="button"
+              className="danger"
               onClick={() => {
-                onMove(item.id, moveTo, moveQty);
-                setMoveTo('');
+                if (confirm(`Discard ${item.qty > 1 ? `all ${item.qty} × ` : ''}${item.name}? (Sold, lost, or trashed — it comes off the list.)`)) {
+                  setMenuOpen(false);
+                  onDelete(item.id);
+                }
               }}
             >
-              → {holderById(moveTo).name}
+              🗑️ Discard
             </button>
-            <button type="button" className="link-button" onClick={() => setMoveTo('')}>
-              ✕
-            </button>
-          </span>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
       {expanded && (
         <ItemEditor
           item={item}
@@ -137,7 +171,6 @@ function ItemRow({
             onUpdate(item.id, fields);
             setExpanded(false);
           }}
-          onDelete={() => onDelete(item.id)}
         />
       )}
     </li>
@@ -149,13 +182,11 @@ function ItemEditor({
   holderAttuned,
   attunementSlots,
   onUpdate,
-  onDelete,
 }: {
   item: Item;
   holderAttuned: number;
   attunementSlots: number;
   onUpdate: (fields: Partial<Item>) => void;
-  onDelete: () => void;
 }) {
   const [f, setF] = useState({
     name: item.name,
@@ -261,15 +292,6 @@ function ItemEditor({
       )}
       <div className="editor-buttons wide">
         <button type="submit">Save</button>
-        <button
-          type="button"
-          className="danger"
-          onClick={() => {
-            if (confirm(`Remove ${item.name} entirely?`)) onDelete();
-          }}
-        >
-          Delete
-        </button>
       </div>
     </form>
   );

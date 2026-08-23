@@ -190,12 +190,29 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
   return Promise.resolve({ ok: true });
 }
 
+// Use up one from a stack (drink the potion, throw the dagger of returning-nowhere).
+export function consumeItem(id: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  if (item.qty > 1) {
+    item.qty -= 1;
+    item.updatedAt = Date.now();
+    addLog(db, actor, `used a ${item.name} (${item.qty} left)`);
+  } else {
+    db.items = db.items.filter((i) => i.id !== id);
+    addLog(db, actor, `used the last ${item.name}`);
+  }
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
 export function deleteItem(id: string, actor: string): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   db.items = db.items.filter((i) => i.id !== id);
-  addLog(db, actor, `removed ${item.name} from ${holderName(item.location)}`);
+  addLog(db, actor, `discarded ${item.name} from ${holderName(item.location)}`);
   save(db);
   return Promise.resolve({ ok: true });
 }
