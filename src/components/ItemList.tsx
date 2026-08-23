@@ -68,7 +68,8 @@ function ItemRow({
       onMove(item.id, to, 1);
     } else {
       setMoveTo(to);
-      setMoveQty(item.qty);
+      // giving one from a stack is the common case; "give all" is the shortcut
+      setMoveQty(1);
     }
   };
 
@@ -130,25 +131,34 @@ function ItemRow({
               </div>
             ) : (
               <div className="move-qty-form">
-                <input
-                  type="number"
-                  min={1}
-                  max={item.qty}
-                  value={moveQty}
-                  autoFocus
-                  onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
-                />
+                <div className="qty-stepper">
+                  <button type="button" disabled={moveQty <= 1} onClick={() => setMoveQty(moveQty - 1)}>−</button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={item.qty}
+                    value={moveQty}
+                    onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
+                  />
+                  <button type="button" disabled={moveQty >= item.qty} onClick={() => setMoveQty(moveQty + 1)}>＋</button>
+                </div>
                 <span className="muted">of {item.qty}</span>
                 <button
                   type="button"
+                  className="qty-confirm"
                   onClick={() => {
                     setMenuOpen(false);
                     setMoveTo('');
                     onMove(item.id, moveTo, moveQty);
                   }}
                 >
-                  → {holderById(moveTo).name}
+                  Give {moveQty} → {holderById(moveTo).name}
                 </button>
+                {moveQty < item.qty && (
+                  <button type="button" className="link-button" onClick={() => setMoveQty(item.qty)}>
+                    all {item.qty}
+                  </button>
+                )}
                 <button type="button" className="link-button" onClick={() => setMoveTo('')}>
                   ✕
                 </button>
