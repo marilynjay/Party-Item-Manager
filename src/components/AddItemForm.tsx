@@ -184,7 +184,7 @@ export function AddItemForm({ defaultLocation, onAdd, onAddMoney }: Props) {
           <input
             ref={nameRef}
             className="add-name"
-            placeholder="Add an item… or gold: 25 gp"
+            placeholder="Add an item…"
             value={name}
             autoComplete="off"
             onChange={(e) => onNameChange(e.target.value)}
