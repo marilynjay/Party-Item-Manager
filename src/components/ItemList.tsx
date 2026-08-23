@@ -161,8 +161,13 @@ function ItemRow({
 
   const useOne = () => {
     setMenuOpen(false);
-    if (item.stats?.heal && parseRoll(item.stats.heal)) setRollFor(true);
-    else onConsume(item.id);
+    // heal formulas go through the roll dialog, which has its own cancel
+    if (item.stats?.heal && parseRoll(item.stats.heal)) {
+      setRollFor(true);
+      return;
+    }
+    const tail = item.qty > 1 ? `(${item.qty - 1} left after)` : "that's the last one!";
+    if (confirm(`Use a ${item.name}? ${tail}`)) onConsume(item.id);
   };
 
   const startMove = (to: HolderId) => {
