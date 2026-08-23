@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as api from './api';
-import { AuthError } from './api';
 import type { AppState, HolderId } from './types';
 import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, isMagic } from './types';
-import { Login } from './components/Login';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -11,7 +9,7 @@ import { ItemList } from './components/ItemList';
 import { LogPanel } from './components/LogPanel';
 import { GoldTracker } from './components/GoldTracker';
 
-type Phase = 'checking' | 'login' | 'ready';
+type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
@@ -26,8 +24,7 @@ export function App() {
       setState(await api.getState());
       setPhase('ready');
     } catch (e) {
-      if (e instanceof AuthError) setPhase('login');
-      else setError(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
@@ -35,7 +32,7 @@ export function App() {
     void refresh();
   }, [refresh]);
 
-  // Light polling keeps everyone's view in sync during a session.
+  // Light polling keeps other tabs of the same browser in sync.
   useEffect(() => {
     if (phase !== 'ready') return;
     const t = setInterval(() => void refresh(), 10_000);
@@ -53,8 +50,7 @@ export function App() {
         await fn();
         await refresh();
       } catch (e) {
-        if (e instanceof AuthError) setPhase('login');
-        else setError(e instanceof Error ? e.message : String(e));
+        setError(e instanceof Error ? e.message : String(e));
       }
     },
     [refresh]
@@ -72,18 +68,6 @@ export function App() {
   }, [state.items]);
 
   if (phase === 'checking') return <div className="centered muted">Opening the bag…</div>;
-  if (phase === 'login') {
-    return (
-      <Login
-        onSubmit={(password) =>
-          api
-            .login(password)
-            .then(() => refresh())
-            .catch((e: Error) => Promise.reject(e))
-        }
-      />
-    );
-  }
 
   const scopedItems =
     scope === 'all' || scope === 'log' ? state.items : state.items.filter((i) => i.location === scope);

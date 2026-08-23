@@ -18,18 +18,17 @@ Everyone logs in with the same party password, and everyone sees the same live i
 
 ## Running it
 
-Requires Node 20+.
+**Easiest: just open the site.** Every push auto-deploys to GitHub Pages:
+
+> https://marilynjay.github.io/Party-Item-Manager/
+
+Data currently lives in your browser's localStorage — each browser/device keeps its own copy (see "Where the data lives" below).
+
+To run locally instead (requires Node 20+):
 
 ```bash
 npm install
-npm run build
-npm start              # serves the app on http://localhost:3001
-```
-
-Login is **off by default** — with no `PARTY_PASSWORD` set, anyone with the URL walks right in (handy for playtesting). To require the party password, set env vars (see `.env.example`):
-
-```bash
-PARTY_PASSWORD=your-secret SESSION_SECRET=some-long-random-string npm start
+npm run dev            # app at http://localhost:5173
 ```
 
 For development (Vite dev server with hot reload + API server):
@@ -38,17 +37,8 @@ For development (Vite dev server with hot reload + API server):
 npm run dev            # app at http://localhost:5173
 ```
 
-## Deploying
+## Where the data lives
 
-This is a single Node process that serves both the API and the built frontend, storing data in `data/db.json`. Any host that runs Node and gives you a persistent disk works — Railway, Render, Fly.io, a VPS, a Raspberry Pi under the DM's desk.
+**Right now: in the browser.** All items, gold, and the change log persist to `localStorage`, so the app needs no server at all — which also means each browser has its own separate copy, and clearing site data clears the inventory. That's fine for playtesting; it is not real party sharing.
 
-1. Set env vars when you're ready to lock it down: `PARTY_PASSWORD` (what the party types to log in) and `SESSION_SECRET` (any long random string). Leave them unset for open playtesting.
-2. Make sure the `data/` directory is on persistent storage (set `DATA_DIR` to relocate it if needed).
-3. Build command: `npm install && npm run build` · Start command: `npm start`.
-4. Share the URL and the password with the party.
-
-> Note: platforms with ephemeral filesystems (e.g. Vercel/Netlify serverless) will lose the inventory on redeploy — pick a host with a disk.
-
-## How data is stored
-
-A single JSON file (`data/db.json`) holds all items and the change log, written atomically on every mutation. For a party of five and a bag, that's all the database anyone needs.
+**Later: the dormant server.** `server/` still contains the original Express backend (shared JSON-file storage plus optional party-password login). To switch back to shared storage, restore the fetch-based `src/api.ts` from git history — the components are written against the same API either way. Run it with `npm run server` after `npm run build`; env vars `PARTY_PASSWORD`, `SESSION_SECRET`, `PORT`, `DATA_DIR` (see `.env.example`).
