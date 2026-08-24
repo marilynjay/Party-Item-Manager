@@ -32,7 +32,8 @@ interface Props {
   onRecharge: (id: string) => void;
   onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given', toName?: string) => void;
+  onSell: (id: string, amount: number, unit: 'gp' | 'pp') => void;
   onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
   onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
   onDeleteEntry: (id: string, entryId: string) => void;
@@ -169,6 +170,7 @@ function ItemRow({
   onCast,
   onUpdate,
   onDelete,
+  onSell,
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
@@ -180,6 +182,32 @@ function ItemRow({
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   const [moveQty, setMoveQty] = useState(1);
   const liRef = useRef<HTMLLIElement>(null);
+
+  // the disposal dialog: what happened to the item decides its exit
+  const [disposing, setDisposing] = useState(false);
+  const [dispMode, setDispMode] = useState<'menu' | 'sold' | 'given' | 'npc'>('menu');
+  const [salePrice, setSalePrice] = useState('');
+  const [saleUnit, setSaleUnit] = useState<'gp' | 'pp'>('gp');
+  const [npcName, setNpcName] = useState('');
+  const [leaving, setLeaving] = useState<string | null>(null);
+
+  const openDisposal = () => {
+    setMenuOpen(false);
+    setDispMode('menu');
+    setSalePrice('');
+    setNpcName('');
+    setDisposing(true);
+  };
+
+  // play the exit animation, then actually let go of the item
+  const dispose = (exit: string, action: () => void) => {
+    setDisposing(false);
+    setLeaving(exit);
+    setTimeout(() => {
+      setLeaving(null);
+      action();
+    }, 520);
+  };
 
   const fly = (to: HolderId) => {
     const r = liRef.current?.getBoundingClientRect();
@@ -233,7 +261,7 @@ function ItemRow({
   };
 
   return (
-    <li ref={liRef} className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''}`}>
+    <li ref={liRef} className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${leaving ? `exit-${leaving}` : ''}`}>
       <button
         type="button"
         className={`item-send ${menuOpen ? 'open' : ''}`}
@@ -247,16 +275,7 @@ function ItemRow({
         {menuOpen ? '✕' : '➤'}
       </button>
       {view !== 'closed' && (
-      <button
-        type="button"
-        className="item-trash"
-        title="Discard"
-        onClick={() => {
-          if (confirm(`Discard ${item.qty > 1 ? `all ${item.qty} × ` : ''}${item.name}? (Sold, lost, or trashed — it comes off the list.)`)) {
-            onDelete(item.id);
-          }
-        }}
-      >
+      <button type="button" className="item-trash" title="Sold, lost, destroyed, or given away" onClick={openDisposal}>
         🗑
       </button>
       )}
@@ -363,22 +382,104 @@ function ItemRow({
               <button type="button" onClick={useOne}>
                 🧪 Use one
               </button>
-              <button
-                type="button"
-                className="danger"
-                onClick={() => {
-                  if (confirm(`Discard ${item.qty > 1 ? `all ${item.qty} × ` : ''}${item.name}? (Sold, lost, or trashed — it comes off the list.)`)) {
-                    setMenuOpen(false);
-                    onDelete(item.id);
-                  }
-                }}
-              >
+              <button type="button" className="danger" onClick={openDisposal}>
                 🗑️ Discard
               </button>
             </div>
             <button type="button" className="link-button send-cancel" onClick={() => setMenuOpen(false)}>
               Cancel — keep it where it is
             </button>
+          </div>
+        </div>
+      )}
+      {disposing && (
+        <div className="overlay" onClick={() => setDisposing(false)}>
+          <div className="modal send-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>
+                {itemIcon(item)} {item.name}
+                {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
+              </h2>
+              <button type="button" className="link-button" onClick={() => setDisposing(false)}>✕</button>
+            </div>
+            {dispMode === 'menu' && (
+              <>
+                <div className="item-menu-heading muted">What happened to it{item.qty > 1 ? ` (all ${item.qty})` : ''}?</div>
+                <div className="dispose-options">
+                  <button type="button" onClick={() => setDispMode('sold')}>💰 Sold</button>
+                  <button type="button" onClick={() => dispose('toss', () => onDelete(item.id, 'lost'))}>🗑 Discarded / lost</button>
+                  <button type="button" onClick={() => dispose('destroy', () => onDelete(item.id, 'destroyed'))}>💥 Destroyed</button>
+                  <button type="button" onClick={() => setDispMode('given')}>🎁 Given away</button>
+                </div>
+                <button type="button" className="link-button send-cancel" onClick={() => setDisposing(false)}>
+                  Cancel — keep it
+                </button>
+              </>
+            )}
+            {dispMode === 'sold' && (
+              <>
+                <div className="item-menu-heading muted">Sold for how much? (goes to {holderById(item.location).name}’s purse)</div>
+                <form
+                  className="dispose-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const n = Math.floor(Number(salePrice) || 0);
+                    if (n > 0) dispose('sell', () => onSell(item.id, n, saleUnit));
+                  }}
+                >
+                  <input
+                    autoFocus
+                    type="number"
+                    min={1}
+                    placeholder="amount"
+                    value={salePrice}
+                    onChange={(e) => setSalePrice(e.target.value)}
+                  />
+                  <select value={saleUnit} onChange={(e) => setSaleUnit(e.target.value as 'gp' | 'pp')}>
+                    <option value="gp">gp</option>
+                    <option value="pp">pp</option>
+                  </select>
+                  <button type="submit" disabled={Math.floor(Number(salePrice) || 0) <= 0}>💰 Sell</button>
+                </form>
+                <button type="button" className="link-button send-cancel" onClick={() => setDispMode('menu')}>‹ Back</button>
+              </>
+            )}
+            {dispMode === 'given' && (
+              <>
+                <div className="item-menu-heading muted">Given to whom?</div>
+                <div className="dispose-options">
+                  <button type="button" onClick={() => setDispMode('npc')}>🧙 An NPC</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // hand off to the familiar send flow (grid, split, flight)
+                      setDisposing(false);
+                      setMoveTo('');
+                      setMenuOpen(true);
+                    }}
+                  >
+                    ➤ A party member
+                  </button>
+                </div>
+                <button type="button" className="link-button send-cancel" onClick={() => setDispMode('menu')}>‹ Back</button>
+              </>
+            )}
+            {dispMode === 'npc' && (
+              <>
+                <div className="item-menu-heading muted">Who got it? (optional — for the log)</div>
+                <form
+                  className="dispose-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    dispose('gift', () => onDelete(item.id, 'given', npcName));
+                  }}
+                >
+                  <input autoFocus placeholder="e.g. Old Marla the ferrywoman" value={npcName} onChange={(e) => setNpcName(e.target.value)} />
+                  <button type="submit">🎁 Give</button>
+                </form>
+                <button type="button" className="link-button send-cancel" onClick={() => setDispMode('given')}>‹ Back</button>
+              </>
+            )}
           </div>
         </div>
       )}

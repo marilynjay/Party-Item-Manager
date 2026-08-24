@@ -432,12 +432,41 @@ export function consumeItem(id: string, actor: string, note?: string): Promise<{
   return Promise.resolve({ ok: true });
 }
 
-export function deleteItem(id: string, actor: string): Promise<{ ok: true }> {
+// An item leaves the party. The disposition decides the log line:
+// lost (default, the old "discarded"), destroyed, or given away — the
+// latter optionally naming the NPC who got it.
+export type Disposition = 'lost' | 'destroyed' | 'given';
+
+export function deleteItem(id: string, actor: string, disposition: Disposition = 'lost', toName?: string): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   db.items = db.items.filter((i) => i.id !== id);
-  addLog(db, actor, `discarded ${item.name} from ${holderName(item.location)}`);
+  const label = item.qty > 1 ? `${item.name} ×${item.qty}` : item.name;
+  const text =
+    disposition === 'destroyed'
+      ? `destroyed ${label} 💥`
+      : disposition === 'given'
+        ? `gave ${label} to ${toName?.trim() || 'someone'} 🎁`
+        : `discarded ${label} from ${holderName(item.location)}`;
+  addLog(db, actor, text);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// Sold: the item leaves and the proceeds land in its holder's purse,
+// as one logged step.
+export function sellItem(id: string, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
+  const n = coins(amount);
+  if (n <= 0) return Promise.reject(new Error('Sale price must be at least 1'));
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  db.items = db.items.filter((i) => i.id !== id);
+  const store = unit === 'pp' ? db.platinum : db.gold;
+  store[item.location] = coins(store[item.location]) + n;
+  const label = item.qty > 1 ? `${item.name} ×${item.qty}` : item.name;
+  addLog(db, actor, `sold ${label} for ${n} ${unit} (${holderName(item.location)} now ${purseText(coins(db.gold[item.location]), coins(db.platinum[item.location]))})`);
   save(db);
   return Promise.resolve({ ok: true });
 }
