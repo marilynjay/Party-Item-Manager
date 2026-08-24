@@ -297,6 +297,9 @@ export function ItemRow({
               💀
             </span>
           )}
+          {item.freshness !== undefined && item.freshness <= 0 && (
+            <span className="spoiled-peek" title="Spoiled">🤢</span>
+          )}
         </span>
         {holderChips && (
           <span className="holder-chip muted">
@@ -323,6 +326,11 @@ export function ItemRow({
             {item.stats?.charges !== undefined && (
               // keyed by value so the chip pops when charges change, and only then
               <span key={`c${item.stats.charges}`} className="tag charges-tag pop">⚡ {item.stats.charges}{item.stats.chargesMax !== undefined ? `/${item.stats.chargesMax}` : ''}</span>
+            )}
+            {item.freshness !== undefined && (
+              <span className={`tag ${item.freshness <= 0 ? 'spoiled-tag' : 'muted-tag'}`}>
+                {item.freshness <= 0 ? '🤢 spoiled' : `🍏 ${item.freshness} rest${item.freshness === 1 ? '' : 's'}`}
+              </span>
             )}
             {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
             {item.value && <span className="tag muted-tag">{item.value}</span>}

@@ -104,6 +104,18 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
     ]);
   if (s.language) rows.push(['Language', s.language]);
   if (s.cursed) rows.push(['💀 Cursed', <span className="curse-flicker">{s.curseText || 'Yes — someone should probably mention that.'}</span>]);
+  if (item.freshness !== undefined)
+    rows.push([
+      'Freshness',
+      item.freshness <= 0 ? (
+        <span className="spoiled-text">🤢 Spoiled — eat at your own risk</span>
+      ) : (
+        <span>
+          🍏 {item.freshness} rest{item.freshness === 1 ? '' : 's'} until it spoils
+          {item.freshness <= 2 && <span className="muted"> — eat it soon</span>}
+        </span>
+      ),
+    ]);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
   if (onAmmo) rows.push(['Ammo', <AmmoRow qty={item.qty} onAmmo={onAmmo} />]);
   else if (item.qty > 1) rows.push(['Quantity', item.qty]);

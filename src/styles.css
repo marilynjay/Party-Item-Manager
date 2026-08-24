@@ -1493,6 +1493,11 @@ button.purse-line:hover { background: none; color: var(--text); }
 .rename-label input { width: 100%; }
 .rename-hint { font-size: 0.8rem; margin: 6px 0 0; }
 /* ---- long rest ---- */
+/* ---- food freshness ---- */
+.spoiled-peek { margin-left: 6px; font-size: 0.9em; }
+.spoiled-tag { background: rgba(120, 160, 60, 0.16); color: #a7c957; border: 1px solid rgba(167, 201, 87, 0.35); }
+.spoiled-text { color: #a7c957; }
+
 /* the long rest rides each inventory heading, after the name */
 .heading-rest {
   background: none;

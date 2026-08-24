@@ -70,6 +70,7 @@ const blankAdvanced = {
   weight: '' as string,
   value: '',
   fungible: true,
+  freshness: '' as string,
   magic: false,
   requiresAttunement: false,
   attuned: false,
@@ -190,6 +191,13 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             💰 Counts toward gold total
           </label>
         );
+      case 'freshness':
+        return (
+          <label key={f} title="Long rests tick this down; at 0 it spoils. Leave blank for food that keeps (jerky, hardtack).">
+            Keeps for (rests)
+            <input type="number" min={1} placeholder="forever" value={adv.freshness} onChange={(e) => setA({ freshness: e.target.value })} />
+          </label>
+        );
     }
   };
 
@@ -203,6 +211,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       weight: it.weight === null ? '' : String(it.weight),
       value: it.value ?? '',
       fungible: true,
+      freshness: '',
       magic: it.magic,
       requiresAttunement: it.requiresAttunement,
       attuned: false,
@@ -285,6 +294,10 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       weight,
       value: adv.value,
       fungible: planHas(adv.category, adv.subtype, 'fungible') ? adv.fungible : undefined,
+      freshness:
+        planHas(adv.category, adv.subtype, 'freshness') && adv.freshness !== ''
+          ? Math.max(1, Math.floor(Number(adv.freshness) || 0))
+          : undefined,
       magic: adv.magic || impliedMagic,
       requiresAttunement: !noAttune && adv.requiresAttunement,
       attuned: !noAttune && adv.attuned,

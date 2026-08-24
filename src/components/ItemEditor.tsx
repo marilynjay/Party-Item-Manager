@@ -31,6 +31,7 @@ export function ItemEditor({
     weight: item.weight === null ? '' : String(item.weight),
     value: item.value,
     fungible: item.fungible !== false,
+    freshness: item.freshness === undefined ? '' : String(item.freshness),
     magic: item.magic,
     requiresAttunement: item.requiresAttunement,
     attuned: item.attuned,
@@ -134,6 +135,13 @@ export function ItemEditor({
             💰 Counts toward gold total
           </label>
         );
+      case 'freshness':
+        return (
+          <label key={field} title="Long rests tick this down; at 0 it spoils. Leave blank for food that keeps (jerky, hardtack).">
+            Keeps for (rests)
+            <input type="number" min={0} placeholder="forever" value={f.freshness} onChange={(e) => set({ freshness: e.target.value })} />
+          </label>
+        );
     }
   };
 
@@ -158,6 +166,10 @@ export function ItemEditor({
           weight: noWeight || f.weight === '' ? null : Number(f.weight),
           value: f.value,
           fungible: planHas(f.category, f.subtype, 'fungible') ? f.fungible : undefined,
+          freshness:
+            planHas(f.category, f.subtype, 'freshness') && f.freshness !== ''
+              ? Math.max(0, Math.floor(Number(f.freshness) || 0))
+              : undefined,
           magic: f.magic,
           requiresAttunement: !noAttune && f.requiresAttunement,
           attuned: !noAttune && f.requiresAttunement ? f.attuned : false,
@@ -194,6 +206,8 @@ export function ItemEditor({
       {editorField('rarity')}
       {editorField('weight')}
       {editorField('value')}
+      {editorField('fungible')}
+      {editorField('freshness')}
       {sPlan.primary.map((sf) => (
         <StatFieldControl key={sf} field={sf} stats={f.stats} onChange={(patch) => set({ stats: { ...f.stats, ...patch } })} />
       ))}
@@ -213,6 +227,8 @@ export function ItemEditor({
         {editorField('rarity', true)}
         {editorField('weight', true)}
         {editorField('value', true)}
+        {editorField('fungible', true)}
+        {editorField('freshness', true)}
         {editorField('magic', true)}
         {editorField('attunement', true)}
         {sPlan.advanced.map((sf) => (

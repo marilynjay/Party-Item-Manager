@@ -217,6 +217,8 @@ function LongRestDialog({
   const dicey = pending.filter((i) => i.stats?.recharge && findRoll(i.stats.recharge));
   const mine = dicey.filter((i) => actor && (holderById(i.location).name === actor || i.location === 'senchez'));
   const waiting = dicey.filter((i) => !mine.includes(i));
+  // fresh food ages a day when this inventory rests
+  const aging = items.filter((i) => i.freshness !== undefined && i.freshness > 0);
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -237,8 +239,13 @@ function LongRestDialog({
                 🎲 {r.name}: {r.formula.trim()} = <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
               </p>
             ))}
-            {result.restored.length === 0 && result.rolled.length === 0 && (
-              <p className="rest-line muted">Nothing needed recharging.</p>
+            {result.spoiled.map((n) => (
+              <p className="rest-line" key={n}>
+                🤢 The {n} spoiled overnight.
+              </p>
+            ))}
+            {result.restored.length === 0 && result.rolled.length === 0 && result.spoiled.length === 0 && (
+              <p className="rest-line muted">{result.aged > 0 ? 'The rations age a day; nothing needed recharging.' : 'Nothing needed recharging.'}</p>
             )}
             {result.waiting.length > 0 && (
               <p className="rest-line muted">
@@ -249,7 +256,7 @@ function LongRestDialog({
               <button type="button" onClick={onClose}>Good morning ☀️</button>
             </div>
           </>
-        ) : pending.length === 0 ? (
+        ) : pending.length === 0 && aging.length === 0 ? (
           <>
             <p className="rest-line muted">{who ? `${who}’s` : 'Everyone’s'} gear is fully charged — sleep well.</p>
             <div className="torch-actions">
@@ -275,10 +282,15 @@ function LongRestDialog({
                 {!actor && ' — set “Playing as” to roll yours.'}
               </p>
             )}
+            {aging.length > 0 && (
+              <p className="rest-line muted">
+                🍏 The rations age a day: {aging.map((i) => `${i.name}${i.freshness === 1 ? ' (will spoil!)' : ` (${i.freshness! - 1} left after)`}`).join(', ')}
+              </p>
+            )}
             <div className="torch-actions">
               <button
                 type="button"
-                disabled={auto.length + mine.length === 0}
+                disabled={auto.length + mine.length + aging.length === 0}
                 onClick={() => (mine.length > 0 ? setStage('rolls') : onRest({}))}
               >
                 🌅 Take a long rest
@@ -340,7 +352,7 @@ function LongRestDialog({
             <div className="torch-actions">
               <button
                 type="button"
-                disabled={auto.length === 0 && !mine.some((i) => (rollVals[i.id] ?? '') !== '')}
+                disabled={auto.length === 0 && aging.length === 0 && !mine.some((i) => (rollVals[i.id] ?? '') !== '')}
                 onClick={() => {
                   const rolls: Record<string, number> = {};
                   for (const i of mine) {

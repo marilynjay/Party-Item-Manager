@@ -106,7 +106,7 @@ export const itemIcon = (i: Pick<Item, 'icon' | 'category' | 'subtype' | 'name'>
 // Each kind of item gets the fields that make sense for it up front; the
 // rest wait under "More options". A field in neither list is hidden and
 // scrubbed on save. "Other"/unset subtypes get the full generic form.
-export type FormField = 'rarity' | 'weight' | 'value' | 'magic' | 'attunement' | 'content' | 'fungible';
+export type FormField = 'rarity' | 'weight' | 'value' | 'magic' | 'attunement' | 'content' | 'fungible' | 'freshness';
 export interface FormPlan { primary: FormField[]; advanced: FormField[] }
 
 const GENERIC: FormPlan = { primary: ['rarity', 'weight', 'value', 'magic', 'attunement'], advanced: [] };
@@ -125,7 +125,7 @@ export function formPlan(category: CategoryKey, subtype: string): FormPlan {
       return { primary: ['value', 'weight', 'rarity', 'magic', 'attunement'], advanced: [] };
     case 'consumable':
       // nothing you drink or throw requires attunement
-      if (subtype === 'food & drink') return { primary: ['weight'], advanced: ['rarity', 'value', 'magic'] };
+      if (subtype === 'food & drink') return { primary: ['weight', 'freshness'], advanced: ['rarity', 'value', 'magic'] };
       if (subtype) return { primary: ['rarity'], advanced: ['weight', 'value', 'magic'] };
       return GENERIC;
     case 'gear':
@@ -280,6 +280,9 @@ export interface Item {
   pack?: Array<{ name: string; qty: number }>;
   // liquid containers (waterskins, bottles, vials…): what's inside right now
   liquid?: { name: string; doses: number };
+  // food only: long rests in its inventory tick this down; 0 = spoiled.
+  // Absent = keeps forever (jerky, hardtack, iron rations).
+  freshness?: number;
   magic: boolean;
   requiresAttunement: boolean;
   attuned: boolean;

@@ -262,6 +262,7 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     content: fields.content || undefined,
     image: fields.image || undefined,
     stats: fields.stats && Object.keys(fields.stats).length ? fields.stats : undefined,
+    freshness: fields.freshness,
     createdAt: now,
     updatedAt: now,
   };
@@ -315,7 +316,9 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
       !i.entries?.length &&
       !item.entries?.length &&
       !i.liquid &&
-      !item.liquid
+      !item.liquid &&
+      i.freshness === undefined &&
+      item.freshness === undefined
   );
 
   if (n === item.qty) {
@@ -553,15 +556,24 @@ export interface LongRestResult {
   restored: string[];
   rolled: Array<{ name: string; formula: string; total: number; charges: number; max: number }>;
   waiting: Array<{ holder: string; name: string; formula: string }>;
+  spoiled: string[]; // food whose freshness ran out overnight
+  aged: number;      // food items that ticked down but still keep
 }
 
 export function longRest(actor: string, holder?: HolderId, rolls?: Record<string, number>): Promise<LongRestResult> {
   const db = load();
-  const out: LongRestResult = { restored: [], rolled: [], waiting: [] };
+  const out: LongRestResult = { restored: [], rolled: [], waiting: [], spoiled: [], aged: 0 };
   const now = Date.now();
   for (const item of db.items) {
     // rest can be scoped to one holder's inventory (their tab's 🌅)
     if (holder && item.location !== holder) continue;
+    // a night passes: fresh food in this inventory ages a day
+    if (item.freshness !== undefined && item.freshness > 0) {
+      item.freshness -= 1;
+      item.updatedAt = now;
+      if (item.freshness === 0) out.spoiled.push(item.name);
+      else out.aged += 1;
+    }
     const s = item.stats;
     if (!s || s.chargesMax === undefined) continue;
     if (item.category === 'consumable') continue;
@@ -585,10 +597,12 @@ export function longRest(actor: string, holder?: HolderId, rolls?: Record<string
       out.waiting.push({ holder: holderName(item.location), name: item.name, formula: diceText(s.recharge!) });
     }
   }
-  if (out.restored.length || out.rolled.length) {
+  if (out.restored.length || out.rolled.length || out.spoiled.length || out.aged > 0) {
     const bits: string[] = [];
     if (out.restored.length) bits.push(`${out.restored.length} item${out.restored.length === 1 ? '' : 's'} recharged with the dawn`);
     for (const r of out.rolled) bits.push(`rolled ${r.formula} = ${r.total} for ${r.name} (${r.charges}/${r.max})`);
+    for (const name of out.spoiled) bits.push(`the ${name} spoiled 🤢`);
+    if (bits.length === 0) bits.push('the rations age a day');
     addLog(db, actor, `🌅 ${holder ? `long rest for ${holderName(holder)}` : 'called a long rest'} — ${bits.join(' · ')}`);
     save(db);
   }
