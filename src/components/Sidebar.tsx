@@ -38,6 +38,7 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
   const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string, emojiClass = '') => (
     <button
       key={key}
+      data-scope={key}
       className={`tab ${key === 'home' || key === 'all' || key === 'log' ? 'tab-util' : 'tab-holder'} ${scope === key ? 'active' : ''}`}
       title={label}
       onClick={() => onSelect(key)}

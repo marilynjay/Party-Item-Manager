@@ -504,6 +504,22 @@ export function addMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', ac
   return Promise.resolve({ ok: true });
 }
 
+// Pass coins to another holder — one log line, refuses to overdraw.
+export function transferMoney(from: HolderId, to: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
+  const n = coins(amount);
+  if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+  if (from === to) return Promise.reject(new Error('Already theirs'));
+  const db = load();
+  const store = unit === 'pp' ? db.platinum : db.gold;
+  const have = coins(store[from]);
+  if (n > have) return Promise.reject(new Error(`${holderName(from)} only has ${have} ${unit}`));
+  store[from] = have - n;
+  store[to] = coins(store[to]) + n;
+  addLog(db, actor, `sent ${n} ${unit} from ${holderName(from)} to ${holderName(to)}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
 // Take coins out (the tavern bill) — refuses to overdraw the purse.
 export function spendMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
   const n = coins(amount);

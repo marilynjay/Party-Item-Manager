@@ -89,24 +89,31 @@ interface GemSummary {
 }
 
 function PursePanel({
+  self,
   name,
   gp,
   pp,
   gems,
+  icons,
   onAdd,
   onSpend,
+  onSend,
   onSetExact,
 }: {
+  self: HolderId;
   name: string;
   gp: number;
   pp: number;
   gems: GemSummary;
+  icons: AppState['icons'];
   onAdd: (amount: number, unit: 'gp' | 'pp') => void;
   onSpend: (amount: number, unit: 'gp' | 'pp') => void;
+  onSend: (to: HolderId, amount: number, unit: 'gp' | 'pp') => void;
   onSetExact: (gp: number, pp: number) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'add' | 'spend' | 'exact' | null>(null);
+  const [mode, setMode] = useState<'add' | 'spend' | 'send' | 'exact' | null>(null);
+  const [sendTo, setSendTo] = useState<HolderId | ''>('');
   const fmt = (n: number) => n.toLocaleString();
   const coinsWorth = gp + pp * PP_IN_GP;
   const totalWorth = coinsWorth + gems.countedGp;
@@ -172,12 +179,36 @@ function PursePanel({
       </div>
       {mode === null ? (
         <div className="purse-actions">
-          <button type="button" onClick={() => setMode('add')}>＋ Add coins</button>
-          <button type="button" disabled={coinsWorth <= 0} onClick={() => setMode('spend')}>− Spend coins</button>
+          <button type="button" title="Add coins" onClick={() => setMode('add')}>＋ Add</button>
+          <button type="button" title="Spend coins" disabled={coinsWorth <= 0} onClick={() => setMode('spend')}>− Spend</button>
+          <button type="button" title="Send coins to someone" disabled={coinsWorth <= 0} onClick={() => { setMode('send'); setSendTo(''); }}>➤ Send</button>
           <button type="button" className="link-button" title="Set exact amounts" onClick={() => setMode('exact')}>✎</button>
         </div>
       ) : mode === 'exact' ? (
         <ExactPurseForm gp={gp} pp={pp} onSave={(g, p) => { onSetExact(g, p); setMode(null); }} onCancel={() => setMode(null)} />
+      ) : mode === 'send' ? (
+        sendTo === '' ? (
+          <div className="purse-send">
+            <div className="send-holders">
+              {HOLDERS.filter((h) => h.id !== self).map((h) => (
+                <button key={h.id} type="button" className="send-holder" onClick={() => setSendTo(h.id)}>
+                  <span className="send-holder-emoji">{holderIcon(icons, h)}</span> {h.name}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="link-button" onClick={() => setMode(null)}>✕ Cancel</button>
+          </div>
+        ) : (
+          <CoinDelta
+            verb={`➤ Send to ${holderById(sendTo).name}`}
+            onDone={(n, unit) => {
+              onSend(sendTo, n, unit);
+              setMode(null);
+              setSendTo('');
+            }}
+            onCancel={() => setSendTo('')}
+          />
+        )
       ) : (
         <CoinDelta
           verb={mode === 'add' ? '＋ Add' : '− Spend'}
@@ -328,6 +359,46 @@ function SpendFall({ amount, moth, onDone }: { amount: number; moth: boolean; on
   );
 }
 
+// Sent coins stream from mid-screen to the recipient's rail tab,
+// shrinking as they arrive. The tab is found by its data-scope attribute
+// at fire time, so the vector is right for whatever layout is on screen.
+function CoinStream({ to, onDone }: { to: HolderId; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1300);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  const [vec, setVec] = useState<{ tx: number; ty: number } | null>(null);
+  useEffect(() => {
+    const el = document.querySelector(`.tab[data-scope="${to}"]`);
+    if (!el) {
+      setVec({ tx: -window.innerWidth / 2 + 26, ty: 0 });
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    setVec({ tx: r.left + r.width / 2 - window.innerWidth / 2, ty: r.top + r.height / 2 - window.innerHeight * 0.38 });
+  }, [to]);
+  if (!vec) return null;
+  return (
+    <div className="coin-burst coin-stream" aria-hidden>
+      {['🪙', '🟡', '🪙', '🟡', '🪙', '🟡', '🪙'].map((glyph, i) => (
+        <span
+          key={i}
+          className="stream-coin"
+          style={{
+            '--tx': `${Math.round(vec.tx)}px`,
+            '--ty': `${Math.round(vec.ty)}px`,
+            '--jx': `${((i % 3) - 1) * 16}px`,
+            '--jy': `${(i % 2) * 14 - 7}px`,
+            '--delay': `${i * 75}ms`,
+          } as React.CSSProperties}
+        >
+          {glyph}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 type Phase = 'checking' | 'ready';
 
 export function App() {
@@ -437,6 +508,9 @@ export function App() {
   }, [coinWorth, phase, state.gold, state.platinum]);
   const endBurst = useCallback(() => setBursting(false), []);
   const endSpendFx = useCallback(() => setSpendFx(null), []);
+  // sent coins stream toward the recipient's rail tab
+  const [stream, setStream] = useState<{ to: HolderId; key: number } | null>(null);
+  const endStream = useCallback(() => setStream(null), []);
 
   if (phase === 'checking')
     return (
@@ -581,12 +655,20 @@ export function App() {
             {scopeHolder && (
               <PursePanel
                 key={scopeHolder.id}
+                self={scopeHolder.id}
                 name={scopeHolder.name}
                 gp={state.gold[scopeHolder.id] ?? 0}
                 pp={state.platinum[scopeHolder.id] ?? 0}
                 gems={gemSummary}
+                icons={state.icons}
                 onAdd={(n, unit) => run(() => api.addMoney(scopeHolder.id, n, unit, actor))}
                 onSpend={(n, unit) => run(() => api.spendMoney(scopeHolder.id, n, unit, actor))}
+                onSend={(to, n, unit) =>
+                  run(async () => {
+                    await api.transferMoney(scopeHolder.id, to, n, unit, actor);
+                    setStream({ to, key: Date.now() });
+                  })
+                }
                 onSetExact={(gp, pp) => run(() => api.setPurse(scopeHolder.id, gp, pp, actor))}
               />
             )}
@@ -643,6 +725,7 @@ export function App() {
         {addModal}
         {bursting && <CoinBurst onDone={endBurst} />}
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}
+        {stream && <CoinStream key={stream.key} to={stream.to} onDone={endStream} />}
         {pickingIcon && scopeHolder && (
           <IconPicker
             title={`${scopeHolder.name}’s icon`}
