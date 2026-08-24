@@ -1484,15 +1484,19 @@ button.purse-line:hover { background: none; color: var(--text); }
 /* ---- long rest ---- */
 .long-rest-btn {
   display: block;
-  margin: 4px auto 0;
+  margin: 2px auto 0;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--muted);
-  font-size: 0.9rem;
-  padding: 6px 10px;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  opacity: 0.55;
+  transition: opacity 150ms ease;
 }
-.long-rest-btn:hover { background: none; color: var(--text); }
+.long-rest-btn:hover { background: none; color: var(--text); opacity: 1; }
+/* the holder-tab version: just the sunrise, tucked beside the Add button */
+.long-rest-mini { margin: 0; font-size: 1.05rem; padding: 4px 6px; }
 .rest-modal { width: 420px; }
 .rest-line { margin: 10px 0 0; font-size: 0.9rem; line-height: 1.45; }
 

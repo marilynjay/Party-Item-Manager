@@ -469,11 +469,13 @@ export interface LongRestResult {
   waiting: Array<{ holder: string; name: string; formula: string }>;
 }
 
-export function longRest(actor: string): Promise<LongRestResult> {
+export function longRest(actor: string, holder?: HolderId): Promise<LongRestResult> {
   const db = load();
   const out: LongRestResult = { restored: [], rolled: [], waiting: [] };
   const now = Date.now();
   for (const item of db.items) {
+    // rest can be scoped to one holder's inventory (their tab's 🌅)
+    if (holder && item.location !== holder) continue;
     const s = item.stats;
     if (!s || s.chargesMax === undefined) continue;
     if (item.category === 'consumable') continue;
@@ -503,7 +505,7 @@ export function longRest(actor: string): Promise<LongRestResult> {
     const bits: string[] = [];
     if (out.restored.length) bits.push(`${out.restored.length} item${out.restored.length === 1 ? '' : 's'} recharged with the dawn`);
     for (const r of out.rolled) bits.push(`rolled ${r.formula} = ${r.total} for ${r.name} (${r.charges}/${r.max})`);
-    addLog(db, actor, `🌅 called a long rest — ${bits.join(' · ')}`);
+    addLog(db, actor, `🌅 ${holder ? `long rest for ${holderName(holder)}` : 'called a long rest'} — ${bits.join(' · ')}`);
     save(db);
   }
   return Promise.resolve(out);

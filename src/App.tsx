@@ -180,12 +180,14 @@ function RenameDialog({
 function LongRestDialog({
   items,
   actor,
+  who,
   result,
   onRest,
   onClose,
 }: {
   items: Item[];
   actor: string;
+  who?: string; // set when the rest is scoped to one holder's inventory
   result: api.LongRestResult | null;
   onRest: () => void;
   onClose: () => void;
@@ -207,7 +209,7 @@ function LongRestDialog({
     <div className="overlay" onClick={onClose}>
       <div className="modal rest-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>🌅 Long rest</h2>
+          <h2>🌅 Long rest{who ? ` — ${who}` : ''}</h2>
           <button type="button" className="link-button" onClick={onClose}>✕</button>
         </div>
         {result ? (
@@ -238,7 +240,7 @@ function LongRestDialog({
           </>
         ) : pending.length === 0 ? (
           <>
-            <p className="rest-line muted">Everyone’s gear is fully charged — sleep well.</p>
+            <p className="rest-line muted">{who ? `${who}’s` : 'Everyone’s'} gear is fully charged — sleep well.</p>
             <div className="torch-actions">
               <button type="button" onClick={onClose}>Close</button>
             </div>
@@ -670,7 +672,8 @@ export function App() {
   const [pickingIcon, setPickingIcon] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const [resting, setResting] = useState(false);
+  // 'party' = the Home button (everything); a HolderId rests just that inventory
+  const [resting, setResting] = useState<'party' | HolderId | null>(null);
   const [restResult, setRestResult] = useState<api.LongRestResult | null>(null);
 
   const refresh = useCallback(async () => {
@@ -900,7 +903,7 @@ export function App() {
               title="Recharge the party's items with the dawn"
               onClick={() => {
                 setRestResult(null);
-                setResting(true);
+                setResting('party');
               }}
             >
               🌅 Long rest
@@ -996,6 +999,19 @@ export function App() {
               <button type="button" className="add-big add-small" onClick={() => setAdding(true)}>
                 <span className="add-big-plus">＋</span> Add
               </button>
+              {scopeHolder && (
+                <button
+                  type="button"
+                  className="long-rest-btn long-rest-mini"
+                  title={`Long rest — recharge ${scopeHolder.name}’s items`}
+                  onClick={() => {
+                    setRestResult(null);
+                    setResting(scopeHolder.id);
+                  }}
+                >
+                  🌅
+                </button>
+              )}
             </div>
             <ItemList
               items={visible}
@@ -1051,20 +1067,21 @@ export function App() {
         {flight && <ItemFlight key={flight.key} icon={flight.icon} name={flight.name} rect={flight.rect} to={flight.to} onDone={endFlight} />}
         {resting && (
           <LongRestDialog
-            items={state.items}
+            items={resting === 'party' ? state.items : state.items.filter((i) => i.location === resting)}
             actor={actor}
+            who={resting === 'party' ? undefined : holderById(resting).name}
             result={restResult}
             onRest={async () => {
               setError(null);
               try {
-                const res = await api.longRest(actor);
+                const res = await api.longRest(actor, resting === 'party' ? undefined : resting);
                 setRestResult(res);
                 await refresh();
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
               }
             }}
-            onClose={() => setResting(false)}
+            onClose={() => setResting(null)}
           />
         )}
         {renaming && scopeHolder && (
