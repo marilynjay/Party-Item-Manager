@@ -245,6 +245,22 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 }
 /* steps(1) so the row snaps between glitch frames instead of easing */
 .item-main.cursed-idle { animation: curseRow 43s steps(1, end) infinite; animation-delay: var(--curse-phase, 0s); }
+/* the plaque shell drains too: background and border snap to dead grays.
+   :where keeps specificity at one class so the later exit-* rules still
+   win the animation property during disposal; the keyframe colors beat
+   .magic's border via the animation cascade, no specificity needed. */
+.item-row { --shell-border: var(--border); }
+.item-row.magic { --shell-border: rgba(180, 140, 242, 0.45); }
+:where(.item-row).cursed-shell { animation: curseShell 43s steps(1, end) infinite; animation-delay: var(--curse-phase, 0s); }
+@keyframes curseShell {
+  0%, 95.1% { background: var(--bg-raised); border-color: var(--shell-border); }
+  95.2% { background: #17181a; border-color: #3b3b3f; }
+  96% { background: #0e0e10; border-color: #2c2c30; }
+  96.8% { background: #1a1b1d; border-color: #3b3b3f; }
+  97.6% { background: #0a0a0b; border-color: #323236; }
+  98.8% { background: #17181a; border-color: #38383c; }
+  99%, 100% { background: var(--bg-raised); border-color: var(--shell-border); }
+}
 @keyframes curseRow {
   0%, 95.1% { filter: none; transform: none; }
   95.2% { filter: saturate(0) contrast(1.2); transform: translateX(-1px); }

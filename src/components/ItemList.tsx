@@ -328,7 +328,11 @@ function ItemRow({
   };
 
   return (
-    <li ref={liRef} className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${dimming ? 'attune-dim' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${leaving ? `exit-${leaving}` : ''}`}>
+    <li
+      ref={liRef}
+      className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${dimming ? 'attune-dim' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${item.stats?.cursed && view === 'closed' ? 'cursed-shell' : ''} ${leaving ? `exit-${leaving}` : ''}`}
+      style={item.stats?.cursed ? ({ '--curse-phase': `${cursePhase}s` } as React.CSSProperties) : undefined}
+    >
       <button
         type="button"
         className={`item-send ${menuOpen ? 'open' : ''}`}
@@ -348,7 +352,6 @@ function ItemRow({
       )}
       <div
         className={`item-main ${item.stats?.cursed && view === 'closed' ? 'cursed-idle' : ''}`}
-        style={item.stats?.cursed ? ({ '--curse-phase': `${cursePhase}s` } as React.CSSProperties) : undefined}
         onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}
       >
         <span className="item-name">
