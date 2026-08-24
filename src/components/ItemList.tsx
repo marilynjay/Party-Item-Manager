@@ -32,7 +32,7 @@ interface Props {
   onRecharge: (id: string) => void;
   onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
-  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given', toName?: string, qty?: number) => void;
+  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given', qty?: number) => void;
   onSell: (id: string, amount: number, unit: 'gp' | 'pp', qty?: number) => void;
   onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
   onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
@@ -185,11 +185,10 @@ function ItemRow({
 
   // the disposal dialog: what happened to the item decides its exit
   const [disposing, setDisposing] = useState(false);
-  const [dispMode, setDispMode] = useState<'menu' | 'sold' | 'given' | 'npc'>('menu');
+  const [dispMode, setDispMode] = useState<'menu' | 'sold' | 'given'>('menu');
   const [dispQty, setDispQty] = useState(1);
   const [salePrice, setSalePrice] = useState('');
   const [saleUnit, setSaleUnit] = useState<'gp' | 'pp'>('gp');
-  const [npcName, setNpcName] = useState('');
   const [leaving, setLeaving] = useState<string | null>(null);
 
   const openDisposal = () => {
@@ -197,7 +196,6 @@ function ItemRow({
     setDispMode('menu');
     setDispQty(1);
     setSalePrice('');
-    setNpcName('');
     setDisposing(true);
   };
 
@@ -434,8 +432,8 @@ function ItemRow({
                 </div>
                 <div className="dispose-options">
                   <button type="button" onClick={() => setDispMode('sold')}>💰 Sold</button>
-                  <button type="button" onClick={() => dispose('toss', () => onDelete(item.id, 'lost', undefined, dispQty))}>🗑 Discarded / lost</button>
-                  <button type="button" onClick={() => dispose('destroy', () => onDelete(item.id, 'destroyed', undefined, dispQty))}>💥 Destroyed</button>
+                  <button type="button" onClick={() => dispose('toss', () => onDelete(item.id, 'lost', dispQty))}>🗑 Discarded / lost</button>
+                  <button type="button" onClick={() => dispose('destroy', () => onDelete(item.id, 'destroyed', dispQty))}>💥 Destroyed</button>
                   <button type="button" onClick={() => setDispMode('given')}>🎁 Given away</button>
                 </div>
                 <button type="button" className="link-button send-cancel" onClick={() => setDisposing(false)}>
@@ -477,7 +475,7 @@ function ItemRow({
               <>
                 <div className="item-menu-heading muted">Given to whom?</div>
                 <div className="dispose-options">
-                  <button type="button" onClick={() => setDispMode('npc')}>🧙 An NPC</button>
+                  <button type="button" onClick={() => dispose('gift', () => onDelete(item.id, 'given', dispQty))}>🧙 An NPC</button>
                   <button
                     type="button"
                     onClick={() => {
@@ -491,22 +489,6 @@ function ItemRow({
                   </button>
                 </div>
                 <button type="button" className="link-button send-cancel" onClick={() => setDispMode('menu')}>‹ Back</button>
-              </>
-            )}
-            {dispMode === 'npc' && (
-              <>
-                <div className="item-menu-heading muted">Who got it? (optional — for the log)</div>
-                <form
-                  className="dispose-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    dispose('gift', () => onDelete(item.id, 'given', npcName, dispQty));
-                  }}
-                >
-                  <input autoFocus placeholder="e.g. Old Marla the ferrywoman" value={npcName} onChange={(e) => setNpcName(e.target.value)} />
-                  <button type="submit">🎁 Give</button>
-                </form>
-                <button type="button" className="link-button send-cancel" onClick={() => setDispMode('given')}>‹ Back</button>
               </>
             )}
           </div>

@@ -433,8 +433,7 @@ export function consumeItem(id: string, actor: string, note?: string): Promise<{
 }
 
 // An item leaves the party. The disposition decides the log line:
-// lost (default, the old "discarded"), destroyed, or given away — the
-// latter optionally naming the NPC who got it.
+// lost (default, the old "discarded"), destroyed, or given away.
 export type Disposition = 'lost' | 'destroyed' | 'given';
 
 // Removes `take` from the stack — the whole item when that empties it —
@@ -450,7 +449,7 @@ function takeFromStack(db: AppState, item: Item, take: number | undefined): { n:
   return { n, label: n > 1 ? `${item.name} ×${n}` : item.name };
 }
 
-export function deleteItem(id: string, actor: string, disposition: Disposition = 'lost', toName?: string, qty?: number): Promise<{ ok: true }> {
+export function deleteItem(id: string, actor: string, disposition: Disposition = 'lost', qty?: number): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
@@ -459,7 +458,7 @@ export function deleteItem(id: string, actor: string, disposition: Disposition =
     disposition === 'destroyed'
       ? `destroyed ${label} 💥`
       : disposition === 'given'
-        ? `gave ${label} to ${toName?.trim() || 'someone'} 🎁`
+        ? `gave ${label} away 🎁`
         : `discarded ${label} from ${holderName(item.location)}`;
   addLog(db, actor, text);
   save(db);
