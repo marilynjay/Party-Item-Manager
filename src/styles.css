@@ -1429,27 +1429,19 @@ button.purse-line:hover { background: none; color: var(--text); }
   position: relative;
   cursor: pointer;
 }
-.heading-icon-edit {
-  position: absolute;
-  right: -2px;
-  bottom: -4px;
-  font-size: 0.62rem;
-  color: var(--accent);
-}
-.heading-icon:hover .heading-icon-edit { color: var(--text); }
+.heading-icon:hover { filter: brightness(1.2); }
 
-/* the holder's name doubles as the rename button */
+/* the holder's name doubles as the rename button — no badge, just a
+   quiet dashed underline on hover to say "tap me" */
 .heading-name {
   background: none;
   border: none;
-  padding: 0 8px 0 0;
+  padding: 0;
   font: inherit;
   color: inherit;
-  position: relative;
   cursor: pointer;
 }
-.heading-name .heading-icon-edit { right: 0; }
-.heading-name:hover .heading-icon-edit { color: var(--text); }
+.heading-name:hover { text-decoration: underline dashed; text-underline-offset: 5px; }
 
 /* ---- rename / passing-the-torch dialog ---- */
 .rename-modal { width: 400px; }
@@ -1458,7 +1450,20 @@ button.purse-line:hover { background: none; color: var(--text); }
 .rename-label { display: flex; flex-direction: column; gap: 4px; flex: 1; font-size: 0.85rem; color: var(--muted); }
 .rename-label input { width: 100%; }
 .rename-hint { font-size: 0.8rem; margin: 6px 0 0; }
-.torch-open { display: block; margin-top: 18px; padding: 6px 0; font-size: 0.88rem; }
+/* quiet but clearly clickable — muted, dashed underline, no highlight */
+.torch-open {
+  display: block;
+  margin-top: 18px;
+  padding: 6px 0;
+  font-size: 0.88rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  text-decoration: underline dashed;
+  text-underline-offset: 4px;
+}
+.torch-open:hover { background: none; color: var(--text); }
 .torch-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
 .torch-form h3 { font-size: 0.98rem; }
 .torch-form p { font-size: 0.83rem; margin: 0; }

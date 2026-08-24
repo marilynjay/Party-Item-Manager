@@ -125,8 +125,8 @@ function RenameDialog({
         <p className="muted rename-hint">Same character, better spelling — nothing else changes.</p>
         {holder.kind === 'member' &&
           (!torch ? (
-            <button type="button" className="link-button torch-open" onClick={() => setTorch(true)}>
-              🕯️ {holder.name}’s player is bringing in a new character…
+            <button type="button" className="torch-open" onClick={() => setTorch(true)}>
+              💀 Character death…
             </button>
           ) : (
             <form
@@ -723,7 +723,6 @@ export function App() {
                   ) : (
                     holderIcon(state.icons, scopeHolder!)
                   )}
-                  <span className="heading-icon-edit">✎</span>
                 </button>
                 <button
                   type="button"
@@ -732,7 +731,6 @@ export function App() {
                   onClick={() => setRenaming(true)}
                 >
                   {scopeHolder!.name}
-                  <span className="heading-icon-edit">✎</span>
                 </button>
                 ’s inventory
               </>
