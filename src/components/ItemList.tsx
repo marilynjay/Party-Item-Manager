@@ -84,7 +84,13 @@ export function ItemList(props: Props) {
   };
   // an active search always shows its matches, collapsed or not
   const isFolded = (key: string) => !filtering && collapsed.has(key);
-  if (items.length === 0) return <div className="empty muted">{emptyMessage}</div>;
+  if (items.length === 0)
+    return (
+      <div className="empty muted">
+        {emptyMessage}
+        <span className="tumbleweed" aria-hidden>🍃</span>
+      </div>
+    );
 
   if (!groupByHolder) {
     // one holder's inventory: sections per category, empties omitted
@@ -190,6 +196,8 @@ function ItemRow({
   const [salePrice, setSalePrice] = useState('');
   const [saleUnit, setSaleUnit] = useState<'gp' | 'pp'>('gp');
   const [leaving, setLeaving] = useState<string | null>(null);
+  // "+9 HP" drifting up from the plaque after an in-app potion roll
+  const [healFx, setHealFx] = useState<null | { x: number; y: number; total: number }>(null);
   // burst overlay at the plaque's on-screen rect: an emoji pop (💥 / 🎁),
   // with flying shards when there's a demolition to do
   const [boom, setBoom] = useState<null | {
@@ -286,8 +294,9 @@ function ItemRow({
 
   const holderAttuned = item.location !== 'senchez' ? (attunedCounts.get(item.location) ?? 0) : 0;
 
-  // a glint sweeps the plaque when attunement takes hold
+  // a glint sweeps the plaque when attunement takes hold; breaking it dims
   const [shimmer, setShimmer] = useState(false);
+  const [dimming, setDimming] = useState(false);
   const prevAttuned = useRef(item.attuned);
   useEffect(() => {
     const was = prevAttuned.current;
@@ -295,6 +304,11 @@ function ItemRow({
     if (item.attuned && !was) {
       setShimmer(true);
       const t = setTimeout(() => setShimmer(false), 750);
+      return () => clearTimeout(t);
+    }
+    if (!item.attuned && was) {
+      setDimming(true);
+      const t = setTimeout(() => setDimming(false), 700);
       return () => clearTimeout(t);
     }
   }, [item.attuned]);
@@ -308,7 +322,7 @@ function ItemRow({
   };
 
   return (
-    <li ref={liRef} className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${leaving ? `exit-${leaving}` : ''}`}>
+    <li ref={liRef} className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${dimming ? 'attune-dim' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${leaving ? `exit-${leaving}` : ''}`}>
       <button
         type="button"
         className={`item-send ${menuOpen ? 'open' : ''}`}
@@ -331,6 +345,17 @@ function ItemRow({
           <span className="item-icon">{itemIcon(item)}</span>
           {item.name}
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
+          {item.stats?.cursed && view === 'closed' && (
+            // the curse leaks: a skull that flickers into existence for a
+            // moment or two per minute, desynced per item so it's hard to catch
+            <span
+              className="curse-peek"
+              aria-hidden
+              style={{ animationDelay: `-${(item.id.charCodeAt(0) * 7 + item.id.charCodeAt(item.id.length - 1) * 13) % 41}s` }}
+            >
+              💀
+            </span>
+          )}
         </span>
         {holderChips && (
           <span className="holder-chip muted">
@@ -564,12 +589,28 @@ function ItemRow({
         <RollDialog
           itemName={item.name}
           formula={item.stats.heal}
-          onConsume={(note) => {
+          onConsume={(note, total) => {
             setRollFor(false);
+            if (total !== undefined) {
+              // float the healing up from the plaque; the consume waits a
+              // beat so the plaque is still there to float from
+              const r = liRef.current?.getBoundingClientRect();
+              if (r) {
+                setHealFx({ x: r.x + r.width / 2, y: r.y + 6, total });
+                setTimeout(() => setHealFx(null), 950);
+                setTimeout(() => onConsume(item.id, note), 650);
+                return;
+              }
+            }
             onConsume(item.id, note);
           }}
           onCancel={() => setRollFor(false)}
         />
+      )}
+      {healFx && (
+        <span className="heal-float" aria-hidden style={{ left: healFx.x, top: healFx.y }}>
+          +{healFx.total} HP
+        </span>
       )}
       {view === 'detail' && (
         <ItemDetail
@@ -608,6 +649,8 @@ const previewText = (n: string) =>
 function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
+  const [castFx, setCastFx] = useState<number | null>(null); // sparkling spell row
+  const [sunrise, setSunrise] = useState(false); // recharge glow sweep
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
   const s = item.stats ?? {};
@@ -637,12 +680,22 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
   if (s.charges !== undefined || s.chargesMax !== undefined)
     rows.push([
       'Charges',
-      <span className="charges-row">
+      <span className={`charges-row ${sunrise ? 'sunrise' : ''}`}>
         <span key={`c${s.charges}`} className="pop">⚡ {s.charges ?? '?'}{s.chargesMax !== undefined ? `/${s.chargesMax}` : ''}</span>
         {s.recharge && <span className="muted"> · {s.recharge}</span>}
         <button type="button" className="charge-btn" disabled={(s.charges ?? 0) <= 0} onClick={onSpend}>− Spend</button>
         {s.chargesMax !== undefined && (s.charges ?? 0) < s.chargesMax && (
-          <button type="button" className="charge-btn" onClick={onRecharge}>↺ Recharge</button>
+          <button
+            type="button"
+            className="charge-btn"
+            onClick={() => {
+              setSunrise(true);
+              setTimeout(() => setSunrise(false), 900);
+              onRecharge();
+            }}
+          >
+            ↺ Recharge
+          </button>
         )}
       </span>,
     ]);
@@ -710,7 +763,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
         <div className="spell-list">
           <span className="item-menu-heading muted">Spells</span>
           {parseSpellLines(s.spells).map((sp, i) => (
-            <div className="spell-row" key={sp.name + i}>
+            <div className={`spell-row ${castFx === i ? 'casting' : ''}`} key={sp.name + i}>
               {SPELL_NAMES.has(sp.name.trim().toLowerCase()) ? (
                 <button
                   type="button"
@@ -730,10 +783,17 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
                   className="charge-btn"
                   disabled={(s.charges ?? 0) < sp.cost}
                   title={(s.charges ?? 0) < sp.cost ? 'Not enough charges' : `Spend ${sp.cost} charge${sp.cost === 1 ? '' : 's'}`}
-                  onClick={() => onCast(sp.name, sp.cost)}
+                  onClick={() => {
+                    setCastFx(i);
+                    setTimeout(() => setCastFx((c) => (c === i ? null : c)), 750);
+                    onCast(sp.name, sp.cost);
+                  }}
                 >
                   Cast
                 </button>
+              )}
+              {castFx === i && (
+                <span className="cast-spark" aria-hidden>✨</span>
               )}
             </div>
           ))}
@@ -1216,12 +1276,15 @@ function RollDialog({
 }: {
   itemName: string;
   formula: string;
-  onConsume: (note?: string) => void;
+  onConsume: (note?: string, total?: number) => void;
   onCancel: () => void;
 }) {
   const [result, setResult] = useState<RollResult | null>(null);
   const [settled, setSettled] = useState(false);
   const parsed = parseRoll(formula)!;
+  // the table cheers max rolls and groans at min rolls; so does the app
+  const allMax = result !== null && result.rolls.every((r) => r === parsed.d);
+  const allMin = result !== null && result.rolls.every((r) => r === 1);
 
   return (
     <div className="overlay" onClick={result ? undefined : onCancel}>
@@ -1251,15 +1314,18 @@ function RollDialog({
         ) : (
           <div className="roll-stage">
             <DiceGroup sides={parsed.d} rolls={result.rolls} onSettled={() => setSettled(true)} />
-            <div className={`roll-total ${settled ? 'shown' : ''}`}>
+            <div className={`roll-total ${settled ? 'shown' : ''} ${settled && allMax ? 'crit' : ''} ${settled && allMin ? 'fumble' : ''}`}>
+              {settled && allMax && <span className="crit-spark" aria-hidden>✨</span>}
               {result.rolls.join(' + ')}
               {result.mod !== 0 && ` ${result.mod > 0 ? '+' : '−'} ${Math.abs(result.mod)}`} ={' '}
               <strong>{result.total} HP</strong>
+              {settled && allMax && <span className="crit-spark late" aria-hidden>✨</span>}
+              {settled && allMin && <span className="fumble-puff" aria-hidden>💨</span>}
             </div>
             <button
               type="button"
               className={`coin-add roll-done ${settled ? 'shown' : ''}`}
-              onClick={() => onConsume(`rolled ${formula} = ${result.total} HP`)}
+              onClick={() => onConsume(`rolled ${formula} = ${result.total} HP`, result.total)}
             >
               Done
             </button>

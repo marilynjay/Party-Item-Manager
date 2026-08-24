@@ -33,6 +33,41 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
     }
   }, [bagQty]);
 
+  // something heavy going in earns a bigger, pained gulp and a badge sag
+  const [oofing, setOofing] = useState(false);
+  const prevWeight = useRef<number | null>(null);
+  useEffect(() => {
+    const was = prevWeight.current;
+    prevWeight.current = bagWeight;
+    if (was !== null && bagWeight - was >= 25) {
+      setOofing(true);
+      const t = setTimeout(() => setOofing(false), 750);
+      return () => clearTimeout(t);
+    }
+  }, [bagWeight]);
+
+  // he's sentient: every few idle minutes he shuffles his contents
+  const [fidgeting, setFidgeting] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    let timer: number;
+    const schedule = () => {
+      timer = window.setTimeout(() => {
+        if (!alive) return;
+        setFidgeting(true);
+        window.setTimeout(() => alive && setFidgeting(false), 1000);
+        schedule();
+      }, 120_000 + Math.random() * 180_000);
+    };
+    schedule();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const senchezMood = oofing ? 'oofing' : gulping ? 'gulping' : fidgeting ? 'fidgeting' : '';
+
   // `short` swaps in on narrow screens; home/all/log are "utility" tabs that
   // drop their icon and read horizontally there.
   const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string, emojiClass = '') => (
@@ -85,13 +120,13 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
         'Senchez',
         holderIcon(icons, HOLDERS[5]),
         <span className="tab-badges">
-          <span className="badge weight" title={`Senchez is carrying ${bagWeight} lb (no limit — homebrew bag)`}>
+          <span className={`badge weight ${oofing ? 'sagging' : ''}`} title={`Senchez is carrying ${bagWeight} lb (no limit — homebrew bag)`}>
             {Math.round(bagWeight)} lb
           </span>
           <span className="badge">{items.filter((i) => i.location === 'senchez').length}</span>
         </span>,
         undefined,
-        gulping ? 'gulping' : ''
+        senchezMood
       )}
       <div className="rail-spacer" />
       {tab('log', 'Change log', '🕯️', undefined, 'Log')}
