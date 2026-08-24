@@ -274,6 +274,9 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 /* partial disposal: the stack shrinks but the plaque stays — just a blip */
 .exit-part { animation: exitPart 400ms ease; }
 @keyframes exitPart { 30% { transform: scale(0.96); opacity: 0.65; } }
+/* partial destroy: transform-free flash so the fixed debris stays anchored */
+.exit-boomflash { animation: boomFlash 420ms ease; }
+@keyframes boomFlash { 25% { border-color: var(--danger); box-shadow: 0 0 18px rgba(224, 108, 108, 0.4); } }
 
 /* sold: a golden flash, then it fades into profit (the fountain follows) */
 .exit-sell { animation: exitSell 520ms ease forwards; pointer-events: none; }
@@ -287,15 +290,44 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   20% { transform: translate(-6px, -4px) rotate(-2deg); }
   100% { transform: translate(56px, 70px) rotate(10deg); opacity: 0; }
 }
-/* destroyed: a violent rattle, then it crumbles */
-.exit-destroy { animation: exitDestroy 520ms ease-in forwards; pointer-events: none; border-color: var(--danger) !important; }
-@keyframes exitDestroy {
-  0% { transform: none; }
-  12% { transform: translateX(-6px) rotate(-1.5deg); }
-  24% { transform: translateX(6px) rotate(1.5deg); }
-  36% { transform: translateX(-5px); }
-  48% { transform: translateX(4px) scale(1.04); }
-  100% { transform: scale(0.45) rotate(5deg); opacity: 0; filter: blur(3px); }
+/* destroyed: the shell flashes and vanishes while the demolition overlay
+   blasts shards everywhere. No transforms on the plaque itself — a
+   transformed ancestor would re-anchor the fixed-position debris. */
+.exit-destroy { animation: shellVanish 520ms ease forwards; pointer-events: none; }
+@keyframes shellVanish {
+  12% { border-color: var(--danger); box-shadow: 0 0 22px rgba(224, 108, 108, 0.5); }
+  28%, 100% { background: transparent; border-color: transparent; box-shadow: none; }
+}
+.exit-destroy > *:not(.demolition) { animation: destroyVanish 180ms ease-in forwards; }
+@keyframes destroyVanish { to { opacity: 0; } }
+
+/* the demolition itself: a 💥 pop and plaque shards flying outward */
+.demolition { position: fixed; z-index: 300; pointer-events: none; }
+.demolition .shard {
+  position: absolute;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  border: 1px solid var(--danger);
+  animation: shardFly 500ms cubic-bezier(0.15, 0.5, 0.5, 1) var(--delay) both;
+}
+.demolition .shard:nth-child(3n) { border-color: var(--border); }
+.demolition .shard:nth-child(4n) { background: var(--danger); opacity: 0.9; border-color: transparent; }
+@keyframes shardFly {
+  0% { transform: none; opacity: 1; }
+  65% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.4); opacity: 0; }
+}
+.demolition .boom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 32px;
+  animation: boomPop 420ms ease-out both;
+}
+@keyframes boomPop {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
 }
 /* given to an NPC: off it goes, out the right side of the screen */
 .exit-gift { animation: exitGift 520ms ease-in forwards; pointer-events: none; }

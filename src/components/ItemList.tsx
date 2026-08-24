@@ -190,6 +190,14 @@ function ItemRow({
   const [salePrice, setSalePrice] = useState('');
   const [saleUnit, setSaleUnit] = useState<'gp' | 'pp'>('gp');
   const [leaving, setLeaving] = useState<string | null>(null);
+  // demolition debris: shards blasted from the plaque's on-screen rect
+  const [boom, setBoom] = useState<null | {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    shards: Array<{ l: number; t: number; s: number; dx: number; dy: number; rot: number; delay: number }>;
+  }>(null);
 
   const openDisposal = () => {
     setMenuOpen(false);
@@ -201,12 +209,40 @@ function ItemRow({
 
   // play the exit animation, then actually let go of the goods. A partial
   // disposal keeps the plaque (the stack just shrinks), so it gets a quick
-  // blip instead of the full send-off.
+  // blip instead of the full send-off — though destruction always blasts
+  // debris off the plaque, whole stack or not.
   const dispose = (exit: string, action: () => void) => {
     setDisposing(false);
-    setLeaving(dispQty >= item.qty ? exit : 'part');
+    if (exit === 'destroy') {
+      const r = liRef.current?.getBoundingClientRect();
+      if (r) {
+        setBoom({
+          x: r.x,
+          y: r.y,
+          w: r.width,
+          h: r.height,
+          shards: Array.from({ length: 14 }, () => {
+            const l = 6 + Math.random() * 88; // start position, % across the plaque
+            const t = 8 + Math.random() * 84;
+            return {
+              l,
+              t,
+              s: 7 + Math.random() * 13,
+              dx: (l - 50) * (1.6 + Math.random()) + Math.random() * 30 - 15,
+              dy: (t - 50) * 1.2 - 20 - Math.random() * 60,
+              rot: Math.random() * 520 - 260,
+              delay: Math.random() * 70,
+            };
+          }),
+        });
+      }
+    }
+    // partial destroys flash instead of blipping: exit-part scales the
+    // plaque, and a transformed ancestor would drag the debris with it
+    setLeaving(dispQty >= item.qty ? exit : exit === 'destroy' ? 'boomflash' : 'part');
     setTimeout(() => {
       setLeaving(null);
+      setBoom(null);
       action();
     }, 520);
   };
@@ -493,6 +529,27 @@ function ItemRow({
             )}
           </div>
         </div>
+      )}
+      {boom && (
+        <span className="demolition" aria-hidden style={{ left: boom.x, top: boom.y, width: boom.w, height: boom.h }}>
+          <span className="boom">💥</span>
+          {boom.shards.map((sh, i) => (
+            <span
+              key={i}
+              className="shard"
+              style={{
+                left: `${sh.l}%`,
+                top: `${sh.t}%`,
+                width: sh.s,
+                height: Math.max(4, sh.s * 0.7),
+                '--dx': `${Math.round(sh.dx)}px`,
+                '--dy': `${Math.round(sh.dy)}px`,
+                '--rot': `${Math.round(sh.rot)}deg`,
+                '--delay': `${Math.round(sh.delay)}ms`,
+              } as React.CSSProperties}
+            />
+          ))}
+        </span>
       )}
       {rollFor && item.stats?.heal && (
         <RollDialog
