@@ -281,8 +281,10 @@ export interface Item {
   // liquid containers (waterskins, bottles, vials…): what's inside right now
   liquid?: { name: string; doses: number };
   // food only: long rests in its inventory tick this down; 0 = spoiled.
-  // Absent = keeps forever (jerky, hardtack, iron rations).
+  // Absent = keeps forever (jerky, hardtack, iron rations). freshnessMax
+  // remembers how long it kept when new, so the gauge shows a fraction.
   freshness?: number;
+  freshnessMax?: number;
   magic: boolean;
   requiresAttunement: boolean;
   attuned: boolean;

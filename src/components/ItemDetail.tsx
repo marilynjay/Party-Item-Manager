@@ -10,6 +10,19 @@ import { SpellCard } from './SpellCard';
 import { RechargeDialog } from './RollDialog';
 import { compressImage } from '../image';
 
+// A little freshness bar: fill and color track the fraction of its shelf
+// life remaining — green while it keeps, through yellow and orange, red on
+// the last days. Shared by the plaque (mini) and the detail row.
+export function FreshnessGauge({ left, max, mini = false }: { left: number; max: number; mini?: boolean }) {
+  const frac = max > 0 ? Math.max(0, Math.min(1, left / max)) : 0;
+  const hue = Math.round(120 * frac);
+  return (
+    <span className={`fresh-gauge ${mini ? 'fresh-mini' : ''}`} title={`${left} of ${max} rests left`} aria-hidden>
+      <span className="fresh-fill" style={{ width: `${Math.round(frac * 100)}%`, background: `hsl(${hue}, 72%, 45%)` }} />
+    </span>
+  );
+}
+
 export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill, onAmmo }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: (rolled?: number) => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void; onAmmo?: (delta: number) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
@@ -110,8 +123,9 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
       item.freshness <= 0 ? (
         <span className="spoiled-text">🤢 Spoiled — eat at your own risk</span>
       ) : (
-        <span>
-          🍏 {item.freshness} rest{item.freshness === 1 ? '' : 's'} until it spoils
+        <span className="charges-row">
+          <FreshnessGauge left={item.freshness} max={item.freshnessMax ?? item.freshness} />
+          {item.freshness} of {item.freshnessMax ?? item.freshness} rest{(item.freshnessMax ?? item.freshness) === 1 ? '' : 's'} left
           {item.freshness <= 2 && <span className="muted"> — eat it soon</span>}
         </span>
       ),

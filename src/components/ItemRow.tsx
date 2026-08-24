@@ -3,7 +3,7 @@ import type { CategoryKey, HolderId, Icons, Item } from '../types';
 import { HOLDERS, categoryLabel, defaultIcon, holderById, holderIcon, itemIcon, parseGoldValue } from '../types';
 import { CATALOG } from '../catalog';
 import { parseRoll } from '../dice';
-import { ItemDetail } from './ItemDetail';
+import { FreshnessGauge, ItemDetail } from './ItemDetail';
 import { ItemEditor } from './ItemEditor';
 import { RollDialog } from './RollDialog';
 
@@ -300,6 +300,9 @@ export function ItemRow({
           {item.freshness !== undefined && item.freshness <= 0 && (
             <span className="spoiled-peek" title="Spoiled">🤢</span>
           )}
+          {item.freshness !== undefined && item.freshness > 0 && (
+            <FreshnessGauge mini left={item.freshness} max={item.freshnessMax ?? item.freshness} />
+          )}
         </span>
         {holderChips && (
           <span className="holder-chip muted">
@@ -328,7 +331,14 @@ export function ItemRow({
               <span key={`c${item.stats.charges}`} className="tag charges-tag pop">⚡ {item.stats.charges}{item.stats.chargesMax !== undefined ? `/${item.stats.chargesMax}` : ''}</span>
             )}
             {item.freshness !== undefined && (
-              <span className={`tag ${item.freshness <= 0 ? 'spoiled-tag' : 'muted-tag'}`}>
+              <span
+                className={`tag ${item.freshness <= 0 ? 'spoiled-tag' : 'muted-tag'}`}
+                style={
+                  item.freshness > 0
+                    ? { color: `hsl(${Math.round(120 * Math.min(1, item.freshness / (item.freshnessMax || item.freshness)))}, 65%, 60%)` }
+                    : undefined
+                }
+              >
                 {item.freshness <= 0 ? '🤢 spoiled' : `🍏 ${item.freshness} rest${item.freshness === 1 ? '' : 's'}`}
               </span>
             )}

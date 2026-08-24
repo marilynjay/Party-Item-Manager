@@ -1494,6 +1494,18 @@ button.purse-line:hover { background: none; color: var(--text); }
 .rename-hint { font-size: 0.8rem; margin: 6px 0 0; }
 /* ---- long rest ---- */
 /* ---- food freshness ---- */
+.fresh-gauge {
+  display: inline-block;
+  vertical-align: middle;
+  width: 90px;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+  flex: none;
+}
+.fresh-mini { width: 34px; height: 5px; margin-left: 8px; }
+.fresh-fill { display: block; height: 100%; border-radius: 4px; transition: width 400ms ease; }
 .spoiled-peek { margin-left: 6px; font-size: 0.9em; }
 .spoiled-tag { background: rgba(120, 160, 60, 0.16); color: #a7c957; border: 1px solid rgba(167, 201, 87, 0.35); }
 .spoiled-text { color: #a7c957; }

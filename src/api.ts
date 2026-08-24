@@ -36,6 +36,9 @@ function migrateTaxonomy<T extends { name: string }>(entry: T): T {
     const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
     if (cat?.pack) (legacy as { pack?: unknown }).pack = cat.pack.map((e) => ({ ...e }));
   }
+  // food tracked before the gauge existed starts with a full bar
+  const fr = legacy as { freshness?: number; freshnessMax?: number };
+  if (fr.freshness !== undefined && fr.freshnessMax === undefined) fr.freshnessMax = fr.freshness;
   // charged items stored before recharge data existed inherit the catalogue's
   // recharge text ("1d6+1 at dawn", "never") so long rests treat them right
   const stats = (legacy as { stats?: { chargesMax?: number; recharge?: string } }).stats;
@@ -263,6 +266,7 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     image: fields.image || undefined,
     stats: fields.stats && Object.keys(fields.stats).length ? fields.stats : undefined,
     freshness: fields.freshness,
+    freshnessMax: fields.freshness,
     createdAt: now,
     updatedAt: now,
   };
@@ -281,6 +285,13 @@ export function updateItem(id: string, fields: Partial<Item>, actor: string): Pr
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   const before = item.location;
   const attuneOnly = Object.keys(fields).length === 1 && fields.attuned !== undefined;
+  // freshness edits keep the gauge honest: clearing it clears the max, a
+  // bigger value is a fresh batch (new max), a smaller one just adjusts
+  // what's left of the old one
+  if ('freshness' in fields) {
+    fields.freshnessMax =
+      fields.freshness === undefined ? undefined : Math.max(item.freshnessMax ?? 0, fields.freshness);
+  }
   Object.assign(item, fields, { updatedAt: Date.now() });
   if (fields.location !== undefined && fields.location !== before) {
     addLog(db, actor, `moved ${item.name} from ${holderName(before)} to ${holderName(item.location)}`);
