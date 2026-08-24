@@ -3,7 +3,7 @@
 // dormant — to bring it back, restore the fetch-based version of this
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
-import { DEFAULT_HOLDER_NAMES, HOLDERS, PP_IN_GP, applyHolderNames, classifyLegacy } from './types';
+import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
 import { diceText, findRoll, rollDice } from './dice';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
@@ -816,79 +816,63 @@ export function setPurse(holder: HolderId, gp: number, pp: number, actor: string
   return Promise.resolve({ ok: true });
 }
 
+// "25 gp + 3 pp" / "25 gp" — a coin delta for log lines (never both zero).
+const deltaText = (gp: number, pp: number) => [gp ? `${gp} gp` : '', pp ? `${pp} pp` : ''].filter(Boolean).join(' + ');
+
+// Coins never convert on their own — the DM hasn't licensed a money
+// changer, so platinum doesn't break into gold. Every operation moves gp
+// and pp as-is, and each coin type is checked against its own supply.
+function checkPurse(db: AppState, holder: HolderId, gp: number, pp: number): string | null {
+  const haveGp = coins(db.gold[holder]);
+  const havePp = coins(db.platinum[holder]);
+  if (gp <= haveGp && pp <= havePp) return null;
+  let msg = `${holderName(holder)} only has ${purseText(haveGp, havePp)}`;
+  if (gp > haveGp && havePp - pp > 0) msg += ' — and platinum doesn’t break into gold';
+  return msg;
+}
+
 // Drop coins into a holder's purse (quick-add money and the give picker).
-export function addMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
-  const n = coins(amount);
-  if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+export function addMoney(holder: HolderId, gp: number, pp: number, actor: string): Promise<{ ok: true }> {
+  const g = coins(gp);
+  const p = coins(pp);
+  if (g + p <= 0) return Promise.reject(new Error('Amount must be at least 1'));
   const db = load();
-  const store = unit === 'pp' ? db.platinum : db.gold;
-  store[holder] = coins(store[holder]) + n;
-  addLog(db, actor, `added ${n} ${unit} to ${holderName(holder)} (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
+  db.gold[holder] = coins(db.gold[holder]) + g;
+  db.platinum[holder] = coins(db.platinum[holder]) + p;
+  addLog(db, actor, `added ${deltaText(g, p)} to ${holderName(holder)} (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
   save(db);
   return Promise.resolve({ ok: true });
 }
 
 // Pass coins to another holder — one log line, refuses to overdraw.
-export function transferMoney(from: HolderId, to: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
-  const n = coins(amount);
-  if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+export function transferMoney(from: HolderId, to: HolderId, gp: number, pp: number, actor: string): Promise<{ ok: true }> {
+  const g = coins(gp);
+  const p = coins(pp);
+  if (g + p <= 0) return Promise.reject(new Error('Amount must be at least 1'));
   if (from === to) return Promise.reject(new Error('Already theirs'));
   const db = load();
-  let note: string;
-  try {
-    note = takeCoins(db, from, n, unit);
-  } catch (e) {
-    return Promise.reject(e);
-  }
-  const store = unit === 'pp' ? db.platinum : db.gold;
-  store[to] = coins(store[to]) + n;
-  addLog(db, actor, `sent ${n} ${unit} from ${holderName(from)} to ${holderName(to)}${note}`);
+  const short = checkPurse(db, from, g, p);
+  if (short) return Promise.reject(new Error(short));
+  db.gold[from] = coins(db.gold[from]) - g;
+  db.platinum[from] = coins(db.platinum[from]) - p;
+  db.gold[to] = coins(db.gold[to]) + g;
+  db.platinum[to] = coins(db.platinum[to]) + p;
+  addLog(db, actor, `sent ${deltaText(g, p)} from ${holderName(from)} to ${holderName(to)}`);
   save(db);
   return Promise.resolve({ ok: true });
 }
 
-// Take n coins of `unit` out of a purse, making change from the other coin
-// when short — platinum breaks into gold, and gold bundles into platinum in
-// exact tens. Returns a note for the log ('' when no change was needed);
-// throws when even the combined purse can't cover it.
-function takeCoins(db: AppState, holder: HolderId, n: number, unit: 'gp' | 'pp'): string {
-  const gp = coins(db.gold[holder]);
-  const pp = coins(db.platinum[holder]);
-  if (unit === 'gp') {
-    if (gp >= n) {
-      db.gold[holder] = gp - n;
-      return '';
-    }
-    const broken = Math.ceil((n - gp) / PP_IN_GP);
-    if (broken > pp) throw new Error(`${holderName(holder)} only has ${purseText(gp, pp)} (${gp + pp * PP_IN_GP} gp worth)`);
-    db.platinum[holder] = pp - broken;
-    db.gold[holder] = gp + broken * PP_IN_GP - n;
-    return `, breaking ${broken} pp`;
-  }
-  if (pp >= n) {
-    db.platinum[holder] = pp - n;
-    return '';
-  }
-  const bundled = (n - pp) * PP_IN_GP;
-  if (bundled > gp) throw new Error(`${holderName(holder)} only has ${purseText(gp, pp)} — not enough for ${n} pp`);
-  db.gold[holder] = gp - bundled;
-  db.platinum[holder] = 0;
-  return `, changing ${bundled} gp up`;
-}
-
-// Take coins out (the tavern bill) — refuses to overdraw the purse, but
-// happily breaks platinum (or bundles gold) to cover the bill.
-export function spendMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
-  const n = coins(amount);
-  if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+// Take coins out (the tavern bill) — refuses to overdraw either coin type.
+export function spendMoney(holder: HolderId, gp: number, pp: number, actor: string): Promise<{ ok: true }> {
+  const g = coins(gp);
+  const p = coins(pp);
+  if (g + p <= 0) return Promise.reject(new Error('Amount must be at least 1'));
   const db = load();
-  let note: string;
-  try {
-    note = takeCoins(db, holder, n, unit);
-  } catch (e) {
-    return Promise.reject(e);
-  }
-  addLog(db, actor, `spent ${n} ${unit} from ${holderName(holder)}’s purse${note} (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
+  const short = checkPurse(db, holder, g, p);
+  if (short) return Promise.reject(new Error(short));
+  db.gold[holder] = coins(db.gold[holder]) - g;
+  db.platinum[holder] = coins(db.platinum[holder]) - p;
+  addLog(db, actor, `spent ${deltaText(g, p)} from ${holderName(holder)}’s purse (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
   save(db);
   return Promise.resolve({ ok: true });
 }

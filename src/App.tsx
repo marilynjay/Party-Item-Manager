@@ -294,9 +294,9 @@ function PursePanel({
   pp: number;
   gems: GemSummary;
   icons: AppState['icons'];
-  onAdd: (amount: number, unit: 'gp' | 'pp') => void;
-  onSpend: (amount: number, unit: 'gp' | 'pp') => void;
-  onSend: (to: HolderId, amount: number, unit: 'gp' | 'pp') => void;
+  onAdd: (gp: number, pp: number) => void;
+  onSpend: (gp: number, pp: number) => void;
+  onSend: (to: HolderId, gp: number, pp: number) => void;
   onSetExact: (gp: number, pp: number) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -389,8 +389,8 @@ function PursePanel({
         ) : (
           <CoinDelta
             verb={`➤ Send to ${holderById(sendTo).name}`}
-            onDone={(n, unit) => {
-              onSend(sendTo, n, unit);
+            onDone={(g, p) => {
+              onSend(sendTo, g, p);
               setMode(null);
               setSendTo('');
             }}
@@ -400,8 +400,8 @@ function PursePanel({
       ) : (
         <CoinDelta
           verb={mode === 'add' ? '＋ Add' : '− Spend'}
-          onDone={(n, unit) => {
-            (mode === 'add' ? onAdd : onSpend)(n, unit);
+          onDone={(g, p) => {
+            (mode === 'add' ? onAdd : onSpend)(g, p);
             setMode(null);
           }}
           onCancel={() => setMode(null)}
@@ -411,33 +411,46 @@ function PursePanel({
   );
 }
 
-// Amount + gp/pp — shared by Add and Spend.
-function CoinDelta({ verb, onDone, onCancel }: { verb: string; onDone: (n: number, unit: 'gp' | 'pp') => void; onCancel: () => void }) {
-  const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState<'gp' | 'pp'>('gp');
+// Gold and platinum fields side by side — shared by Add, Spend, and Send.
+// Both can move in one action; coins never convert (DM's table rules).
+function CoinDelta({ verb, onDone, onCancel }: { verb: string; onDone: (gp: number, pp: number) => void; onCancel: () => void }) {
+  const [gpVal, setGpVal] = useState('');
+  const [ppVal, setPpVal] = useState('');
+  const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
   return (
     <form
       className="purse-line purse-editing"
       onSubmit={(e) => {
         e.preventDefault();
-        const n = Math.floor(Number(amount) || 0);
-        if (n > 0) onDone(n, unit);
+        const g = parse(gpVal);
+        const p = parse(ppVal);
+        if (g + p > 0) onDone(g, p);
         else onCancel();
       }}
     >
-      <input
-        autoFocus
-        type="number"
-        min={1}
-        placeholder="amount"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-      />
-      <select value={unit} onChange={(e) => setUnit(e.target.value as 'gp' | 'pp')}>
-        <option value="gp">gp</option>
-        <option value="pp">pp</option>
-      </select>
+      <label className="coin-field">
+        <input
+          autoFocus
+          type="number"
+          min={0}
+          placeholder="0"
+          value={gpVal}
+          onChange={(e) => setGpVal(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+        />
+        gp
+      </label>
+      <label className="coin-field">
+        <input
+          type="number"
+          min={0}
+          placeholder="0"
+          value={ppVal}
+          onChange={(e) => setPpVal(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+        />
+        pp
+      </label>
       <button type="submit">{verb}</button>
       <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
     </form>
@@ -781,7 +794,7 @@ export function App() {
           defaultLocation={isHolderScope ? scope : 'senchez'}
           custom={state.custom}
           onAdd={(fields) => run(() => api.createItem(fields, actor))}
-          onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, amount, unit, actor))}
+          onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, unit === 'pp' ? 0 : amount, unit === 'pp' ? amount : 0, actor))}
           onSaveCustom={(entry) => run(() => api.saveCustomItem(entry, actor))}
           onDeleteCustom={(name) => run(() => api.deleteCustomItem(name, actor))}
           onClose={() => setAdding(false)}
@@ -862,11 +875,11 @@ export function App() {
               platinum={state.platinum}
               icons={state.icons}
               onSetPurse={(holder, gp, pp) => run(() => api.setPurse(holder, gp, pp, actor))}
-              onGive={(holder, amount, unit) => run(() => api.addMoney(holder, amount, unit, actor))}
-              onSpend={(holder, amount, unit) => run(() => api.spendMoney(holder, amount, unit, actor))}
-              onTransfer={(from, to, amount, unit) =>
+              onGive={(holder, gp, pp) => run(() => api.addMoney(holder, gp, pp, actor))}
+              onSpend={(holder, gp, pp) => run(() => api.spendMoney(holder, gp, pp, actor))}
+              onTransfer={(from, to, gp, pp) =>
                 run(async () => {
-                  await api.transferMoney(from, to, amount, unit, actor);
+                  await api.transferMoney(from, to, gp, pp, actor);
                   setStream({ to, key: Date.now() });
                 })
               }
@@ -944,11 +957,11 @@ export function App() {
                 pp={state.platinum[scopeHolder.id] ?? 0}
                 gems={gemSummary}
                 icons={state.icons}
-                onAdd={(n, unit) => run(() => api.addMoney(scopeHolder.id, n, unit, actor))}
-                onSpend={(n, unit) => run(() => api.spendMoney(scopeHolder.id, n, unit, actor))}
-                onSend={(to, n, unit) =>
+                onAdd={(gp, pp) => run(() => api.addMoney(scopeHolder.id, gp, pp, actor))}
+                onSpend={(gp, pp) => run(() => api.spendMoney(scopeHolder.id, gp, pp, actor))}
+                onSend={(to, gp, pp) =>
                   run(async () => {
-                    await api.transferMoney(scopeHolder.id, to, n, unit, actor);
+                    await api.transferMoney(scopeHolder.id, to, gp, pp, actor);
                     setStream({ to, key: Date.now() });
                   })
                 }

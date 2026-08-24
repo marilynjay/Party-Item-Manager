@@ -7,9 +7,9 @@ interface Props {
   platinum: Gold;
   icons: Icons;
   onSetPurse: (holder: HolderId, gp: number, pp: number) => void;
-  onGive: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
-  onSpend: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
-  onTransfer: (from: HolderId, to: HolderId, amount: number, unit: 'gp' | 'pp') => void;
+  onGive: (holder: HolderId, gp: number, pp: number) => void;
+  onSpend: (holder: HolderId, gp: number, pp: number) => void;
+  onTransfer: (from: HolderId, to: HolderId, gp: number, pp: number) => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -89,8 +89,8 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
               {active === h.id && (mode === 'add' || mode === 'spend') && (
                 <GiveForm
                   label={mode === 'add' ? '＋ Add' : '− Spend'}
-                  onGive={(amount, unit) => {
-                    (mode === 'add' ? onGive : onSpend)(h.id, amount, unit);
+                  onGive={(gp, pp) => {
+                    (mode === 'add' ? onGive : onSpend)(h.id, gp, pp);
                     setActive(null);
                     setMode(null);
                   }}
@@ -112,8 +112,8 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                 ) : (
                   <GiveForm
                     label={`➤ ${holderOf(sendTo).name}`}
-                    onGive={(amount, unit) => {
-                      onTransfer(h.id, sendTo, amount, unit);
+                    onGive={(gp, pp) => {
+                      onTransfer(h.id, sendTo, gp, pp);
                       setActive(null);
                       setMode(null);
                       setSendTo('');
@@ -160,8 +160,8 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
           ) : (
             <GiveForm
               label={`＋ ${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name}`}
-              onGive={(amount, unit) => {
-                onGive(giveTo, amount, unit);
+              onGive={(gp, pp) => {
+                onGive(giveTo, gp, pp);
                 setGiveTo('');
               }}
               onCancel={() => setGiveTo('')}
@@ -225,31 +225,36 @@ function GiveForm({
   onCancel,
 }: {
   label: string;
-  onGive: (amount: number, unit: 'gp' | 'pp') => void;
+  onGive: (gp: number, pp: number) => void;
   onCancel: () => void;
 }) {
-  const [amount, setAmount] = useState('');
-  const [unit, setUnit] = useState<'gp' | 'pp'>('gp');
+  const [gpVal, setGpVal] = useState('');
+  const [ppVal, setPpVal] = useState('');
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.focus(), []);
+  const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
 
   return (
     <form
       className="ledger-row ledger-editing"
       onSubmit={(e) => {
         e.preventDefault();
-        const n = Math.max(0, Math.floor(Number(amount) || 0));
-        if (n > 0) onGive(n, unit);
+        const g = parse(gpVal);
+        const p = parse(ppVal);
+        if (g + p > 0) onGive(g, p);
         else onCancel();
       }}
     >
       <span className="ledger-name">{label}</span>
       <span className="ledger-edit-controls">
-        <input ref={ref} type="number" min={1} placeholder="amount" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
-        <select value={unit} onChange={(e) => setUnit(e.target.value as 'gp' | 'pp')}>
-          <option value="gp">gp</option>
-          <option value="pp">pp</option>
-        </select>
+        <label className="coin-field">
+          <input ref={ref} type="number" min={0} placeholder="0" value={gpVal} onChange={(e) => setGpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
+          gp
+        </label>
+        <label className="coin-field">
+          <input type="number" min={0} placeholder="0" value={ppVal} onChange={(e) => setPpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
+          pp
+        </label>
         <button type="submit" title="Give">✓</button>
         <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
       </span>
