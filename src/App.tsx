@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, HolderId } from './types';
 import { ATTUNEMENT_SLOTS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
@@ -238,6 +238,40 @@ function ExactPurseForm({ gp, pp, onSave, onCancel }: { gp: number; pp: number; 
   );
 }
 
+// A short shower of coins — the tiny celebration for money coming in.
+// Purely decorative: fixed overlay, pointer-events none, self-removes.
+const COIN_GLYPHS = ['🪙', '🟡', '🪙', '✨', '🟡', '🪙', '🟡', '✨', '🪙', '🟡', '🪙', '🪙'];
+
+function CoinBurst({ onDone }: { onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1400);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  const coins = useMemo(
+    () =>
+      COIN_GLYPHS.map((glyph, i) => ({
+        glyph,
+        dx: `${Math.round((Math.random() * 2 - 1) * 150)}px`,
+        up: `${Math.round(-70 - Math.random() * 100)}px`,
+        rot: `${Math.round((Math.random() * 2 - 1) * 280)}deg`,
+        delay: `${i * 45}ms`,
+        dur: `${900 + Math.round(Math.random() * 250)}ms`,
+      })),
+    []
+  );
+  return (
+    <div className="coin-burst" aria-hidden>
+      {coins.map((c, i) => (
+        <span key={i} className="coin-x" style={{ '--dx': c.dx, '--dur': c.dur, '--delay': c.delay } as React.CSSProperties}>
+          <span className="coin-y" style={{ '--up': c.up, '--rot': c.rot, '--dur': c.dur, '--delay': c.delay } as React.CSSProperties}>
+            {c.glyph}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 type Phase = 'checking' | 'ready';
 
 export function App() {
@@ -316,6 +350,27 @@ export function App() {
     }
     return out;
   }, [state.items, scope]);
+
+  // coins coming in (any path: purse Add, quick-add "25 gp", ledger give,
+  // coin dialog) rain a little celebration; spending stays sober
+  const coinWorth = useMemo(
+    () =>
+      MEMBERS.concat(holderById('senchez')).reduce(
+        (s, h) => s + (state.gold[h.id] ?? 0) + (state.platinum[h.id] ?? 0) * PP_IN_GP,
+        0
+      ),
+    [state.gold, state.platinum]
+  );
+  const [bursting, setBursting] = useState(false);
+  const prevWorth = useRef<number | null>(null);
+  useEffect(() => {
+    // wait for real data — the initial 0 → loaded jump is not a payday
+    if (phase !== 'ready') return;
+    const was = prevWorth.current;
+    prevWorth.current = coinWorth;
+    if (was !== null && coinWorth > was) setBursting(true);
+  }, [coinWorth, phase]);
+  const endBurst = useCallback(() => setBursting(false), []);
 
   if (phase === 'checking')
     return (
@@ -520,6 +575,7 @@ export function App() {
           </>
         )}
         {addModal}
+        {bursting && <CoinBurst onDone={endBurst} />}
         {pickingIcon && scopeHolder && (
           <IconPicker
             title={`${scopeHolder.name}’s icon`}
