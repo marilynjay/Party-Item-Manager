@@ -108,16 +108,19 @@ export function formPlan(category: CategoryKey, subtype: string): FormPlan {
       return { primary: ['content', ...GENERIC.primary], advanced: [] };
     case 'treasure':
       // gems can opt out of the purse's worth figures (saved for a spell, not spendable)
-      if (subtype === 'gems') return { primary: ['value', 'weight', 'fungible'], advanced: ['rarity', 'magic', 'attunement'] };
-      if (subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic', 'attunement'] };
+      if (subtype === 'gems') return { primary: ['value', 'weight', 'fungible'], advanced: ['rarity', 'magic'] };
+      if (subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic'] };
       return { primary: ['value', 'weight', 'rarity', 'magic', 'attunement'], advanced: [] };
     case 'consumable':
+      // nothing you drink or throw requires attunement
       if (subtype === 'food & drink') return { primary: ['weight'], advanced: ['rarity', 'value', 'magic'] };
-      if (subtype) return { primary: ['rarity'], advanced: ['weight', 'value', 'magic', 'attunement'] };
+      if (subtype) return { primary: ['rarity'], advanced: ['weight', 'value', 'magic'] };
       return GENERIC;
     case 'gear':
       // damage stats carry a weapon's identity; rarity and weight are afterthoughts
-      if (subtype === 'weapon' || subtype === 'ammunition') return { primary: ['attunement'], advanced: ['rarity', 'weight', 'value', 'magic'] };
+      if (subtype === 'weapon') return { primary: ['attunement'], advanced: ['rarity', 'weight', 'value', 'magic'] };
+      // ammunition virtually never attunes — tuck it away
+      if (subtype === 'ammunition') return { primary: [], advanced: ['rarity', 'weight', 'value', 'magic', 'attunement'] };
       if (subtype === 'armor' || subtype === 'shield') return { primary: ['weight', 'attunement'], advanced: ['rarity', 'value', 'magic'] };
       return GENERIC;
     case 'accessory':
@@ -155,9 +158,14 @@ export function statPlan(category: CategoryKey, subtype: string): StatPlan {
       if (subtype === 'shield') return { primary: ['ac'], advanced: [] };
       return { primary: [], advanced: [] };
     }
-    if (category === 'arcana' && ['wand', 'staff', 'rod', 'focus'].includes(subtype)) return { primary: ['charges', 'spells'], advanced: [] };
+    // staffs and rods double as weapons (Staff of Striking, Rod of Lordly Might)
+    if (category === 'arcana' && (subtype === 'staff' || subtype === 'rod')) return { primary: ['charges', 'spells'], advanced: ['dmg', 'dtype', 'bonus'] };
+    if (category === 'arcana' && (subtype === 'wand' || subtype === 'focus')) return { primary: ['charges', 'spells'], advanced: [] };
     if (category === 'arcana' && subtype === 'spellbook') return { primary: ['spells'], advanced: [] };
-    if (category === 'consumable' && subtype === 'potion') return { primary: ['heal'], advanced: [] };
+    // accessories with an AC rider (Cloak of Protection, Bracers of Defense)
+    if (category === 'accessory' && subtype) return { primary: [], advanced: ['ac'] };
+    // harmful potions exist too (Potion of Poison)
+    if (category === 'consumable' && subtype === 'potion') return { primary: ['heal'], advanced: ['dmg', 'dc'] };
     if (category === 'consumable' && subtype === 'food & drink') return { primary: [], advanced: ['heal'] };
     if (category === 'consumable' && subtype === 'scroll') return { primary: ['spellLevel', 'dc'], advanced: [] };
     if (category === 'consumable' && subtype === 'alchemical') return { primary: ['dmg', 'dc'], advanced: ['heal'] };

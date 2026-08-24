@@ -1332,7 +1332,9 @@ function ItemEditor({
     Boolean(
       item.rarity || item.value || item.magic || item.requiresAttunement || item.weight !== null || item.stats?.cursed || item.stats?.properties ||
       (sPlan.advanced.includes('spells') && item.stats?.spells) ||
-      (sPlan.advanced.includes('charges') && (item.stats?.charges !== undefined || item.stats?.chargesMax !== undefined))
+      (sPlan.advanced.includes('charges') && (item.stats?.charges !== undefined || item.stats?.chargesMax !== undefined)) ||
+      (sPlan.advanced.includes('ac') && item.stats?.ac) ||
+      (sPlan.advanced.includes('dmg') && item.stats?.dmg)
     )
   );
   const set = (patch: Partial<typeof f>) => setF({ ...f, ...patch });
