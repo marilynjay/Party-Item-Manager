@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { HolderId, Icons, Item } from '../types';
 import { ATTUNEMENT_SLOTS, HOLDERS, holderIcon } from '../types';
 
@@ -16,16 +17,32 @@ const stackWeight = (i: Item) => (i.weight === null ? 0 : i.weight * i.qty);
 export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props) {
   const bagWeight = items.filter((i) => i.location === 'senchez').reduce((s, i) => s + stackWeight(i), 0);
 
+  // Senchez gulps when something new lands in him. Counts qty (not stacks)
+  // so merging into an existing stack still registers; the poll leaves the
+  // count unchanged, so sync never triggers it.
+  const bagQty = items.filter((i) => i.location === 'senchez').reduce((s, i) => s + i.qty, 0);
+  const [gulping, setGulping] = useState(false);
+  const prevBag = useRef<number | null>(null);
+  useEffect(() => {
+    const was = prevBag.current;
+    prevBag.current = bagQty;
+    if (was !== null && bagQty > was) {
+      setGulping(true);
+      const t = setTimeout(() => setGulping(false), 550);
+      return () => clearTimeout(t);
+    }
+  }, [bagQty]);
+
   // `short` swaps in on narrow screens; home/all/log are "utility" tabs that
   // drop their icon and read horizontally there.
-  const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string) => (
+  const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string, emojiClass = '') => (
     <button
       key={key}
       className={`tab ${key === 'home' || key === 'all' || key === 'log' ? 'tab-util' : 'tab-holder'} ${scope === key ? 'active' : ''}`}
       title={label}
       onClick={() => onSelect(key)}
     >
-      <span className="tab-emoji">{emoji}</span>
+      <span className={`tab-emoji ${emojiClass}`}>{emoji}</span>
       <span className="tab-label tab-label-full">{label}</span>
       <span className="tab-label tab-label-short">{short ?? label}</span>
       {extra}
@@ -71,7 +88,9 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
             {Math.round(bagWeight)} lb
           </span>
           <span className="badge">{items.filter((i) => i.location === 'senchez').length}</span>
-        </span>
+        </span>,
+        undefined,
+        gulping ? 'gulping' : ''
       )}
       <div className="rail-spacer" />
       {tab('log', 'Change log', '🕯️', undefined, 'Log')}

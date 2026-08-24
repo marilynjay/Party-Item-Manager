@@ -12,6 +12,30 @@ interface Props {
 
 const fmt = (n: number) => n.toLocaleString();
 
+// Rolls the displayed number toward its real value — money should feel good.
+function useCountUp(value: number, ms = 600): number {
+  const [shown, setShown] = useState(value);
+  const prev = useRef(value);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = value;
+    if (from === value) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown(value);
+      return;
+    }
+    const t0 = performance.now();
+    let raf = requestAnimationFrame(function step(t: number) {
+      const p = Math.min(1, (t - t0) / ms);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setShown(Math.round(from + (value - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms]);
+  return shown;
+}
+
 export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<HolderId | null>(null);
@@ -21,12 +45,13 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props
   // Everything displayed is the gp equivalent; platinum shows up in the row editor.
   const worth = (id: HolderId) => gpOf(id) + ppOf(id) * PP_IN_GP;
   const total = HOLDERS.reduce((s, h) => s + worth(h.id), 0);
+  const shownTotal = useCountUp(total);
   const holdersWithMoney = HOLDERS.filter((h) => worth(h.id) > 0);
 
   return (
     <div className="gold-tracker">
       <button type="button" className="gold-line" onClick={() => setOpen(!open)} title="Party gold — tap for the breakdown">
-        <span className="gold-amount">{fmt(total)} gp</span>
+        <span className="gold-amount">{fmt(shownTotal)} gp</span>
       </button>
       {open && (
         <div className="gold-breakdown">
@@ -64,7 +89,7 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props
           )}
           <div className="ledger-row ledger-total">
             <span className="ledger-name">Total</span>
-            <span className="ledger-amount">{fmt(total)} gp</span>
+            <span className="ledger-amount">{fmt(shownTotal)} gp</span>
           </div>
           {giveTo === '' ? (
             <select

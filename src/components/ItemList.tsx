@@ -1,5 +1,5 @@
 import { AutoTextarea } from './AutoTextarea';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item, JournalEntry } from '../types';
 import type { FormField, ItemStats } from '../types';
 import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
@@ -102,17 +102,19 @@ export function ItemList(props: Props) {
           return (
             <section key={g.key} className="cat-group">
               <button type="button" className="cat-group-heading muted" onClick={() => toggle(key)}>
-                <span className="fold-caret">{folded ? '▸' : '▾'}</span>
+                <span className={`fold-caret ${folded ? 'fold-caret-closed' : ''}`}>▾</span>
                 {g.label} <span className="cat-group-count">· {g.items.length}</span>
                 {lb > 0 && <span className="cat-group-weight">{lb.toLocaleString()} lb</span>}
               </button>
-              {!folded && (
-                <ul className="item-list">
-                  {g.items.map((i) => (
-                    <ItemRow key={i.id} item={i} {...props} />
-                  ))}
-                </ul>
-              )}
+              <div className={`fold ${folded ? 'folded' : ''}`}>
+                <div className="fold-inner">
+                  <ul className="item-list">
+                    {g.items.map((i) => (
+                      <ItemRow key={i.id} item={i} {...props} />
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </section>
           );
         })}
@@ -128,20 +130,22 @@ export function ItemList(props: Props) {
         return (
           <section key={h.id} className="holder-group">
             <button type="button" className="holder-heading" onClick={() => toggle(key)}>
-              <span className="fold-caret muted">{folded ? '▸' : '▾'}</span>
+              <span className={`fold-caret muted ${folded ? 'fold-caret-closed' : ''}`}>▾</span>
               <span>{holderIcon(props.icons, h)}</span> {h.name}
               <span className="muted"> · {items.filter((i) => i.location === h.id).length}</span>
             </button>
-            {!folded && (
-              <ul className="item-list">
-                {items
-                  .filter((i) => i.location === h.id)
-                  .sort(byTaxonomy)
-                  .map((i) => (
-                    <ItemRow key={i.id} item={i} {...props} />
-                  ))}
-              </ul>
-            )}
+            <div className={`fold ${folded ? 'folded' : ''}`}>
+              <div className="fold-inner">
+                <ul className="item-list">
+                  {items
+                    .filter((i) => i.location === h.id)
+                    .sort(byTaxonomy)
+                    .map((i) => (
+                      <ItemRow key={i.id} item={i} {...props} />
+                    ))}
+                </ul>
+              </div>
+            </div>
           </section>
         );
       })}
@@ -197,6 +201,19 @@ function ItemRow({
 
   const holderAttuned = item.location !== 'senchez' ? (attunedCounts.get(item.location) ?? 0) : 0;
 
+  // a glint sweeps the plaque when attunement takes hold
+  const [shimmer, setShimmer] = useState(false);
+  const prevAttuned = useRef(item.attuned);
+  useEffect(() => {
+    const was = prevAttuned.current;
+    prevAttuned.current = item.attuned;
+    if (item.attuned && !was) {
+      setShimmer(true);
+      const t = setTimeout(() => setShimmer(false), 750);
+      return () => clearTimeout(t);
+    }
+  }, [item.attuned]);
+
   const toggleAttune = () => {
     if (!item.requiresAttunement || item.location === 'senchez') return;
     if (!item.attuned && holderAttuned >= attunementSlots) {
@@ -206,7 +223,7 @@ function ItemRow({
   };
 
   return (
-    <li className={`item-row ${isMagic(item) ? 'magic' : ''}`}>
+    <li className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''}`}>
       <button
         type="button"
         className={`item-send ${menuOpen ? 'open' : ''}`}
@@ -262,7 +279,8 @@ function ItemRow({
               </button>
             )}
             {item.stats?.charges !== undefined && (
-              <span className="tag charges-tag">⚡ {item.stats.charges}{item.stats.chargesMax !== undefined ? `/${item.stats.chargesMax}` : ''}</span>
+              // keyed by value so the chip pops when charges change, and only then
+              <span key={`c${item.stats.charges}`} className="tag charges-tag pop">⚡ {item.stats.charges}{item.stats.chargesMax !== undefined ? `/${item.stats.chargesMax}` : ''}</span>
             )}
             {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
             {item.value && <span className="tag muted-tag">{item.value}</span>}
@@ -431,7 +449,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
     rows.push([
       'Charges',
       <span className="charges-row">
-        ⚡ {s.charges ?? '?'}{s.chargesMax !== undefined ? `/${s.chargesMax}` : ''}
+        <span key={`c${s.charges}`} className="pop">⚡ {s.charges ?? '?'}{s.chargesMax !== undefined ? `/${s.chargesMax}` : ''}</span>
         {s.recharge && <span className="muted"> · {s.recharge}</span>}
         <button type="button" className="charge-btn" disabled={(s.charges ?? 0) <= 0} onClick={onSpend}>− Spend</button>
         {s.chargesMax !== undefined && (s.charges ?? 0) < s.chargesMax && (
@@ -453,7 +471,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
     ]);
   if (s.capacity) rows.push(['Capacity', s.capacity]);
   if (s.language) rows.push(['Language', s.language]);
-  if (s.cursed) rows.push(['💀 Cursed', s.curseText || 'Yes — someone should probably mention that.']);
+  if (s.cursed) rows.push(['💀 Cursed', <span className="curse-flicker">{s.curseText || 'Yes — someone should probably mention that.'}</span>]);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
   if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
@@ -474,7 +492,7 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
   else if (item.magic) rows.push(['Magic', 'Yes']);
 
   return (
-    <div className="item-detail">
+    <div className={`item-detail ${['very rare', 'legendary', 'artifact'].includes(item.rarity) ? 'glint' : ''}`}>
       {item.image && (
         <img
           className="item-photo-thumb"
@@ -580,6 +598,8 @@ function EntriesSection({
 }) {
   const [editing, setEditing] = useState<string | null>(null); // entry id, or 'new'
   const [zoomedId, setZoomedId] = useState<string | null>(null);
+  // the torn page animates out before the delete lands
+  const [leaving, setLeaving] = useState<string | null>(null);
   const zoomed = entries.find((e) => e.id === zoomedId);
   const when = (at: number) => new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -599,7 +619,7 @@ function EntriesSection({
             onCancel={() => setEditing(null)}
           />
         ) : (
-          <div key={e.id} className="entry">
+          <div key={e.id} className={`entry ${leaving === e.id ? 'entry-leaving' : ''}`}>
             <div className="entry-head">
               {e.title && <span className="entry-title">{e.title}</span>}
               <span className="entry-date muted">{when(e.at)}</span>
@@ -610,7 +630,13 @@ function EntriesSection({
                   className="entry-tool"
                   title="Tear out this page"
                   onClick={() => {
-                    if (confirm(`Tear this page out of ${itemName}?${e.title ? ` (“${e.title}”)` : ''}`)) onDelete(e.id);
+                    if (confirm(`Tear this page out of ${itemName}?${e.title ? ` (“${e.title}”)` : ''}`)) {
+                      setLeaving(e.id);
+                      setTimeout(() => {
+                        setLeaving(null);
+                        onDelete(e.id);
+                      }, 300);
+                    }
                   }}
                 >
                   🗑
@@ -998,7 +1024,10 @@ function RollDialog({
         </div>
         {!result ? (
           <>
-            <p className="muted roll-blurb">Heals {formula}. Who's rolling?</p>
+            <p className="muted roll-blurb">
+              Heals {formula}. Who's rolling?
+              <span className="bubbles"><span /><span /><span /></span>
+            </p>
             <div className="roll-choices">
               <button type="button" className="coin-add" onClick={() => setResult(rollDice(parsed))}>
                 🎲 Roll it here

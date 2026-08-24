@@ -197,7 +197,12 @@ export function App() {
     return counts;
   }, [state.items]);
 
-  if (phase === 'checking') return <div className="centered muted">Opening the bag…</div>;
+  if (phase === 'checking')
+    return (
+      <div className="centered muted">
+        <span className="bag-wiggle">🎒</span> Opening the bag…
+      </div>
+    );
 
   const isHolderScope = scope !== 'home' && scope !== 'all' && scope !== 'log';
   const scopedItems = isHolderScope ? state.items.filter((i) => i.location === scope) : state.items;
