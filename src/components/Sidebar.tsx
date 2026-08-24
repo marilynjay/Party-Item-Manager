@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HolderId, Icons, Item } from '../types';
 import { ATTUNEMENT_SLOTS, HOLDERS, holderIcon } from '../types';
+import { SenchezFace } from './SenchezFace';
 
 export type Scope = 'home' | 'all' | 'log' | HolderId;
 
@@ -70,7 +71,7 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
 
   // `short` swaps in on narrow screens; home/all/log are "utility" tabs that
   // drop their icon and read horizontally there.
-  const tab = (key: Scope, label: string, emoji: string, extra?: React.ReactNode, short?: string, emojiClass = '') => (
+  const tab = (key: Scope, label: string, emoji: React.ReactNode, extra?: React.ReactNode, short?: string, emojiClass = '') => (
     <button
       key={key}
       data-scope={key}
@@ -118,7 +119,8 @@ export function Sidebar({ scope, onSelect, items, icons, attunedCounts }: Props)
       {tab(
         'senchez',
         'Senchez',
-        holderIcon(icons, HOLDERS[5]),
+        // the living bag: the drawn face unless a custom icon overrides it
+        icons.senchez ? holderIcon(icons, HOLDERS[5]) : <SenchezFace busy={oofing ? 'oof' : gulping ? 'gulp' : null} />,
         <span className="tab-badges">
           <span className={`badge weight ${oofing ? 'sagging' : ''}`} title={`Senchez is carrying ${bagWeight} lb (no limit — homebrew bag)`}>
             {Math.round(bagWeight)} lb
