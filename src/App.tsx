@@ -1131,12 +1131,15 @@ export function App() {
               'Change log'
             ) : (
               <>
-                <HolderPortrait
-                  name={scopeHolder!.name}
-                  image={state.portraits[scopeHolder!.id]}
-                  onSave={(image) => run(() => api.setPortrait(scopeHolder!.id, image, actor))}
-                  onError={setError}
-                />
+                {/* Senchez wears his own animated face — no photo needed */}
+                {scopeHolder!.kind === 'member' && (
+                  <HolderPortrait
+                    name={scopeHolder!.name}
+                    image={state.portraits[scopeHolder!.id]}
+                    onSave={(image) => run(() => api.setPortrait(scopeHolder!.id, image, actor))}
+                    onError={setError}
+                  />
+                )}
                 <button
                   type="button"
                   className="heading-icon"
