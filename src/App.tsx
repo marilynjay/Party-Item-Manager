@@ -399,6 +399,55 @@ function CoinStream({ to, onDone }: { to: HolderId; onDone: () => void }) {
   );
 }
 
+// A sent item's ghost: a mini plaque (icon + name) that lifts off from the
+// real plaque's position and shoots into the recipient's rail tab,
+// shrinking to nothing — the item-shaped cousin of the coin stream.
+function ItemFlight({
+  icon,
+  name,
+  rect,
+  to,
+  onDone,
+}: {
+  icon: string;
+  name: string;
+  rect: { x: number; y: number; w: number; h: number };
+  to: HolderId;
+  onDone: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 800);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  const [vec, setVec] = useState<{ dx: number; dy: number } | null>(null);
+  useEffect(() => {
+    const el = document.querySelector(`.tab[data-scope="${to}"]`);
+    const r = el?.getBoundingClientRect();
+    setVec(
+      r
+        ? { dx: r.left + r.width / 2 - (rect.x + rect.w / 2), dy: r.top + r.height / 2 - (rect.y + rect.h / 2) }
+        : { dx: -rect.x - rect.w / 2 + 26, dy: 0 }
+    );
+  }, [to, rect]);
+  if (!vec) return null;
+  return (
+    <div
+      className="item-flight"
+      aria-hidden
+      style={{
+        left: rect.x,
+        top: rect.y,
+        width: rect.w,
+        height: rect.h,
+        '--dx': `${Math.round(vec.dx)}px`,
+        '--dy': `${Math.round(vec.dy)}px`,
+      } as React.CSSProperties}
+    >
+      <span className="item-icon">{icon}</span> {name}
+    </div>
+  );
+}
+
 type Phase = 'checking' | 'ready';
 
 export function App() {
@@ -511,6 +560,11 @@ export function App() {
   // sent coins stream toward the recipient's rail tab
   const [stream, setStream] = useState<{ to: HolderId; key: number } | null>(null);
   const endStream = useCallback(() => setStream(null), []);
+  // sent items launch a shrinking ghost of their plaque the same way
+  type Flight = { icon: string; name: string; rect: { x: number; y: number; w: number; h: number }; to: HolderId; key: number };
+  const [flight, setFlight] = useState<Flight | null>(null);
+  const launchItem = useCallback((f: Omit<Flight, 'key'>) => setFlight({ ...f, key: Date.now() }), []);
+  const endFlight = useCallback(() => setFlight(null), []);
 
   if (phase === 'checking')
     return (
@@ -635,6 +689,7 @@ export function App() {
                   onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
                   onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
                   onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
+                  onFly={launchItem}
                 />
               </div>
             )}
@@ -719,6 +774,7 @@ export function App() {
               onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
               onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
               onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
+              onFly={launchItem}
             />
           </>
         )}
@@ -726,6 +782,7 @@ export function App() {
         {bursting && <CoinBurst onDone={endBurst} />}
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}
         {stream && <CoinStream key={stream.key} to={stream.to} onDone={endStream} />}
+        {flight && <ItemFlight key={flight.key} icon={flight.icon} name={flight.name} rect={flight.rect} to={flight.to} onDone={endFlight} />}
         {pickingIcon && scopeHolder && (
           <IconPicker
             title={`${scopeHolder.name}’s icon`}

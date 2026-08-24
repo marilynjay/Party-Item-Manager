@@ -36,6 +36,8 @@ interface Props {
   onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
   onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
   onDeleteEntry: (id: string, entryId: string) => void;
+  // a send launches a shrinking ghost of the plaque toward the recipient's tab
+  onFly?: (flight: { icon: string; name: string; rect: { x: number; y: number; w: number; h: number }; to: HolderId }) => void;
 }
 
 const rarityClass = (r: string) => 'rarity-' + r.replace(/\s+/g, '-');
@@ -170,12 +172,19 @@ function ItemRow({
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
+  onFly,
 }: Props & { item: Item }) {
   const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
   const [rollFor, setRollFor] = useState(false);
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   const [moveQty, setMoveQty] = useState(1);
+  const liRef = useRef<HTMLLIElement>(null);
+
+  const fly = (to: HolderId) => {
+    const r = liRef.current?.getBoundingClientRect();
+    if (r) onFly?.({ icon: itemIcon(item), name: item.name, rect: { x: r.x, y: r.y, w: r.width, h: r.height }, to });
+  };
 
   const useOne = () => {
     setMenuOpen(false);
@@ -191,6 +200,7 @@ function ItemRow({
   const startMove = (to: HolderId) => {
     if (item.qty === 1) {
       setMenuOpen(false);
+      fly(to);
       onMove(item.id, to, 1);
     } else {
       setMoveTo(to);
@@ -223,7 +233,7 @@ function ItemRow({
   };
 
   return (
-    <li className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''}`}>
+    <li ref={liRef} className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''}`}>
       <button
         type="button"
         className={`item-send ${menuOpen ? 'open' : ''}`}
@@ -332,6 +342,7 @@ function ItemRow({
                   onClick={() => {
                     setMenuOpen(false);
                     setMoveTo('');
+                    fly(moveTo);
                     onMove(item.id, moveTo, moveQty);
                   }}
                 >

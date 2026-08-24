@@ -263,6 +263,31 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   100% { transform: translate(var(--tx), var(--ty)) scale(0.3); opacity: 0; }
 }
 
+/* a sent item's ghost plaque lifts off and shrinks into the recipient's tab */
+.item-flight {
+  position: fixed;
+  z-index: 300;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  animation: itemFly 650ms cubic-bezier(0.45, 0, 0.7, 1) both;
+}
+@keyframes itemFly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  16% { transform: translate(0, 0) scale(0.95); }
+  85% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.06); opacity: 0; }
+}
+
 .purse-send { display: flex; flex-direction: column; gap: 6px; }
 .purse-send .send-holders { grid-template-columns: 1fr 1fr; }
 .purse-send .link-button { align-self: flex-start; padding-left: 0; }
