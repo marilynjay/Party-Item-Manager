@@ -11,6 +11,11 @@ export function parseRoll(formula: string): ParsedRoll | null {
   return { n, d, mod: m[3] ? parseInt(m[3], 10) : 0 };
 }
 
+// "never" (or similar) in a recharge field means the charges are a finite
+// supply — beans, beads, wishes — and no dawn brings them back.
+export const neverRecharges = (recharge: string | undefined): boolean =>
+  !!recharge && /never|not replenish|no recharge/i.test(recharge);
+
 // Just the dice from a recharge phrase: "1d6+1 at dawn" → "1d6+1".
 export const diceText = (text: string): string =>
   text.match(/\d+d\d+(\s*[+-]\s*\d+)?/)?.[0].replace(/\s+/g, '') ?? text.trim();

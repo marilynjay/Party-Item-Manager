@@ -4,7 +4,7 @@
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
 import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
-import { diceText, findRoll, rollDice } from './dice';
+import { diceText, findRoll, neverRecharges, rollDice } from './dice';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
@@ -33,6 +33,13 @@ function migrateTaxonomy<T extends { name: string }>(entry: T): T {
   if ((legacy as { pack?: unknown }).pack === undefined) {
     const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
     if (cat?.pack) (legacy as { pack?: unknown }).pack = cat.pack.map((e) => ({ ...e }));
+  }
+  // charged items stored before recharge data existed inherit the catalogue's
+  // recharge text ("1d6+1 at dawn", "never") so long rests treat them right
+  const stats = (legacy as { stats?: { chargesMax?: number; recharge?: string } }).stats;
+  if (stats && stats.chargesMax !== undefined && stats.recharge === undefined) {
+    const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
+    if (cat?.stats?.recharge) stats.recharge = cat.stats.recharge;
   }
   return entry;
 }
@@ -470,6 +477,8 @@ export function longRest(actor: string): Promise<LongRestResult> {
     const s = item.stats;
     if (!s || s.chargesMax === undefined) continue;
     if (item.category === 'consumable') continue;
+    // beans, beads, and wishes don't come back at dawn
+    if (neverRecharges(s.recharge)) continue;
     const cur = s.charges ?? 0;
     if (cur >= s.chargesMax) continue;
     const dice = s.recharge ? findRoll(s.recharge) : null;

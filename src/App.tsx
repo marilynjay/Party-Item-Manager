@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
-import { diceText, findRoll } from './dice';
+import { diceText, findRoll, neverRecharges } from './dice';
 import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
@@ -191,7 +191,11 @@ function LongRestDialog({
 }) {
   // preview: the same partition longRest itself will make
   const pending = items.filter(
-    (i) => i.stats?.chargesMax !== undefined && (i.stats.charges ?? 0) < i.stats.chargesMax && i.category !== 'consumable'
+    (i) =>
+      i.stats?.chargesMax !== undefined &&
+      (i.stats.charges ?? 0) < i.stats.chargesMax &&
+      i.category !== 'consumable' &&
+      !neverRecharges(i.stats.recharge)
   );
   const auto = pending.filter((i) => !i.stats?.recharge || !findRoll(i.stats.recharge));
   const dicey = pending.filter((i) => i.stats?.recharge && findRoll(i.stats.recharge));

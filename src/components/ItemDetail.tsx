@@ -3,7 +3,7 @@ import { AutoTextarea } from './AutoTextarea';
 import type { CategoryKey, Item, JournalEntry } from '../types';
 import { canJournal, categoryOf, defaultIcon, holderById } from '../types';
 import { CATALOG } from '../catalog';
-import { parseSpellLines } from '../dice';
+import { neverRecharges, parseSpellLines } from '../dice';
 import { SPELL_NAMES } from '../spellIndex';
 import { findSpellForItem, tokenizeSpells } from '../spellLinks';
 import { SpellCard } from './SpellCard';
@@ -47,7 +47,7 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
         <span key={`c${s.charges}`} className="pop">⚡ {s.charges ?? '?'}{s.chargesMax !== undefined ? `/${s.chargesMax}` : ''}</span>
         {s.recharge && <span className="muted"> · {s.recharge}</span>}
         <button type="button" className="charge-btn" disabled={(s.charges ?? 0) <= 0} onClick={onSpend}>− Spend</button>
-        {s.chargesMax !== undefined && (s.charges ?? 0) < s.chargesMax && (
+        {s.chargesMax !== undefined && (s.charges ?? 0) < s.chargesMax && !neverRecharges(s.recharge) && (
           <button
             type="button"
             className="charge-btn"
