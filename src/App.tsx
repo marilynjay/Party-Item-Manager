@@ -13,6 +13,7 @@ import { HOLDER_ICON_PRESETS, IconPicker } from './components/IconPicker';
 import { PP_IN_GP } from './types';
 import { compressImage } from './image';
 import { SenchezFace } from './components/SenchezFace';
+import { DiceGroup } from './components/Dice';
 import { SpellCompendium } from './components/SpellCompendium';
 
 // The holder's portrait beside their inventory heading: a round photo
@@ -196,6 +197,9 @@ function LongRestDialog({
 }) {
   // one entry per dice item of "mine": what the player says they rolled
   const [rollVals, setRollVals] = useState<Record<string, string>>({});
+  // an in-app 🎲 tumbles real dice under the row before filling the field;
+  // one stage at a time, keyed so a re-roll re-tumbles
+  const [rolling, setRolling] = useState<null | { id: string; key: number; d: number; rolls: number[]; mod: number; total: number }>(null);
   // preview: the same partition longRest itself will make
   const pending = items.filter(
     (i) =>
@@ -260,25 +264,44 @@ function LongRestDialog({
                 {mine.map((i) => {
                   const formula = diceText(i.stats!.recharge!);
                   return (
-                    <div className="rest-roll-row" key={i.id}>
-                      <span className="rest-roll-name">
-                        {i.name} <span className="muted">({formula})</span>
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        placeholder="rolled"
-                        value={rollVals[i.id] ?? ''}
-                        onChange={(e) => setRollVals({ ...rollVals, [i.id]: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        className="charge-btn"
-                        title={`Roll ${formula} in the app`}
-                        onClick={() => setRollVals({ ...rollVals, [i.id]: String(rollDice(findRoll(i.stats!.recharge!)!).total) })}
-                      >
-                        🎲 Roll
-                      </button>
+                    <div key={i.id}>
+                      <div className="rest-roll-row">
+                        <span className="rest-roll-name">
+                          {i.name} <span className="muted">({formula})</span>
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="rolled"
+                          value={rollVals[i.id] ?? ''}
+                          onChange={(e) => setRollVals({ ...rollVals, [i.id]: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          className="charge-btn"
+                          title={`Roll ${formula} in the app`}
+                          onClick={() => {
+                            const parsed = findRoll(i.stats!.recharge!)!;
+                            const r = rollDice(parsed);
+                            setRolling({ id: i.id, key: Date.now(), d: parsed.d, rolls: r.rolls, mod: r.mod, total: r.total });
+                          }}
+                        >
+                          🎲 Roll
+                        </button>
+                      </div>
+                      {rolling?.id === i.id && (
+                        <div className="rest-roll-stage" key={rolling.key}>
+                          <DiceGroup
+                            sides={rolling.d}
+                            rolls={rolling.rolls}
+                            size={30}
+                            onSettled={() => setRollVals((v) => ({ ...v, [i.id]: String(rolling.total) }))}
+                          />
+                          {rolling.mod !== 0 && (
+                            <span className="muted rest-roll-mod">{rolling.mod > 0 ? `+${rolling.mod}` : rolling.mod}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

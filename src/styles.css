@@ -1502,6 +1502,8 @@ button.purse-line:hover { background: none; color: var(--text); }
 .rest-roll-name { flex: 1; min-width: 0; }
 .rest-roll-row input { width: 70px; }
 .rest-roll-hint { font-size: 0.78rem; }
+.rest-roll-stage { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; }
+.rest-roll-mod { font-size: 0.9rem; }
 
 /* ammo spend/recover mini-form in the detail row */
 .ammo-form input { width: 64px; }
