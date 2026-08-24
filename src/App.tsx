@@ -685,8 +685,8 @@ export function App() {
                   onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
                   onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
-                  onDelete={(id, disposition, toName) => run(() => api.deleteItem(id, actor, disposition, toName))}
-                  onSell={(id, n, unit) => run(() => api.sellItem(id, n, unit, actor))}
+                  onDelete={(id, disposition, toName, qty) => run(() => api.deleteItem(id, actor, disposition, toName, qty))}
+                  onSell={(id, n, unit, qty) => run(() => api.sellItem(id, n, unit, actor, qty))}
                   onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
                   onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
                   onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
@@ -771,8 +771,8 @@ export function App() {
               onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
               onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
-              onDelete={(id, disposition, toName) => run(() => api.deleteItem(id, actor, disposition, toName))}
-              onSell={(id, n, unit) => run(() => api.sellItem(id, n, unit, actor))}
+              onDelete={(id, disposition, toName, qty) => run(() => api.deleteItem(id, actor, disposition, toName, qty))}
+              onSell={(id, n, unit, qty) => run(() => api.sellItem(id, n, unit, actor, qty))}
               onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
               onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
               onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}

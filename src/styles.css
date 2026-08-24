@@ -269,6 +269,12 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .dispose-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dispose-form input { flex: 1; min-width: 110px; }
 
+.dispose-qty { display: flex; align-items: center; gap: 10px; }
+
+/* partial disposal: the stack shrinks but the plaque stays — just a blip */
+.exit-part { animation: exitPart 400ms ease; }
+@keyframes exitPart { 30% { transform: scale(0.96); opacity: 0.65; } }
+
 /* sold: a golden flash, then it fades into profit (the fountain follows) */
 .exit-sell { animation: exitSell 520ms ease forwards; pointer-events: none; }
 @keyframes exitSell {

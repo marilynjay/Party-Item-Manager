@@ -32,8 +32,8 @@ interface Props {
   onRecharge: (id: string) => void;
   onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
-  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given', toName?: string) => void;
-  onSell: (id: string, amount: number, unit: 'gp' | 'pp') => void;
+  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given', toName?: string, qty?: number) => void;
+  onSell: (id: string, amount: number, unit: 'gp' | 'pp', qty?: number) => void;
   onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
   onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
   onDeleteEntry: (id: string, entryId: string) => void;
@@ -186,6 +186,7 @@ function ItemRow({
   // the disposal dialog: what happened to the item decides its exit
   const [disposing, setDisposing] = useState(false);
   const [dispMode, setDispMode] = useState<'menu' | 'sold' | 'given' | 'npc'>('menu');
+  const [dispQty, setDispQty] = useState(1);
   const [salePrice, setSalePrice] = useState('');
   const [saleUnit, setSaleUnit] = useState<'gp' | 'pp'>('gp');
   const [npcName, setNpcName] = useState('');
@@ -194,15 +195,18 @@ function ItemRow({
   const openDisposal = () => {
     setMenuOpen(false);
     setDispMode('menu');
+    setDispQty(1);
     setSalePrice('');
     setNpcName('');
     setDisposing(true);
   };
 
-  // play the exit animation, then actually let go of the item
+  // play the exit animation, then actually let go of the goods. A partial
+  // disposal keeps the plaque (the stack just shrinks), so it gets a quick
+  // blip instead of the full send-off.
   const dispose = (exit: string, action: () => void) => {
     setDisposing(false);
-    setLeaving(exit);
+    setLeaving(dispQty >= item.qty ? exit : 'part');
     setTimeout(() => {
       setLeaving(null);
       action();
@@ -404,11 +408,34 @@ function ItemRow({
             </div>
             {dispMode === 'menu' && (
               <>
-                <div className="item-menu-heading muted">What happened to it{item.qty > 1 ? ` (all ${item.qty})` : ''}?</div>
+                {item.qty > 1 && (
+                  <div className="dispose-qty">
+                    <div className="qty-stepper">
+                      <button type="button" disabled={dispQty <= 1} onClick={() => setDispQty(dispQty - 1)}>−</button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={item.qty}
+                        value={dispQty}
+                        onChange={(e) => setDispQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
+                      />
+                      <button type="button" disabled={dispQty >= item.qty} onClick={() => setDispQty(dispQty + 1)}>＋</button>
+                    </div>
+                    <span className="muted">of {item.qty}</span>
+                    {dispQty < item.qty && (
+                      <button type="button" className="link-button" onClick={() => setDispQty(item.qty)}>
+                        all {item.qty}
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="item-menu-heading muted">
+                  What happened to {item.qty > 1 ? `${dispQty < item.qty ? `${dispQty} of them` : `all ${item.qty}`}` : 'it'}?
+                </div>
                 <div className="dispose-options">
                   <button type="button" onClick={() => setDispMode('sold')}>💰 Sold</button>
-                  <button type="button" onClick={() => dispose('toss', () => onDelete(item.id, 'lost'))}>🗑 Discarded / lost</button>
-                  <button type="button" onClick={() => dispose('destroy', () => onDelete(item.id, 'destroyed'))}>💥 Destroyed</button>
+                  <button type="button" onClick={() => dispose('toss', () => onDelete(item.id, 'lost', undefined, dispQty))}>🗑 Discarded / lost</button>
+                  <button type="button" onClick={() => dispose('destroy', () => onDelete(item.id, 'destroyed', undefined, dispQty))}>💥 Destroyed</button>
                   <button type="button" onClick={() => setDispMode('given')}>🎁 Given away</button>
                 </div>
                 <button type="button" className="link-button send-cancel" onClick={() => setDisposing(false)}>
@@ -418,13 +445,15 @@ function ItemRow({
             )}
             {dispMode === 'sold' && (
               <>
-                <div className="item-menu-heading muted">Sold for how much? (goes to {holderById(item.location).name}’s purse)</div>
+                <div className="item-menu-heading muted">
+                  Sold{item.qty > 1 ? ` ${dispQty} —` : ''} for how much{dispQty > 1 ? ' total' : ''}? (goes to {holderById(item.location).name}’s purse)
+                </div>
                 <form
                   className="dispose-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     const n = Math.floor(Number(salePrice) || 0);
-                    if (n > 0) dispose('sell', () => onSell(item.id, n, saleUnit));
+                    if (n > 0) dispose('sell', () => onSell(item.id, n, saleUnit, dispQty));
                   }}
                 >
                   <input
@@ -471,7 +500,7 @@ function ItemRow({
                   className="dispose-form"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    dispose('gift', () => onDelete(item.id, 'given', npcName));
+                    dispose('gift', () => onDelete(item.id, 'given', npcName, dispQty));
                   }}
                 >
                   <input autoFocus placeholder="e.g. Old Marla the ferrywoman" value={npcName} onChange={(e) => setNpcName(e.target.value)} />

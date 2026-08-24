@@ -437,12 +437,24 @@ export function consumeItem(id: string, actor: string, note?: string): Promise<{
 // latter optionally naming the NPC who got it.
 export type Disposition = 'lost' | 'destroyed' | 'given';
 
-export function deleteItem(id: string, actor: string, disposition: Disposition = 'lost', toName?: string): Promise<{ ok: true }> {
+// Removes `take` from the stack — the whole item when that empties it —
+// and returns the log label for what left ("Garnets ×2").
+function takeFromStack(db: AppState, item: Item, take: number | undefined): { n: number; label: string } {
+  const n = Math.max(1, Math.min(item.qty, Math.floor(take ?? item.qty)));
+  if (n >= item.qty) {
+    db.items = db.items.filter((i) => i.id !== item.id);
+  } else {
+    item.qty -= n;
+    item.updatedAt = Date.now();
+  }
+  return { n, label: n > 1 ? `${item.name} ×${n}` : item.name };
+}
+
+export function deleteItem(id: string, actor: string, disposition: Disposition = 'lost', toName?: string, qty?: number): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
-  db.items = db.items.filter((i) => i.id !== id);
-  const label = item.qty > 1 ? `${item.name} ×${item.qty}` : item.name;
+  const { label } = takeFromStack(db, item, qty);
   const text =
     disposition === 'destroyed'
       ? `destroyed ${label} 💥`
@@ -454,18 +466,17 @@ export function deleteItem(id: string, actor: string, disposition: Disposition =
   return Promise.resolve({ ok: true });
 }
 
-// Sold: the item leaves and the proceeds land in its holder's purse,
-// as one logged step.
-export function sellItem(id: string, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
+// Sold: the goods leave and the proceeds land in the holder's purse,
+// as one logged step. `amount` is the total received for the lot.
+export function sellItem(id: string, amount: number, unit: 'gp' | 'pp', actor: string, qty?: number): Promise<{ ok: true }> {
   const n = coins(amount);
   if (n <= 0) return Promise.reject(new Error('Sale price must be at least 1'));
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
-  db.items = db.items.filter((i) => i.id !== id);
+  const { label } = takeFromStack(db, item, qty);
   const store = unit === 'pp' ? db.platinum : db.gold;
   store[item.location] = coins(store[item.location]) + n;
-  const label = item.qty > 1 ? `${item.name} ×${item.qty}` : item.name;
   addLog(db, actor, `sold ${label} for ${n} ${unit} (${holderName(item.location)} now ${purseText(coins(db.gold[item.location]), coins(db.platinum[item.location]))})`);
   save(db);
   return Promise.resolve({ ok: true });
