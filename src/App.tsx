@@ -89,12 +89,16 @@ function HolderPortrait({
 // wanders into it while tidying spelling.
 function RenameDialog({
   holder,
+  eats,
   onRename,
+  onSetEats,
   onTorch,
   onClose,
 }: {
   holder: Holder;
+  eats: boolean;
   onRename: (name: string) => void;
+  onSetEats: (eats: boolean) => void;
   onTorch: (newName: string, sweep: boolean) => void;
   onClose: () => void;
 }) {
@@ -126,6 +130,10 @@ function RenameDialog({
           <button type="submit" disabled={!name.trim() || name.trim() === holder.name}>Save</button>
         </form>
         <p className="muted rename-hint">Same character, better spelling — nothing else changes.</p>
+        <label className="check eats-toggle" title="Warforged, constructs, the undead — long rests won't nudge them about supper">
+          <input type="checkbox" checked={!eats} onChange={(e) => onSetEats(!e.target.checked)} />
+          🔩 Doesn’t need food or water
+        </label>
         {holder.kind === 'member' &&
           (!torch ? (
             <button type="button" className="torch-open" onClick={() => setTorch(true)}>
@@ -190,7 +198,6 @@ function SupperSection({
   onEat,
   onDrink,
   onFillWater,
-  onSetEats,
 }: {
   items: Item[];
   who: string;
@@ -198,7 +205,6 @@ function SupperSection({
   onEat: (id: string) => void;
   onDrink: (id: string) => void;
   onFillWater: (id: string, doses: number) => void;
-  onSetEats: (eats: boolean) => void;
 }) {
   const larder = items.filter((i) => i.category === 'consumable' && i.subtype === 'food & drink' && i.qty > 0);
   const vessels = items.filter((i) => i.category === 'supplies' && i.subtype === 'container' && !i.pack?.length);
@@ -210,18 +216,8 @@ function SupperSection({
     return m ? Math.max(1, Math.min(20, Number(m[1]))) : 4;
   };
 
-  if (!eats) {
-    return (
-      <div className="supper-section">
-        <p className="rest-line muted">
-          🔩 {who} doesn’t need food or water.{' '}
-          <button type="button" className="link-button supper-optout" onClick={() => onSetEats(true)}>
-            They do now
-          </button>
-        </p>
-      </div>
-    );
-  }
+  // constructs sit supper out entirely — the toggle lives on their name
+  if (!eats) return null;
 
   return (
     <div className="supper-section">
@@ -263,12 +259,7 @@ function SupperSection({
           💧 {empty.length > 0 ? 'Nothing to drink — fill a skin above.' : 'No waterskin here at all — thirsty work.'}
         </p>
       )}
-      <p className="rest-line muted rest-roll-hint">
-        No bookkeeping police — just don’t wake up hungry.{' '}
-        <button type="button" className="link-button supper-optout" onClick={() => onSetEats(false)}>
-          🔩 {who} doesn’t eat or drink
-        </button>
-      </p>
+      <p className="rest-line muted rest-roll-hint">No bookkeeping police — just don’t wake up hungry.</p>
     </div>
   );
 }
@@ -290,7 +281,6 @@ function LongRestDialog({
   onEat,
   onDrink,
   onFillWater,
-  onSetEats,
   onClose,
 }: {
   items: Item[];
@@ -302,7 +292,6 @@ function LongRestDialog({
   onEat: (id: string) => void;
   onDrink: (id: string) => void;
   onFillWater: (id: string, doses: number) => void;
-  onSetEats: (eats: boolean) => void;
   onClose: () => void;
 }) {
   const [stage, setStage] = useState<'preview' | 'rolls' | 'supper'>('preview');
@@ -334,7 +323,6 @@ function LongRestDialog({
       onEat={onEat}
       onDrink={onDrink}
       onFillWater={onFillWater}
-      onSetEats={onSetEats}
     />
   );
 
@@ -371,7 +359,9 @@ function LongRestDialog({
               <p className="rest-line muted">⚡ Nothing here needs recharging.</p>
             )}
             <p className="rest-line muted">
-              {eats ? '🍽️ Then remind you to eat and drink.' : `🔩 ${who} doesn’t need food or water, so no supper prompt.`}
+              {eats
+                ? '🍽️ Then remind you to eat and drink.'
+                : `🔩 ${who} doesn’t need food or water, so there's no supper to see to.`}
             </p>
             <div className="torch-actions">
               <button
@@ -1304,13 +1294,14 @@ export function App() {
             onEat={(id) => run(() => api.consumeItem(id, actor, 'supper at camp 🍽️'))}
             onDrink={(id) => run(() => api.drinkFromContainer(id, actor))}
             onFillWater={(id, doses) => run(() => api.fillContainer(id, 'water', doses, actor))}
-            onSetEats={(needs) => run(() => api.setNeedsFood(resting, needs, actor))}
             onClose={() => setResting(null)}
           />
         )}
         {renaming && scopeHolder && (
           <RenameDialog
             holder={scopeHolder}
+            eats={eatsFood(state.needsFood, scopeHolder.id)}
+            onSetEats={(needs) => run(() => api.setNeedsFood(scopeHolder.id, needs, actor))}
             onRename={(name) => {
               const old = scopeHolder.name;
               setRenaming(false);
