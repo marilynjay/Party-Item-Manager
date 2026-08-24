@@ -294,11 +294,35 @@ function ItemRow({
 
   const holderAttuned = item.location !== 'senchez' ? (attunedCounts.get(item.location) ?? 0) : 0;
 
-  // cursed items leak: skull + row glitch share one phase offset (negative
-  // animation delay from the id) so each item flickers on its own schedule
-  const cursePhase = item.stats?.cursed
-    ? -((item.id.charCodeAt(0) * 7 + item.id.charCodeAt(item.id.length - 1) * 13) % 41)
-    : 0;
+  // cursed items leak: at a genuinely random interval (15–75 s, re-rolled
+  // after each burst) the card glitches for ~0.8 s — skull, desaturation,
+  // and shell grays all mounted together for that window only
+  const cursed = !!item.stats?.cursed;
+  const [cursing, setCursing] = useState(false);
+  useEffect(() => {
+    if (!cursed) return;
+    let alive = true;
+    let waitTimer: number;
+    let burstTimer: number;
+    const schedule = () => {
+      waitTimer = window.setTimeout(() => {
+        if (!alive) return;
+        setCursing(true);
+        burstTimer = window.setTimeout(() => {
+          if (!alive) return;
+          setCursing(false);
+          schedule();
+        }, 850);
+      }, 15_000 + Math.random() * 60_000);
+    };
+    schedule();
+    return () => {
+      alive = false;
+      clearTimeout(waitTimer);
+      clearTimeout(burstTimer);
+    };
+  }, [cursed]);
+  const curseNow = cursing && view === 'closed';
 
   // a glint sweeps the plaque when attunement takes hold; breaking it dims
   const [shimmer, setShimmer] = useState(false);
@@ -330,8 +354,7 @@ function ItemRow({
   return (
     <li
       ref={liRef}
-      className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${dimming ? 'attune-dim' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${item.stats?.cursed && view === 'closed' ? 'cursed-shell' : ''} ${leaving ? `exit-${leaving}` : ''}`}
-      style={item.stats?.cursed ? ({ '--curse-phase': `${cursePhase}s` } as React.CSSProperties) : undefined}
+      className={`item-row ${isMagic(item) ? 'magic' : ''} ${shimmer ? 'attune-flash' : ''} ${dimming ? 'attune-dim' : ''} ${Date.now() - item.createdAt < 4000 ? 'item-new' : ''} ${curseNow ? 'cursed-shell' : ''} ${leaving ? `exit-${leaving}` : ''}`}
     >
       <button
         type="button"
@@ -351,16 +374,14 @@ function ItemRow({
       </button>
       )}
       <div
-        className={`item-main ${item.stats?.cursed && view === 'closed' ? 'cursed-idle' : ''}`}
+        className={`item-main ${curseNow ? 'cursed-idle' : ''}`}
         onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}
       >
         <span className="item-name">
           <span className="item-icon">{itemIcon(item)}</span>
           {item.name}
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
-          {item.stats?.cursed && view === 'closed' && (
-            // the skull flickers into existence in the same window the row
-            // glitches — the shared --curse-phase keeps them in lockstep
+          {curseNow && (
             <span className="curse-peek" aria-hidden>
               💀
             </span>

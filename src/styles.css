@@ -229,50 +229,48 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .attune-dim { animation: attuneDim 700ms ease; }
 @keyframes attuneDim { 30% { opacity: 0.5; filter: grayscale(0.7); } }
 
-/* the curse leaks: for ~1.6 s out of every 43, the skull flickers into
-   existence while the whole row loses its color and glitches — brief,
-   desynced per item (--curse-phase), and genuinely hard to catch */
-.curse-peek { display: inline-block; margin-left: 6px; opacity: 0; animation: cursePeek 43s linear infinite; animation-delay: var(--curse-phase, 0s); }
+/* the curse leaks: a JS timer fires at a random 15–75 s interval,
+   mounting these three synced one-shot bursts (~0.8 s) — skull flicker,
+   content glitch, and shell grays — then everything vanishes again */
+.curse-peek { display: inline-block; margin-left: 6px; opacity: 0; animation: cursePeek 800ms linear both; }
 @keyframes cursePeek {
-  0%, 95.2% { opacity: 0; }
-  95.35% { opacity: 0.75; }
-  95.55% { opacity: 0.1; }
-  95.75% { opacity: 0.85; }
-  95.95% { opacity: 0.25; }
-  96.2% { opacity: 0.9; }
-  96.65% { opacity: 0.45; }
-  97.05%, 100% { opacity: 0; }
+  0% { opacity: 0; }
+  8% { opacity: 0.75; }
+  19% { opacity: 0.1; }
+  30% { opacity: 0.85; }
+  41% { opacity: 0.25; }
+  54% { opacity: 0.9; }
+  78% { opacity: 0.45; }
+  100% { opacity: 0; }
 }
 /* steps(1) so the row snaps between glitch frames instead of easing */
-.item-main.cursed-idle { animation: curseRow 43s steps(1, end) infinite; animation-delay: var(--curse-phase, 0s); }
+.item-main.cursed-idle { animation: curseRow 800ms steps(1, end) both; }
+@keyframes curseRow {
+  0% { filter: saturate(0) contrast(1.2); transform: translateX(-1px); }
+  11% { filter: saturate(0) brightness(1.18); transform: translateX(2px) skewX(-1.4deg); }
+  22% { filter: saturate(0) brightness(0.82); transform: translateX(-2px) skewX(0.9deg); }
+  32% { filter: saturate(0) contrast(1.3); transform: translateX(1px) translateY(-1px); }
+  43% { filter: saturate(0) brightness(1.12); transform: translateX(-1px) skewX(-0.7deg); }
+  54% { filter: saturate(0); transform: translateX(2px) skewX(0.5deg); }
+  65% { filter: saturate(0) brightness(0.86) contrast(1.25); transform: translateX(-1px) skewX(1.1deg); }
+  81% { filter: saturate(0); transform: translateX(1px); }
+  96% { filter: saturate(0) brightness(1.08); transform: none; }
+  100% { filter: none; transform: none; }
+}
 /* the plaque shell drains too: background and border snap to dead grays.
    :where keeps specificity at one class so the later exit-* rules still
    win the animation property during disposal; the keyframe colors beat
    .magic's border via the animation cascade, no specificity needed. */
 .item-row { --shell-border: var(--border); }
 .item-row.magic { --shell-border: rgba(180, 140, 242, 0.45); }
-:where(.item-row).cursed-shell { animation: curseShell 43s steps(1, end) infinite; animation-delay: var(--curse-phase, 0s); }
+:where(.item-row).cursed-shell { animation: curseShell 800ms steps(1, end) both; }
 @keyframes curseShell {
-  0%, 95.1% { background: var(--bg-raised); border-color: var(--shell-border); }
-  95.2% { background: #232427; border-color: #3f3f44; }
-  95.6% { background: #1d1e20; border-color: #37373b; }
-  96% { background: #25262a; border-color: #3f3f44; }
-  96.4% { background: #1a1b1d; border-color: #3a3a3e; }
-  96.9% { background: #222326; border-color: #3d3d41; }
-  97.1%, 100% { background: var(--bg-raised); border-color: var(--shell-border); }
-}
-@keyframes curseRow {
-  0%, 95.1% { filter: none; transform: none; }
-  95.2% { filter: saturate(0) contrast(1.2); transform: translateX(-1px); }
-  95.4% { filter: saturate(0) brightness(1.18); transform: translateX(2px) skewX(-1.4deg); }
-  95.6% { filter: saturate(0) brightness(0.82); transform: translateX(-2px) skewX(0.9deg); }
-  95.8% { filter: saturate(0) contrast(1.3); transform: translateX(1px) translateY(-1px); }
-  96% { filter: saturate(0) brightness(1.12); transform: translateX(-1px) skewX(-0.7deg); }
-  96.2% { filter: saturate(0); transform: translateX(2px) skewX(0.5deg); }
-  96.4% { filter: saturate(0) brightness(0.86) contrast(1.25); transform: translateX(-1px) skewX(1.1deg); }
-  96.7% { filter: saturate(0); transform: translateX(1px); }
-  97% { filter: saturate(0) brightness(1.08); transform: none; }
-  97.1%, 100% { filter: none; transform: none; }
+  0% { background: #232427; border-color: #3f3f44; }
+  22% { background: #1d1e20; border-color: #37373b; }
+  43% { background: #25262a; border-color: #3f3f44; }
+  65% { background: #1a1b1d; border-color: #3a3a3e; }
+  92% { background: #222326; border-color: #3d3d41; }
+  100% { background: var(--bg-raised); border-color: var(--shell-border); }
 }
 
 /* casting sparkles and the name flashes arcane */
