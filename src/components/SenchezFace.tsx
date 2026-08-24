@@ -9,7 +9,7 @@ type Idle = 'idle' | 'blink' | 'yawn' | 'wiggle';
 
 const IDLE_MS: Record<Idle, number> = { idle: 0, blink: 380, yawn: 1600, wiggle: 1000 };
 
-export function SenchezFace({ busy }: { busy: 'gulp' | 'oof' | null }) {
+export function SenchezFace({ busy, size = 32 }: { busy: 'gulp' | 'oof' | null; size?: number }) {
   const [idle, setIdle] = useState<Idle>('idle');
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export function SenchezFace({ busy }: { busy: 'gulp' | 'oof' | null }) {
   const mood = busy ? `sf-${busy}` : idle !== 'idle' ? `sf-${idle}` : '';
 
   return (
-    <svg className={`sf ${mood}`} viewBox="0 0 64 68" width="32" height="34" aria-hidden>
+    <svg className={`sf ${mood}`} viewBox="0 0 64 68" width={size} height={Math.round((size * 68) / 64)} aria-hidden>
       {/* handle, meeting the bag */}
       <path d="M16 18 Q32 4 48 18" fill="none" stroke="#6b5236" strokeWidth="5" strokeLinecap="round" />
       {/* body */}

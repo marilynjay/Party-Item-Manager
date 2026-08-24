@@ -11,6 +11,7 @@ import { GoldTracker } from './components/GoldTracker';
 import { HOLDER_ICON_PRESETS, IconPicker } from './components/IconPicker';
 import { PP_IN_GP } from './types';
 import { compressImage } from './image';
+import { SenchezFace } from './components/SenchezFace';
 
 // The holder's portrait beside their inventory heading: a round photo
 // (tap to enlarge, with replace/remove) or a quiet camera button to add one.
@@ -625,7 +626,11 @@ export function App() {
                   title={`Change ${scopeHolder!.name}’s icon`}
                   onClick={() => setPickingIcon(true)}
                 >
-                  {holderIcon(state.icons, scopeHolder!)}
+                  {scopeHolder!.id === 'senchez' && !state.icons.senchez ? (
+                    <SenchezFace busy={null} size={44} />
+                  ) : (
+                    holderIcon(state.icons, scopeHolder!)
+                  )}
                   <span className="heading-icon-edit">✎</span>
                 </button>
                 {scopeHolder!.name}’s inventory
