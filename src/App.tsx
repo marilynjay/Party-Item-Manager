@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
-import { diceText, findRoll, neverRecharges } from './dice';
+import { diceText, findRoll, neverRecharges, rollDice } from './dice';
 import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
@@ -173,10 +173,12 @@ function RenameDialog({
   );
 }
 
-// "We long rest." One tap recharges every charged item in the party — with
-// one etiquette rule: recharges that need a die roll belong to the item's
-// owner, so they only roll when the presser is playing that character
-// (Senchez's things are party property; whoever's playing rolls those).
+// "We long rest." One tap recharges every auto-recharge item — with two
+// etiquette rules: recharges that need a die roll belong to the item's
+// owner (they only appear when the presser is playing that character;
+// Senchez's things are party property), and nothing rolls those dice
+// without being asked — each one gets a field for the rolled total, plus
+// a 🎲 that rolls in-app on request. Blank fields simply wait.
 function LongRestDialog({
   items,
   actor,
@@ -189,9 +191,11 @@ function LongRestDialog({
   actor: string;
   who?: string; // set when the rest is scoped to one holder's inventory
   result: api.LongRestResult | null;
-  onRest: () => void;
+  onRest: (rolls: Record<string, number>) => void;
   onClose: () => void;
 }) {
+  // one entry per dice item of "mine": what the player says they rolled
+  const [rollVals, setRollVals] = useState<Record<string, string>>({});
   // preview: the same partition longRest itself will make
   const pending = items.filter(
     (i) =>
@@ -221,9 +225,7 @@ function LongRestDialog({
             )}
             {result.rolled.map((r) => (
               <p className="rest-line" key={r.name}>
-                🎲 {r.name}: {r.formula.trim()} → {r.rolls.join(' + ')}
-                {r.total !== r.rolls.reduce((s, x) => s + x, 0) ? ` (+${r.total - r.rolls.reduce((s, x) => s + x, 0)})` : ''} ={' '}
-                <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
+                🎲 {r.name}: {r.formula.trim()} = <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
               </p>
             ))}
             {result.restored.length === 0 && result.rolled.length === 0 && (
@@ -253,9 +255,35 @@ function LongRestDialog({
               </p>
             )}
             {mine.length > 0 && (
-              <p className="rest-line">
-                🎲 You’ll roll: {mine.map((i) => `${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
-              </p>
+              <>
+                <p className="rest-line">🎲 Yours to roll — type what the dice said, or let the app roll:</p>
+                {mine.map((i) => {
+                  const formula = diceText(i.stats!.recharge!);
+                  return (
+                    <div className="rest-roll-row" key={i.id}>
+                      <span className="rest-roll-name">
+                        {i.name} <span className="muted">({formula})</span>
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="rolled"
+                        value={rollVals[i.id] ?? ''}
+                        onChange={(e) => setRollVals({ ...rollVals, [i.id]: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className="charge-btn"
+                        title={`Roll ${formula} in the app`}
+                        onClick={() => setRollVals({ ...rollVals, [i.id]: String(rollDice(findRoll(i.stats!.recharge!)!).total) })}
+                      >
+                        🎲 Roll
+                      </button>
+                    </div>
+                  );
+                })}
+                <p className="rest-line muted rest-roll-hint">Left blank = not recharged (roll it later from the item).</p>
+              </>
             )}
             {waiting.length > 0 && (
               <p className="rest-line muted">
@@ -264,7 +292,20 @@ function LongRestDialog({
               </p>
             )}
             <div className="torch-actions">
-              <button type="button" disabled={auto.length + mine.length === 0} onClick={onRest}>🌅 Take a long rest</button>
+              <button
+                type="button"
+                disabled={auto.length === 0 && !mine.some((i) => (rollVals[i.id] ?? '') !== '')}
+                onClick={() => {
+                  const rolls: Record<string, number> = {};
+                  for (const i of mine) {
+                    const v = rollVals[i.id] ?? '';
+                    if (v !== '') rolls[i.id] = Math.max(0, Math.floor(Number(v) || 0));
+                  }
+                  onRest(rolls);
+                }}
+              >
+                🌅 Take a long rest
+              </button>
               <button type="button" className="link-button" onClick={onClose}>Cancel</button>
             </div>
           </>
@@ -1071,10 +1112,10 @@ export function App() {
             actor={actor}
             who={resting === 'party' ? undefined : holderById(resting).name}
             result={restResult}
-            onRest={async () => {
+            onRest={async (rolls) => {
               setError(null);
               try {
-                const res = await api.longRest(actor, resting === 'party' ? undefined : resting);
+                const res = await api.longRest(actor, resting === 'party' ? undefined : resting, rolls);
                 setRestResult(res);
                 await refresh();
               } catch (e) {

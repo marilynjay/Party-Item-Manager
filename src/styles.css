@@ -1498,6 +1498,10 @@ button.purse-line:hover { background: none; color: var(--text); }
 .heading-rest:hover { background: none; opacity: 1; }
 .rest-modal { width: 420px; }
 .rest-line { margin: 10px 0 0; font-size: 0.9rem; line-height: 1.45; }
+.rest-roll-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.9rem; }
+.rest-roll-name { flex: 1; min-width: 0; }
+.rest-roll-row input { width: 70px; }
+.rest-roll-hint { font-size: 0.78rem; }
 
 /* ammo spend/recover mini-form in the detail row */
 .ammo-form input { width: 64px; }

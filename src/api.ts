@@ -4,7 +4,7 @@
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
 import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
-import { diceText, findRoll, neverRecharges, rollDice } from './dice';
+import { diceText, findRoll, neverRecharges } from './dice';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
@@ -477,11 +477,11 @@ export function adjustAmmo(id: string, delta: number, actor: string): Promise<{ 
 // Consumables are skipped — their "charges" are doses, not dawn magic.
 export interface LongRestResult {
   restored: string[];
-  rolled: Array<{ name: string; formula: string; rolls: number[]; total: number; charges: number; max: number }>;
+  rolled: Array<{ name: string; formula: string; total: number; charges: number; max: number }>;
   waiting: Array<{ holder: string; name: string; formula: string }>;
 }
 
-export function longRest(actor: string, holder?: HolderId): Promise<LongRestResult> {
+export function longRest(actor: string, holder?: HolderId, rolls?: Record<string, number>): Promise<LongRestResult> {
   const db = load();
   const out: LongRestResult = { restored: [], rolled: [], waiting: [] };
   const now = Date.now();
@@ -500,17 +500,15 @@ export function longRest(actor: string, holder?: HolderId): Promise<LongRestResu
       s.charges = s.chargesMax;
       item.updatedAt = now;
       out.restored.push(item.name);
+    } else if (rolls && rolls[item.id] !== undefined) {
+      // dice recharges are never rolled here — the dialog collects each
+      // roll (in-app or the player's real dice) and passes the totals in
+      const n = Math.max(0, Math.floor(rolls[item.id]));
+      s.charges = Math.min(s.chargesMax, cur + n);
+      item.updatedAt = now;
+      out.rolled.push({ name: item.name, formula: diceText(s.recharge!), total: n, charges: s.charges, max: s.chargesMax });
     } else {
-      const owner = holderName(item.location);
-      const mine = actor && (owner === actor || item.location === 'senchez');
-      if (mine) {
-        const r = rollDice(dice);
-        s.charges = Math.min(s.chargesMax, cur + Math.max(0, r.total));
-        item.updatedAt = now;
-        out.rolled.push({ name: item.name, formula: diceText(s.recharge!), rolls: r.rolls, total: r.total, charges: s.charges, max: s.chargesMax });
-      } else {
-        out.waiting.push({ holder: owner, name: item.name, formula: diceText(s.recharge!) });
-      }
+      out.waiting.push({ holder: holderName(item.location), name: item.name, formula: diceText(s.recharge!) });
     }
   }
   if (out.restored.length || out.rolled.length) {
