@@ -312,6 +312,15 @@ function LongRestDialog({
   const dicey = pending.filter((i) => i.stats?.recharge && findRoll(i.stats.recharge));
   const mine = dicey.filter((i) => actor && (holderById(i.location).name === actor || i.location === 'senchez'));
   const waiting = dicey.filter((i) => !mine.includes(i));
+  // charged gear that's already topped up: worth saying so on the preview
+  // (so nothing looks forgotten), then left out of every later page
+  const full = items.filter(
+    (i) =>
+      i.stats?.chargesMax !== undefined &&
+      (i.stats.charges ?? 0) >= i.stats.chargesMax &&
+      i.category !== 'consumable' &&
+      !neverRecharges(i.stats.recharge)
+  );
   // fresh food ages a day when this inventory rests
   const aging = items.filter((i) => i.freshness !== undefined && i.freshness > 0);
 
@@ -350,12 +359,17 @@ function LongRestDialog({
                 {!actor && ' — set “Playing as” to roll yours.'}
               </p>
             )}
+            {full.length > 0 && (
+              <p className="rest-line muted">
+                ✅ Leave these be — already full: {full.map((i) => `${i.name} (⚡ ${i.stats!.charges}/${i.stats!.chargesMax})`).join(', ')}
+              </p>
+            )}
             {aging.length > 0 && (
               <p className="rest-line muted">
                 🍏 Age the rations a day: {aging.map((i) => `${i.name}${i.freshness === 1 ? ' (will spoil!)' : ` (${i.freshness! - 1} left after)`}`).join(', ')}
               </p>
             )}
-            {pending.length === 0 && aging.length === 0 && (
+            {pending.length === 0 && aging.length === 0 && full.length === 0 && (
               <p className="rest-line muted">⚡ Nothing here needs recharging.</p>
             )}
             <p className="rest-line muted">
