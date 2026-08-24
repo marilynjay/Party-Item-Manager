@@ -1261,6 +1261,9 @@ button.purse-line:hover { background: none; color: var(--text); }
 .ledger-tools { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 4px 0 6px; }
 .ledger-tools button { font-size: 0.85rem; padding: 4px 11px; }
 .ledger-tools .link-button { padding: 4px 6px; }
+.ledger-send { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 8px; }
+.ledger-send .send-holders { grid-template-columns: 1fr 1fr; }
+.ledger-send .link-button { align-self: flex-end; }
 
 .give-gold-select {
   margin-top: 6px;
@@ -1434,6 +1437,36 @@ button.purse-line:hover { background: none; color: var(--text); }
   color: var(--accent);
 }
 .heading-icon:hover .heading-icon-edit { color: var(--text); }
+
+/* the holder's name doubles as the rename button */
+.heading-name {
+  background: none;
+  border: none;
+  padding: 0 8px 0 0;
+  font: inherit;
+  color: inherit;
+  position: relative;
+  cursor: pointer;
+}
+.heading-name .heading-icon-edit { right: 0; }
+.heading-name:hover .heading-icon-edit { color: var(--text); }
+
+/* ---- rename / passing-the-torch dialog ---- */
+.rename-modal { width: 400px; }
+.rename-fix { display: flex; align-items: flex-end; gap: 8px; margin-top: 10px; }
+.rename-fix button { padding: 7px 14px; }
+.rename-label { display: flex; flex-direction: column; gap: 4px; flex: 1; font-size: 0.85rem; color: var(--muted); }
+.rename-label input { width: 100%; }
+.rename-hint { font-size: 0.8rem; margin: 6px 0 0; }
+.torch-open { display: block; margin-top: 18px; padding: 6px 0; font-size: 0.88rem; }
+.torch-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.torch-form h3 { font-size: 0.98rem; }
+.torch-form p { font-size: 0.83rem; margin: 0; }
+.torch-choice { display: flex; flex-direction: column; gap: 6px; }
+.torch-choice label, .torch-confirm { display: flex; align-items: baseline; gap: 8px; font-size: 0.87rem; cursor: pointer; }
+.torch-confirm { color: var(--accent); }
+.torch-actions { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+.torch-actions button[type='submit'] { padding: 7px 14px; }
 
 .icon-modal { width: 380px; }
 .icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }

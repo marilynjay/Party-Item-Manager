@@ -19,6 +19,18 @@ export const HOLDERS: Holder[] = [
 export const MEMBERS = HOLDERS.filter((h) => h.kind === 'member');
 export const holderById = (id: HolderId): Holder => HOLDERS.find((h) => h.id === id)!;
 
+// Holder ids are permanent slots; the names on them are not (characters die,
+// players roll new ones). The stored `names` overrides are stamped onto the
+// HOLDERS entries at load time so every `h.name` in the app shows the
+// current character without threading a map through each component.
+export type Names = Partial<Record<HolderId, string>>;
+export const DEFAULT_HOLDER_NAMES: Record<HolderId, string> = Object.fromEntries(
+  HOLDERS.map((h) => [h.id, h.name])
+) as Record<HolderId, string>;
+export function applyHolderNames(names: Names): void {
+  for (const h of HOLDERS) h.name = names[h.id] ?? DEFAULT_HOLDER_NAMES[h.id];
+}
+
 export const ATTUNEMENT_SLOTS = 3;
 
 export type CategoryKey = 'gear' | 'accessory' | 'consumable' | 'arcana' | 'supplies' | 'papers' | 'treasure' | 'other' | '';
@@ -313,6 +325,7 @@ export interface AppState {
   platinum: Gold;
   icons: Icons;
   portraits: Portraits;
+  names: Names;
   custom: CatalogItem[];
 }
 

@@ -9,6 +9,7 @@ interface Props {
   onSetPurse: (holder: HolderId, gp: number, pp: number) => void;
   onGive: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
   onSpend: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
+  onTransfer: (from: HolderId, to: HolderId, amount: number, unit: 'gp' | 'pp') => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -37,11 +38,12 @@ function useCountUp(value: number, ms = 600): number {
   return shown;
 }
 
-export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend }: Props) {
+export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend, onTransfer }: Props) {
   const [open, setOpen] = useState(false);
-  // tapping a row opens its ＋ Add / − Spend / ✎ tools, purse-panel style
+  // tapping a row opens its ＋ Add / − Spend / ➤ Send / ✎ tools, purse-panel style
   const [active, setActive] = useState<HolderId | null>(null);
-  const [mode, setMode] = useState<'add' | 'spend' | 'exact' | null>(null);
+  const [mode, setMode] = useState<'add' | 'spend' | 'send' | 'exact' | null>(null);
+  const [sendTo, setSendTo] = useState<HolderId | ''>('');
   const [giveTo, setGiveTo] = useState<HolderId | ''>('');
   const gpOf = (id: HolderId) => gold[id] ?? 0;
   const ppOf = (id: HolderId) => platinum[id] ?? 0;
@@ -67,6 +69,7 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                 onClick={() => {
                   setActive(active === h.id ? null : h.id);
                   setMode(null);
+                  setSendTo('');
                 }}
               >
                 <span className="ledger-name">
@@ -79,12 +82,13 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                 <div className="ledger-tools">
                   <button type="button" onClick={() => setMode('add')}>＋ Add</button>
                   <button type="button" disabled={worth(h.id) <= 0} onClick={() => setMode('spend')}>− Spend</button>
+                  <button type="button" disabled={worth(h.id) <= 0} onClick={() => { setMode('send'); setSendTo(''); }}>➤ Send</button>
                   <button type="button" className="link-button" title="Set exact amounts" onClick={() => setMode('exact')}>✎</button>
                 </div>
               )}
               {active === h.id && (mode === 'add' || mode === 'spend') && (
                 <GiveForm
-                  label={mode === 'add' ? '＋' : '−'}
+                  label={mode === 'add' ? '＋ Add' : '− Spend'}
                   onGive={(amount, unit) => {
                     (mode === 'add' ? onGive : onSpend)(h.id, amount, unit);
                     setActive(null);
@@ -92,6 +96,31 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                   }}
                   onCancel={() => setMode(null)}
                 />
+              )}
+              {active === h.id && mode === 'send' && (
+                sendTo === '' ? (
+                  <div className="ledger-send">
+                    <div className="send-holders">
+                      {HOLDERS.filter((o) => o.id !== h.id).map((o) => (
+                        <button key={o.id} type="button" className="send-holder" onClick={() => setSendTo(o.id)}>
+                          <span className="send-holder-emoji">{holderIcon(icons, o)}</span> {o.name}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="link-button" onClick={() => setMode(null)}>✕ Cancel</button>
+                  </div>
+                ) : (
+                  <GiveForm
+                    label={`➤ ${holderOf(sendTo).name}`}
+                    onGive={(amount, unit) => {
+                      onTransfer(h.id, sendTo, amount, unit);
+                      setActive(null);
+                      setMode(null);
+                      setSendTo('');
+                    }}
+                    onCancel={() => setSendTo('')}
+                  />
+                )
               )}
               {active === h.id && mode === 'exact' && (
                 <PurseEdit
@@ -130,7 +159,7 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
             </select>
           ) : (
             <GiveForm
-              label={`${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name}`}
+              label={`＋ ${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name}`}
               onGive={(amount, unit) => {
                 onGive(giveTo, amount, unit);
                 setGiveTo('');
@@ -214,7 +243,7 @@ function GiveForm({
         else onCancel();
       }}
     >
-      <span className="ledger-name">{label} +</span>
+      <span className="ledger-name">{label}</span>
       <span className="ledger-edit-controls">
         <input ref={ref} type="number" min={1} placeholder="amount" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
         <select value={unit} onChange={(e) => setUnit(e.target.value as 'gp' | 'pp')}>

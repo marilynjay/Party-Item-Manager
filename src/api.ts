@@ -3,7 +3,7 @@
 // dormant — to bring it back, restore the fetch-based version of this
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
-import { HOLDERS, classifyLegacy } from './types';
+import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
@@ -41,6 +41,7 @@ function load(): AppState {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       const db = JSON.parse(raw) as Partial<AppState>;
+      applyHolderNames(db.names ?? {});
       return {
         items: (db.items ?? []).map(migrateTaxonomy),
         log: db.log ?? [],
@@ -48,13 +49,15 @@ function load(): AppState {
         platinum: (db.platinum ?? {}) as Gold,
         icons: db.icons ?? {},
         portraits: db.portraits ?? {},
+        names: db.names ?? {},
         custom: (db.custom ?? []).map(migrateTaxonomy),
       };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
   }
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, custom: [] };
+  applyHolderNames({});
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, custom: [] };
 }
 
 function save(db: AppState): void {
@@ -660,6 +663,60 @@ export function setIcon(holder: HolderId, icon: string, actor: string): Promise<
     addLog(db, actor, `gave ${holderName(holder)} a new icon: ${trimmed}`);
     save(db);
   }
+  return Promise.resolve({ ok: true });
+}
+
+// Spelling fix or mid-campaign name change — the slot keeps everything.
+export function renameHolder(holder: HolderId, name: string, actor: string): Promise<{ ok: true }> {
+  const next = name.trim().slice(0, 40);
+  if (!next) return Promise.reject(new Error('A name is required'));
+  const db = load();
+  const old = holderName(holder);
+  if (next === old) return Promise.resolve({ ok: true });
+  if (next === DEFAULT_HOLDER_NAMES[holder]) delete db.names[holder];
+  else db.names[holder] = next;
+  addLog(db, actor, `renamed ${old} to ${next} ✎`);
+  save(db);
+  applyHolderNames(db.names);
+  return Promise.resolve({ ok: true });
+}
+
+// A character has died or retired and a new one takes the slot: attunements
+// end, portrait and icon are cleared, and the belongings either stay with
+// the newcomer or pass to Senchez for the party to sort out.
+export function passTorch(holder: HolderId, newName: string, sweep: boolean, actor: string): Promise<{ ok: true }> {
+  const next = newName.trim().slice(0, 40);
+  if (!next) return Promise.reject(new Error('The new character needs a name'));
+  const db = load();
+  const old = holderName(holder);
+  for (const i of db.items) {
+    if (i.location !== holder) continue;
+    i.attuned = false;
+    if (sweep) i.location = 'senchez';
+  }
+  if (sweep) {
+    const gp = db.gold[holder] ?? 0;
+    const pp = db.platinum[holder] ?? 0;
+    if (gp || pp) {
+      db.gold[holder] = 0;
+      db.platinum[holder] = 0;
+      db.gold.senchez = (db.gold.senchez ?? 0) + gp;
+      db.platinum.senchez = (db.platinum.senchez ?? 0) + pp;
+    }
+  }
+  delete db.portraits[holder];
+  delete db.icons[holder];
+  if (next === DEFAULT_HOLDER_NAMES[holder]) delete db.names[holder];
+  else db.names[holder] = next;
+  addLog(
+    db,
+    actor,
+    sweep
+      ? `🕯️ ${old}’s story has ended — their belongings pass to Senchez for safekeeping. ${next} takes up the journey.`
+      : `🕯️ ${old}’s story has ended. ${next} takes up the journey, pack and all.`
+  );
+  save(db);
+  applyHolderNames(db.names);
   return Promise.resolve({ ok: true });
 }
 

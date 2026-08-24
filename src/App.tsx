@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
-import type { AppState, HolderId } from './types';
+import type { AppState, Holder, HolderId } from './types';
 import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
@@ -77,6 +77,97 @@ function HolderPortrait({
         </div>
       )}
     </>
+  );
+}
+
+// Renaming a holder covers two very different days: fixing a typo, and the
+// sad one where a character dies and the player rolls someone new. The
+// second path is deliberately gated behind its own confirmation so nobody
+// wanders into it while tidying spelling.
+function RenameDialog({
+  holder,
+  onRename,
+  onTorch,
+  onClose,
+}: {
+  holder: Holder;
+  onRename: (name: string) => void;
+  onTorch: (newName: string, sweep: boolean) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(holder.name);
+  const [torch, setTorch] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [sweep, setSweep] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal rename-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>✎ {holder.name}</h2>
+          <button type="button" className="link-button" onClick={onClose}>✕</button>
+        </div>
+        <form
+          className="rename-fix"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = name.trim();
+            if (v && v !== holder.name) onRename(v);
+          }}
+        >
+          <label className="rename-label">
+            Fix the name
+            <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <button type="submit" disabled={!name.trim() || name.trim() === holder.name}>Save</button>
+        </form>
+        <p className="muted rename-hint">Same character, better spelling — nothing else changes.</p>
+        {holder.kind === 'member' &&
+          (!torch ? (
+            <button type="button" className="link-button torch-open" onClick={() => setTorch(true)}>
+              🕯️ {holder.name}’s player is bringing in a new character…
+            </button>
+          ) : (
+            <form
+              className="torch-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (gone && newName.trim()) onTorch(newName.trim(), sweep);
+              }}
+            >
+              <h3>🕯️ Passing the torch</h3>
+              <p className="muted">
+                For when {holder.name} has died or retired. Attunements end, and the portrait and
+                icon are cleared for the newcomer. Old log entries keep {holder.name}’s name — history
+                stays history.
+              </p>
+              <label className="rename-label">
+                New character’s name
+                <input value={newName} maxLength={40} placeholder="Who joins the party?" onChange={(e) => setNewName(e.target.value)} />
+              </label>
+              <div className="torch-choice">
+                <label>
+                  <input type="radio" name="torch-fate" checked={!sweep} onChange={() => setSweep(false)} />
+                  The new character inherits {holder.name}’s items and gold
+                </label>
+                <label>
+                  <input type="radio" name="torch-fate" checked={sweep} onChange={() => setSweep(true)} />
+                  Send everything to Senchez for the party to sort out
+                </label>
+              </div>
+              <label className="torch-confirm">
+                <input type="checkbox" checked={gone} onChange={(e) => setGone(e.target.checked)} />
+                {holder.name} is truly gone — this isn’t a spelling fix
+              </label>
+              <div className="torch-actions">
+                <button type="submit" disabled={!gone || !newName.trim()}>🕯️ Pass the torch</button>
+                <button type="button" className="link-button" onClick={() => setTorch(false)}>Cancel</button>
+              </div>
+            </form>
+          ))}
+      </div>
+    </div>
   );
 }
 
@@ -453,7 +544,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, custom: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, custom: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -463,6 +554,7 @@ export function App() {
     () => (localStorage.getItem('pim-all-mode') === 'category' ? 'category' : 'holder')
   );
   const [pickingIcon, setPickingIcon] = useState(false);
+  const [renaming, setRenaming] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -633,7 +725,16 @@ export function App() {
                   )}
                   <span className="heading-icon-edit">✎</span>
                 </button>
-                {scopeHolder!.name}’s inventory
+                <button
+                  type="button"
+                  className="heading-name"
+                  title={`Rename ${scopeHolder!.name}`}
+                  onClick={() => setRenaming(true)}
+                >
+                  {scopeHolder!.name}
+                  <span className="heading-icon-edit">✎</span>
+                </button>
+                ’s inventory
               </>
             )}
           </h1>
@@ -667,6 +768,12 @@ export function App() {
               onSetPurse={(holder, gp, pp) => run(() => api.setPurse(holder, gp, pp, actor))}
               onGive={(holder, amount, unit) => run(() => api.addMoney(holder, amount, unit, actor))}
               onSpend={(holder, amount, unit) => run(() => api.spendMoney(holder, amount, unit, actor))}
+              onTransfer={(from, to, amount, unit) =>
+                run(async () => {
+                  await api.transferMoney(from, to, amount, unit, actor);
+                  setStream({ to, key: Date.now() });
+                })
+              }
             />
             <FilterBar filters={filters} onChange={setFilters} />
             <button type="button" className="add-big" onClick={() => setAdding(true)}>
@@ -803,6 +910,28 @@ export function App() {
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}
         {stream && <CoinStream key={stream.key} to={stream.to} onDone={endStream} />}
         {flight && <ItemFlight key={flight.key} icon={flight.icon} name={flight.name} rect={flight.rect} to={flight.to} onDone={endFlight} />}
+        {renaming && scopeHolder && (
+          <RenameDialog
+            holder={scopeHolder}
+            onRename={(name) => {
+              const old = scopeHolder.name;
+              setRenaming(false);
+              void run(async () => {
+                await api.renameHolder(scopeHolder.id, name, actor);
+                if (actor === old) setActor(name);
+              });
+            }}
+            onTorch={(newName, sweep) => {
+              const old = scopeHolder.name;
+              setRenaming(false);
+              void run(async () => {
+                await api.passTorch(scopeHolder.id, newName, sweep, actor);
+                if (actor === old) setActor(newName);
+              });
+            }}
+            onClose={() => setRenaming(false)}
+          />
+        )}
         {pickingIcon && scopeHolder && (
           <IconPicker
             title={`${scopeHolder.name}’s icon`}
