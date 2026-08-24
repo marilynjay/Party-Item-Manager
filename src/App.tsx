@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
 import { diceText, findRoll, neverRecharges, rollDice } from './dice';
-import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
+import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, itemIcon, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -174,6 +174,41 @@ function RenameDialog({
   );
 }
 
+// The camp-supper nudge inside the rest dialog: this inventory's food and
+// filled vessels, each with a one-tap Eat/Drink. Deliberately no quotas or
+// enforcement — rations math is the table's business; the app just makes
+// remembering (and the ticking down) effortless.
+function SupperSection({ items, onEat, onDrink }: { items: Item[]; onEat: (id: string) => void; onDrink: (id: string) => void }) {
+  const larder = items.filter((i) => i.category === 'consumable' && i.subtype === 'food & drink' && i.qty > 0);
+  const drinks = items.filter((i) => i.liquid);
+  if (larder.length + drinks.length === 0) return null;
+  return (
+    <div className="supper-section">
+      <p className="rest-line">🍽️ Supper — remember to eat and drink:</p>
+      {larder.map((i) => (
+        <div className="rest-roll-row" key={i.id}>
+          <span className="rest-roll-name">
+            {itemIcon(i)} {i.name}
+            {i.qty > 1 && <span key={i.qty} className="muted pop"> ×{i.qty}</span>}
+            {i.freshness !== undefined && i.freshness <= 0 && <span title="Spoiled"> 🤢</span>}
+          </span>
+          <button type="button" className="charge-btn" onClick={() => onEat(i.id)}>🍽️ Eat one</button>
+        </div>
+      ))}
+      {drinks.map((i) => (
+        <div className="rest-roll-row" key={i.id}>
+          <span className="rest-roll-name">
+            {itemIcon(i)} {i.name}{' '}
+            <span key={i.liquid!.doses} className="muted pop">({i.liquid!.name} · {i.liquid!.doses} left)</span>
+          </span>
+          <button type="button" className="charge-btn" onClick={() => onDrink(i.id)}>💧 Drink 1</button>
+        </div>
+      ))}
+      <p className="rest-line muted rest-roll-hint">No bookkeeping police — just don't wake up hungry.</p>
+    </div>
+  );
+}
+
 // Per-inventory long rest, in two steps: first a preview of what a rest
 // would recharge (so the 🌅 button explains itself), then — after "Take a
 // long rest" — the page where it happens. Two etiquette rules hold:
@@ -188,6 +223,8 @@ function LongRestDialog({
   who,
   result,
   onRest,
+  onEat,
+  onDrink,
   onClose,
 }: {
   items: Item[];
@@ -195,6 +232,8 @@ function LongRestDialog({
   who?: string; // set when the rest is scoped to one holder's inventory
   result: api.LongRestResult | null;
   onRest: (rolls: Record<string, number>) => void;
+  onEat: (id: string) => void;
+  onDrink: (id: string) => void;
   onClose: () => void;
 }) {
   // first show what a rest would recharge; "Take a long rest" moves to the
@@ -252,6 +291,7 @@ function LongRestDialog({
                 ⏳ Waiting on their owners: {result.waiting.map((w) => `${w.holder}’s ${w.name} (${w.formula.trim()})`).join(', ')}
               </p>
             )}
+            <SupperSection items={items} onEat={onEat} onDrink={onDrink} />
             <div className="torch-actions">
               <button type="button" onClick={onClose}>Good morning ☀️</button>
             </div>
@@ -259,6 +299,7 @@ function LongRestDialog({
         ) : pending.length === 0 && aging.length === 0 ? (
           <>
             <p className="rest-line muted">{who ? `${who}’s` : 'Everyone’s'} gear is fully charged — sleep well.</p>
+            <SupperSection items={items} onEat={onEat} onDrink={onDrink} />
             <div className="torch-actions">
               <button type="button" onClick={onClose}>Close</button>
             </div>
@@ -287,6 +328,7 @@ function LongRestDialog({
                 🍏 The rations age a day: {aging.map((i) => `${i.name}${i.freshness === 1 ? ' (will spoil!)' : ` (${i.freshness! - 1} left after)`}`).join(', ')}
               </p>
             )}
+            <SupperSection items={items} onEat={onEat} onDrink={onDrink} />
             <div className="torch-actions">
               <button
                 type="button"
@@ -1174,6 +1216,8 @@ export function App() {
                 setError(e instanceof Error ? e.message : String(e));
               }
             }}
+            onEat={(id) => run(() => api.consumeItem(id, actor, 'supper at camp 🍽️'))}
+            onDrink={(id) => run(() => api.drinkFromContainer(id, actor))}
             onClose={() => setResting(null)}
           />
         )}
