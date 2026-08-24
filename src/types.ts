@@ -24,6 +24,10 @@ export const holderById = (id: HolderId): Holder => HOLDERS.find((h) => h.id ===
 // HOLDERS entries at load time so every `h.name` in the app shows the
 // current character without threading a map through each component.
 export type Names = Partial<Record<HolderId, string>>;
+// Who the supper reminder applies to. Absent = eats and drinks like anyone;
+// false = a warforged, construct, undead, or anything else that doesn't.
+export type NeedsFood = Partial<Record<HolderId, boolean>>;
+export const eatsFood = (needs: NeedsFood, id: HolderId): boolean => needs[id] !== false;
 export const DEFAULT_HOLDER_NAMES: Record<HolderId, string> = Object.fromEntries(
   HOLDERS.map((h) => [h.id, h.name])
 ) as Record<HolderId, string>;
@@ -332,6 +336,7 @@ export interface AppState {
   icons: Icons;
   portraits: Portraits;
   names: Names;
+  needsFood: NeedsFood;
   custom: CatalogItem[];
   spellbook: SpellRef[];
 }

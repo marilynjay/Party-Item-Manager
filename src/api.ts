@@ -64,6 +64,7 @@ function load(): AppState {
         icons: db.icons ?? {},
         portraits: db.portraits ?? {},
         names: db.names ?? {},
+        needsFood: db.needsFood ?? {},
         custom: (db.custom ?? []).map(migrateTaxonomy),
         spellbook: db.spellbook ?? [],
       };
@@ -73,7 +74,7 @@ function load(): AppState {
   }
   applyHolderNames({});
   applySpellbook([]);
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, custom: [], spellbook: [] };
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, needsFood: {}, custom: [], spellbook: [] };
 }
 
 function save(db: AppState): void {
@@ -910,6 +911,17 @@ export function passTorch(holder: HolderId, newName: string, sweep: boolean, act
   );
   save(db);
   applyHolderNames(db.names);
+  return Promise.resolve({ ok: true });
+}
+
+// Warforged, constructs, the occasional undead: some characters sit supper
+// out, so the rest dialog stops nudging them about food and water.
+export function setNeedsFood(holder: HolderId, needs: boolean, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  if (needs) delete db.needsFood[holder];
+  else db.needsFood[holder] = false;
+  addLog(db, actor, needs ? `${holderName(holder)} eats and drinks again` : `${holderName(holder)} doesn’t need food or water 🔩`);
+  save(db);
   return Promise.resolve({ ok: true });
 }
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
 import { diceText, findRoll, neverRecharges, rollDice } from './dice';
-import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, itemIcon, parseGoldValue } from './types';
+import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isMagic, itemIcon, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -178,13 +178,54 @@ function RenameDialog({
 // filled vessels, each with a one-tap Eat/Drink. Deliberately no quotas or
 // enforcement — rations math is the table's business; the app just makes
 // remembering (and the ticking down) effortless.
-function SupperSection({ items, onEat, onDrink }: { items: Item[]; onEat: (id: string) => void; onDrink: (id: string) => void }) {
+// The camp-supper page of the rest flow: this inventory's food, its filled
+// vessels (a dose each tap), and any empty ones with a one-tap fill from
+// the stream. Deliberately no quotas — rations math is the table's
+// business. Characters who don't eat (warforged, constructs) opt out here
+// and are never nudged again.
+function SupperSection({
+  items,
+  who,
+  eats,
+  onEat,
+  onDrink,
+  onFillWater,
+  onSetEats,
+}: {
+  items: Item[];
+  who: string;
+  eats: boolean;
+  onEat: (id: string) => void;
+  onDrink: (id: string) => void;
+  onFillWater: (id: string, doses: number) => void;
+  onSetEats: (eats: boolean) => void;
+}) {
   const larder = items.filter((i) => i.category === 'consumable' && i.subtype === 'food & drink' && i.qty > 0);
-  const drinks = items.filter((i) => i.liquid);
-  if (larder.length + drinks.length === 0) return null;
+  const vessels = items.filter((i) => i.category === 'supplies' && i.subtype === 'container' && !i.pack?.length);
+  const filled = vessels.filter((i) => i.liquid);
+  const empty = vessels.filter((i) => !i.liquid);
+  // "4 pints" → 4 doses when filling at the stream; a plain skin gets 4
+  const capacityOf = (i: Item) => {
+    const m = /(\d+)/.exec(i.stats?.capacity ?? '');
+    return m ? Math.max(1, Math.min(20, Number(m[1]))) : 4;
+  };
+
+  if (!eats) {
+    return (
+      <div className="supper-section">
+        <p className="rest-line muted">
+          🔩 {who} doesn’t need food or water.{' '}
+          <button type="button" className="link-button supper-optout" onClick={() => onSetEats(true)}>
+            They do now
+          </button>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="supper-section">
-      <p className="rest-line">🍽️ Supper — remember to eat and drink:</p>
+      <p className="rest-line">🍽️ Supper — {who} should eat and drink:</p>
       {larder.map((i) => (
         <div className="rest-roll-row" key={i.id}>
           <span className="rest-roll-name">
@@ -195,7 +236,7 @@ function SupperSection({ items, onEat, onDrink }: { items: Item[]; onEat: (id: s
           <button type="button" className="charge-btn" onClick={() => onEat(i.id)}>🍽️ Eat one</button>
         </div>
       ))}
-      {drinks.map((i) => (
+      {filled.map((i) => (
         <div className="rest-roll-row" key={i.id}>
           <span className="rest-roll-name">
             {itemIcon(i)} {i.name}{' '}
@@ -204,41 +245,67 @@ function SupperSection({ items, onEat, onDrink }: { items: Item[]; onEat: (id: s
           <button type="button" className="charge-btn" onClick={() => onDrink(i.id)}>💧 Drink 1</button>
         </div>
       ))}
-      <p className="rest-line muted rest-roll-hint">No bookkeeping police — just don't wake up hungry.</p>
+      {empty.map((i) => (
+        <div className="rest-roll-row" key={i.id}>
+          <span className="rest-roll-name muted">
+            {itemIcon(i)} {i.name} <span className="muted">(empty)</span>
+          </span>
+          <button type="button" className="charge-btn" title="Fill it at the stream" onClick={() => onFillWater(i.id, capacityOf(i))}>
+            🫗 Fill with water
+          </button>
+        </div>
+      ))}
+      {larder.length === 0 && (
+        <p className="rest-line muted">🍽️ No food in this pack — someone had better go hunting.</p>
+      )}
+      {filled.length === 0 && (
+        <p className="rest-line muted">
+          💧 {empty.length > 0 ? 'Nothing to drink — fill a skin above.' : 'No waterskin here at all — thirsty work.'}
+        </p>
+      )}
+      <p className="rest-line muted rest-roll-hint">
+        No bookkeeping police — just don’t wake up hungry.{' '}
+        <button type="button" className="link-button supper-optout" onClick={() => onSetEats(false)}>
+          🔩 {who} doesn’t eat or drink
+        </button>
+      </p>
     </div>
   );
 }
 
-// Per-inventory long rest, in two steps: first a preview of what a rest
-// would recharge (so the 🌅 button explains itself), then — after "Take a
-// long rest" — the page where it happens. Two etiquette rules hold:
-// dice recharges belong to the item's owner (they only appear when the
-// presser is playing that character; Senchez's things are party
-// property), and nothing rolls those dice without being asked — each one
-// gets a field for the rolled total, plus a 🎲 that tumbles the dice
-// in-app on request. Blank fields simply wait.
+// Per-inventory long rest, walked through in order: a preview that explains
+// what resting will do, then (only when there are dice recharges of yours)
+// the roll page, then supper. Two etiquette rules hold: dice recharges
+// belong to the item's owner (they only appear when the presser is playing
+// that character; Senchez's things are party property), and nothing rolls
+// those dice without being asked — each gets a field for the rolled total,
+// plus a 🎲 that tumbles the dice in-app on request. Blank fields wait.
 function LongRestDialog({
   items,
   actor,
   who,
+  eats,
   result,
   onRest,
   onEat,
   onDrink,
+  onFillWater,
+  onSetEats,
   onClose,
 }: {
   items: Item[];
   actor: string;
-  who?: string; // set when the rest is scoped to one holder's inventory
+  who: string;
+  eats: boolean;
   result: api.LongRestResult | null;
   onRest: (rolls: Record<string, number>) => void;
   onEat: (id: string) => void;
   onDrink: (id: string) => void;
+  onFillWater: (id: string, doses: number) => void;
+  onSetEats: (eats: boolean) => void;
   onClose: () => void;
 }) {
-  // first show what a rest would recharge; "Take a long rest" moves to the
-  // roll page where the actual recharges (and any dice) happen
-  const [stage, setStage] = useState<'preview' | 'rolls'>('preview');
+  const [stage, setStage] = useState<'preview' | 'rolls' | 'supper'>('preview');
   // one entry per dice item of "mine": what the player says they rolled
   const [rollVals, setRollVals] = useState<Record<string, string>>({});
   // an in-app 🎲 tumbles real dice under the row before filling the field;
@@ -259,88 +326,71 @@ function LongRestDialog({
   // fresh food ages a day when this inventory rests
   const aging = items.filter((i) => i.freshness !== undefined && i.freshness > 0);
 
+  const supper = (
+    <SupperSection
+      items={items}
+      who={who}
+      eats={eats}
+      onEat={onEat}
+      onDrink={onDrink}
+      onFillWater={onFillWater}
+      onSetEats={onSetEats}
+    />
+  );
+
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal rest-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>🌅 Long rest{who ? ` — ${who}` : ''}</h2>
+          <h2>🌅 Long rest — {who}</h2>
           <button type="button" className="link-button" onClick={onClose}>✕</button>
         </div>
-        {result ? (
+        {stage === 'preview' ? (
           <>
-            {result.restored.length > 0 && (
-              <p className="rest-line">
-                ⚡ {result.restored.length === 1 ? result.restored[0] : `${result.restored.length} items`} recharged with the dawn.
-              </p>
-            )}
-            {result.rolled.map((r) => (
-              <p className="rest-line" key={r.name}>
-                🎲 {r.name}: {r.formula.trim()} = <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
-              </p>
-            ))}
-            {result.spoiled.map((n) => (
-              <p className="rest-line" key={n}>
-                🤢 The {n} spoiled overnight.
-              </p>
-            ))}
-            {result.restored.length === 0 && result.rolled.length === 0 && result.spoiled.length === 0 && (
-              <p className="rest-line muted">{result.aged > 0 ? 'The rations age a day; nothing needed recharging.' : 'Nothing needed recharging.'}</p>
-            )}
-            {result.waiting.length > 0 && (
-              <p className="rest-line muted">
-                ⏳ Waiting on their owners: {result.waiting.map((w) => `${w.holder}’s ${w.name} (${w.formula.trim()})`).join(', ')}
-              </p>
-            )}
-            <SupperSection items={items} onEat={onEat} onDrink={onDrink} />
-            <div className="torch-actions">
-              <button type="button" onClick={onClose}>Good morning ☀️</button>
-            </div>
-          </>
-        ) : pending.length === 0 && aging.length === 0 ? (
-          <>
-            <p className="rest-line muted">{who ? `${who}’s` : 'Everyone’s'} gear is fully charged — sleep well.</p>
-            <SupperSection items={items} onEat={onEat} onDrink={onDrink} />
-            <div className="torch-actions">
-              <button type="button" onClick={onClose}>Close</button>
-            </div>
-          </>
-        ) : stage === 'preview' ? (
-          <>
-            <p className="rest-line muted">A long rest would recharge:</p>
+            <p className="rest-line muted">A long rest here will:</p>
             {auto.length > 0 && (
-              <p className="rest-line">
-                ⚡ With the dawn, automatically: {auto.map((i) => i.name).join(', ')}
-              </p>
+              <p className="rest-line">⚡ Recharge with the dawn: {auto.map((i) => i.name).join(', ')}</p>
             )}
             {mine.length > 0 && (
               <p className="rest-line">
-                🎲 With a roll from you: {mine.map((i) => `${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
+                🎲 Recharge on a roll from you: {mine.map((i) => `${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
               </p>
             )}
             {waiting.length > 0 && (
               <p className="rest-line muted">
-                ⏳ Their owners roll these themselves: {waiting.map((i) => `${holderById(i.location).name}’s ${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
+                ⏳ Leave these for their owners to roll: {waiting.map((i) => `${holderById(i.location).name}’s ${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
                 {!actor && ' — set “Playing as” to roll yours.'}
               </p>
             )}
             {aging.length > 0 && (
               <p className="rest-line muted">
-                🍏 The rations age a day: {aging.map((i) => `${i.name}${i.freshness === 1 ? ' (will spoil!)' : ` (${i.freshness! - 1} left after)`}`).join(', ')}
+                🍏 Age the rations a day: {aging.map((i) => `${i.name}${i.freshness === 1 ? ' (will spoil!)' : ` (${i.freshness! - 1} left after)`}`).join(', ')}
               </p>
             )}
-            <SupperSection items={items} onEat={onEat} onDrink={onDrink} />
+            {pending.length === 0 && aging.length === 0 && (
+              <p className="rest-line muted">⚡ Nothing here needs recharging.</p>
+            )}
+            <p className="rest-line muted">
+              {eats ? '🍽️ Then remind you to eat and drink.' : `🔩 ${who} doesn’t need food or water, so no supper prompt.`}
+            </p>
             <div className="torch-actions">
               <button
                 type="button"
-                disabled={auto.length + mine.length + aging.length === 0}
-                onClick={() => (mine.length > 0 ? setStage('rolls') : onRest({}))}
+                onClick={() => {
+                  if (mine.length > 0) {
+                    setStage('rolls');
+                  } else {
+                    onRest({});
+                    setStage('supper');
+                  }
+                }}
               >
                 🌅 Take a long rest
               </button>
               <button type="button" className="link-button" onClick={onClose}>Cancel</button>
             </div>
           </>
-        ) : (
+        ) : stage === 'rolls' ? (
           <>
             {auto.length > 0 && (
               <p className="rest-line muted">⚡ {auto.length === 1 ? auto[0].name : `${auto.length} items`} will recharge automatically.</p>
@@ -394,7 +444,6 @@ function LongRestDialog({
             <div className="torch-actions">
               <button
                 type="button"
-                disabled={auto.length === 0 && aging.length === 0 && !mine.some((i) => (rollVals[i.id] ?? '') !== '')}
                 onClick={() => {
                   const rolls: Record<string, number> = {};
                   for (const i of mine) {
@@ -402,11 +451,46 @@ function LongRestDialog({
                     if (v !== '') rolls[i.id] = Math.max(0, Math.floor(Number(v) || 0));
                   }
                   onRest(rolls);
+                  setStage('supper');
                 }}
               >
-                ☀️ Finish the rest
+                {eats ? 'Next — supper ›' : '☀️ Finish the rest'}
               </button>
               <button type="button" className="link-button" onClick={() => setStage('preview')}>‹ Back</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {result && (
+              <>
+                {result.restored.length > 0 && (
+                  <p className="rest-line">
+                    ⚡ {result.restored.length === 1 ? result.restored[0] : `${result.restored.length} items`} recharged with the dawn.
+                  </p>
+                )}
+                {result.rolled.map((r) => (
+                  <p className="rest-line" key={r.name}>
+                    🎲 {r.name}: {r.formula.trim()} = <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
+                  </p>
+                ))}
+                {result.spoiled.map((n) => (
+                  <p className="rest-line" key={n}>🤢 The {n} spoiled overnight.</p>
+                ))}
+                {result.restored.length === 0 && result.rolled.length === 0 && result.spoiled.length === 0 && (
+                  <p className="rest-line muted">
+                    {result.aged > 0 ? 'The rations age a day; nothing needed recharging.' : 'Nothing needed recharging.'}
+                  </p>
+                )}
+                {result.waiting.length > 0 && (
+                  <p className="rest-line muted">
+                    ⏳ Waiting on their owners: {result.waiting.map((w) => `${w.holder}’s ${w.name} (${w.formula.trim()})`).join(', ')}
+                  </p>
+                )}
+              </>
+            )}
+            {supper}
+            <div className="torch-actions">
+              <button type="button" onClick={onClose}>Good morning ☀️</button>
             </div>
           </>
         )}
@@ -801,7 +885,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, custom: [], spellbook: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, needsFood: {}, custom: [], spellbook: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -1205,6 +1289,7 @@ export function App() {
             items={state.items.filter((i) => i.location === resting)}
             actor={actor}
             who={holderById(resting).name}
+            eats={eatsFood(state.needsFood, resting)}
             result={restResult}
             onRest={async (rolls) => {
               setError(null);
@@ -1218,6 +1303,8 @@ export function App() {
             }}
             onEat={(id) => run(() => api.consumeItem(id, actor, 'supper at camp 🍽️'))}
             onDrink={(id) => run(() => api.drinkFromContainer(id, actor))}
+            onFillWater={(id, doses) => run(() => api.fillContainer(id, 'water', doses, actor))}
+            onSetEats={(needs) => run(() => api.setNeedsFood(resting, needs, actor))}
             onClose={() => setResting(null)}
           />
         )}
