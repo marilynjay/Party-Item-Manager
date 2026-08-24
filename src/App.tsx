@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, HolderId } from './types';
-import { ATTUNEMENT_SLOTS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
+import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -111,9 +111,23 @@ function PursePanel({
   const coinsWorth = gp + pp * PP_IN_GP;
   const totalWorth = coinsWorth + gems.countedGp;
 
+  // the purse winces when its coins go down
+  const [wincing, setWincing] = useState(false);
+  const prevCoins = useRef(coinsWorth);
+  useEffect(() => {
+    const was = prevCoins.current;
+    prevCoins.current = coinsWorth;
+    if (coinsWorth < was) {
+      setWincing(true);
+      const t = setTimeout(() => setWincing(false), 500);
+      return () => clearTimeout(t);
+    }
+  }, [coinsWorth]);
+  const wince = wincing ? 'purse-wince' : '';
+
   if (!open) {
     return (
-      <button type="button" className="purse-line muted" title={`${name}’s purse — tap for the breakdown`} onClick={() => setOpen(true)}>
+      <button type="button" className={`purse-line muted ${wince}`} title={`${name}’s purse — tap for the breakdown`} onClick={() => setOpen(true)}>
         🟡 {fmt(coinsWorth)} gp
         {gems.count > 0 && <span> · 💎 {gems.count}</span>}
         <span className="purse-edit-hint">▾</span>
@@ -123,7 +137,7 @@ function PursePanel({
 
   return (
     <div className="purse-panel">
-      <button type="button" className="purse-line muted" title="Fold the purse back up" onClick={() => { setOpen(false); setMode(null); }}>
+      <button type="button" className={`purse-line muted ${wince}`} title="Fold the purse back up" onClick={() => { setOpen(false); setMode(null); }}>
         🟡 {fmt(coinsWorth)} gp
         <span className="purse-edit-hint">▴</span>
       </button>
@@ -272,6 +286,48 @@ function CoinBurst({ onDone }: { onDone: () => void }) {
   );
 }
 
+// Spending's animation: a few coins tumble away downward (gravity only —
+// no celebration) under a drifting −N gp label. When a spend empties
+// someone's purse entirely, a moth flutters out instead of the coins.
+function SpendFall({ amount, moth, onDone }: { amount: number; moth: boolean; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1400);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  const coins = useMemo(
+    () =>
+      moth
+        ? []
+        : ['🪙', '🟡', '🪙', '🟡'].map((glyph, i) => ({
+            glyph,
+            dx0: `${-30 + i * 20}px`,
+            dx: `${-46 + i * 30 + Math.round((Math.random() * 2 - 1) * 14)}px`,
+            rot: `${Math.round((Math.random() * 2 - 1) * 200)}deg`,
+            delay: `${i * 70}ms`,
+            dur: `${750 + Math.round(Math.random() * 200)}ms`,
+          })),
+    [moth]
+  );
+  return (
+    <div className="coin-burst spend-fall" aria-hidden>
+      {moth ? (
+        <span className="moth">🦋</span>
+      ) : (
+        coins.map((c, i) => (
+          <span
+            key={i}
+            className="spend-coin"
+            style={{ '--dx0': c.dx0, '--dx': c.dx, '--rot': c.rot, '--delay': c.delay, '--dur': c.dur } as React.CSSProperties}
+          >
+            {c.glyph}
+          </span>
+        ))
+      )}
+      <span className="spend-label">−{amount.toLocaleString()} gp</span>
+    </div>
+  );
+}
+
 type Phase = 'checking' | 'ready';
 
 export function App() {
@@ -354,23 +410,33 @@ export function App() {
   // coins coming in (any path: purse Add, quick-add "25 gp", ledger give,
   // coin dialog) rain a little celebration; spending stays sober
   const coinWorth = useMemo(
-    () =>
-      MEMBERS.concat(holderById('senchez')).reduce(
-        (s, h) => s + (state.gold[h.id] ?? 0) + (state.platinum[h.id] ?? 0) * PP_IN_GP,
-        0
-      ),
+    () => HOLDERS.reduce((s, h) => s + (state.gold[h.id] ?? 0) + (state.platinum[h.id] ?? 0) * PP_IN_GP, 0),
     [state.gold, state.platinum]
   );
   const [bursting, setBursting] = useState(false);
+  const [spendFx, setSpendFx] = useState<{ amount: number; moth: boolean } | null>(null);
   const prevWorth = useRef<number | null>(null);
+  const prevPerHolder = useRef<Partial<Record<HolderId, number>> | null>(null);
   useEffect(() => {
     // wait for real data — the initial 0 → loaded jump is not a payday
     if (phase !== 'ready') return;
+    const per: Partial<Record<HolderId, number>> = {};
+    for (const h of HOLDERS) per[h.id] = (state.gold[h.id] ?? 0) + (state.platinum[h.id] ?? 0) * PP_IN_GP;
     const was = prevWorth.current;
+    const wasPer = prevPerHolder.current;
     prevWorth.current = coinWorth;
-    if (was !== null && coinWorth > was) setBursting(true);
-  }, [coinWorth, phase]);
+    prevPerHolder.current = per;
+    if (was === null) return;
+    if (coinWorth > was) {
+      setBursting(true);
+    } else if (coinWorth < was) {
+      // a purse emptied to exactly zero earns the moth
+      const moth = !!wasPer && HOLDERS.some((h) => (wasPer[h.id] ?? 0) > 0 && per[h.id] === 0);
+      setSpendFx({ amount: was - coinWorth, moth });
+    }
+  }, [coinWorth, phase, state.gold, state.platinum]);
   const endBurst = useCallback(() => setBursting(false), []);
+  const endSpendFx = useCallback(() => setSpendFx(null), []);
 
   if (phase === 'checking')
     return (
@@ -576,6 +642,7 @@ export function App() {
         )}
         {addModal}
         {bursting && <CoinBurst onDone={endBurst} />}
+        {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}
         {pickingIcon && scopeHolder && (
           <IconPicker
             title={`${scopeHolder.name}’s icon`}

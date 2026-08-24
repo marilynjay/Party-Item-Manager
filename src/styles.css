@@ -203,6 +203,60 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   100% { transform: translateY(42vh) scale(0.9) rotate(var(--rot)); opacity: 0; }
 }
 
+/* spending: coins just fall — no rise, no sparkle — under a −N gp label */
+.spend-coin {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  font-size: 20px;
+  animation: spendDrop var(--dur) cubic-bezier(0.4, 0.05, 0.8, 0.6) var(--delay) both;
+}
+@keyframes spendDrop {
+  0% { transform: translate(var(--dx0), 0) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--dx), 32vh) rotate(var(--rot)); opacity: 0; }
+}
+.spend-label {
+  position: absolute;
+  left: 50%;
+  top: 32%;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--danger);
+  animation: labelDrift 1.15s ease-out both;
+}
+@keyframes labelDrift {
+  0% { transform: translate(-50%, 8px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(-50%, -36px); opacity: 0; }
+}
+/* the last coin is spent: a moth flutters out of the empty purse */
+.moth {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  font-size: 24px;
+  animation: mothUp 1.3s ease-in both;
+}
+@keyframes mothUp {
+  0% { transform: translate(0, 12px) rotate(-12deg) scale(0.55); opacity: 0; }
+  14% { opacity: 1; }
+  30% { transform: translate(-16px, -42px) rotate(14deg); }
+  50% { transform: translate(12px, -88px) rotate(-14deg); }
+  70% { transform: translate(-10px, -134px) rotate(12deg); }
+  100% { transform: translate(8px, -185px) rotate(-8deg); opacity: 0; }
+}
+
+/* the purse takes the hit with a little shake-and-squeeze */
+.purse-wince { animation: wince 450ms ease; transform-origin: left center; }
+@keyframes wince {
+  20% { transform: translateX(-3px) scale(0.97); }
+  45% { transform: translateX(3px) scale(0.985); }
+  70% { transform: translateX(-2px); }
+  100% { transform: none; }
+}
+
 /* ---- holder portraits ---- */
 .portrait-btn {
   background: none;
