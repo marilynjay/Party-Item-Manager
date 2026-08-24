@@ -1377,6 +1377,31 @@ button.purse-line:hover { background: none; color: var(--text); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; }
 .modal-head h2 { font-size: 1.1rem; }
 
+/* ---- spell compendium ---- */
+/* the quiet book in Home's corner — noticeable if you look, silent if not */
+.spell-book-btn {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--panel, rgba(30, 26, 44, 0.85));
+  border: 1px solid var(--border);
+  font-size: 1.3rem;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.spell-book-btn:hover { opacity: 1; transform: translateY(-2px); background: var(--panel, rgba(30, 26, 44, 0.85)); }
+.spell-comp-modal { height: 88vh; }
+.spell-comp-levels .chip { min-width: 34px; }
+.spell-comp-group { display: flex; flex-direction: column; gap: 4px; }
+.spell-comp-group .item-menu-heading { margin-top: 8px; }
+.spell-comp-name { color: var(--accent); }
+.spell-comp-meta { font-size: 0.8rem; }
+
 .cat-search { width: 100%; }
 .cat-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .cat-tabs .chip { padding: 4px 11px; font-size: 0.82rem; }

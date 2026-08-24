@@ -13,6 +13,7 @@ import { HOLDER_ICON_PRESETS, IconPicker } from './components/IconPicker';
 import { PP_IN_GP } from './types';
 import { compressImage } from './image';
 import { SenchezFace } from './components/SenchezFace';
+import { SpellCompendium } from './components/SpellCompendium';
 
 // The holder's portrait beside their inventory heading: a round photo
 // (tap to enlarge, with replace/remove) or a quiet camera button to add one.
@@ -667,6 +668,7 @@ export function App() {
     () => (localStorage.getItem('pim-all-mode') === 'category' ? 'category' : 'holder')
   );
   const [pickingIcon, setPickingIcon] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [resting, setResting] = useState(false);
   const [restResult, setRestResult] = useState<api.LongRestResult | null>(null);
@@ -1031,6 +1033,17 @@ export function App() {
             />
           </>
         )}
+        {scope === 'home' && (
+          <button
+            type="button"
+            className="spell-book-btn"
+            title="Spell compendium"
+            onClick={() => setBookOpen(true)}
+          >
+            📖
+          </button>
+        )}
+        {bookOpen && <SpellCompendium onClose={() => setBookOpen(false)} />}
         {addModal}
         {bursting && <CoinBurst onDone={endBurst} />}
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}

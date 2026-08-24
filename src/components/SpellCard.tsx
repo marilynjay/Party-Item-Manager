@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { SpellRef } from '../spellIndex';
 
-// The full compendium loads once, on the first card anyone opens, and is
-// kept for the session — the main bundle only carries the name index.
+// The full compendium loads once, on the first card (or compendium) anyone
+// opens, and is kept for the session — the main bundle only carries the
+// name index.
 let loaded: Record<string, SpellRef> | null = null;
+
+export function loadSpells(): Promise<Record<string, SpellRef>> {
+  return loaded ? Promise.resolve(loaded) : import('../spells2014').then((m) => (loaded = m.default));
+}
 
 export function SpellCard({ name, onClose }: { name: string; onClose: () => void }) {
   const [spells, setSpells] = useState(loaded);
@@ -11,11 +16,8 @@ export function SpellCard({ name, onClose }: { name: string; onClose: () => void
 
   useEffect(() => {
     if (loaded) return;
-    import('../spells2014')
-      .then((m) => {
-        loaded = m.default;
-        setSpells(loaded);
-      })
+    loadSpells()
+      .then(setSpells)
       .catch(() => setFailed(true));
   }, []);
 
