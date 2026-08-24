@@ -22,6 +22,11 @@ interface Props {
 
 export function IconPicker({ title, current, presets, onPick, onClose }: Props) {
   const [custom, setCustom] = useState('');
+  // an icon, not a caption: strip letters/digits and keep it emoji-sized
+  const sanitize = (v: string) => v.replace(/[A-Za-z0-9\s]/g, '').slice(0, 6);
+  const useCustom = () => {
+    if (custom.trim()) onPick(custom.trim());
+  };
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal icon-modal" onClick={(e) => e.stopPropagation()}>
@@ -41,21 +46,23 @@ export function IconPicker({ title, current, presets, onPick, onClose }: Props) 
             </button>
           ))}
         </div>
-        <form
-          className="icon-custom"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (custom.trim()) onPick(custom.trim());
-          }}
-        >
+        {/* deliberately NOT a <form>: the picker can render inside the item
+            editor's form, and nested forms submit the outer one instead */}
+        <div className="icon-custom">
           <input
             placeholder="…or any emoji"
             value={custom}
-            maxLength={8}
-            onChange={(e) => setCustom(e.target.value)}
+            maxLength={6}
+            onChange={(e) => setCustom(sanitize(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                useCustom();
+              }
+            }}
           />
-          <button type="submit" className="primary" disabled={!custom.trim()}>Use it</button>
-        </form>
+          <button type="button" className="primary" disabled={!custom.trim()} onClick={useCustom}>Use it</button>
+        </div>
       </div>
     </div>
   );
