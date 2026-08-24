@@ -2,7 +2,7 @@ import { AutoTextarea } from './AutoTextarea';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item, JournalEntry } from '../types';
 import type { FormField, ItemStats } from '../types';
-import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, formPlan, notesLabel, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
+import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, formPlan, notesLabel, parseGoldValue, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
 import { StatFieldControl, cleanStats } from './StatFields';
 import { DiceGroup } from './Dice';
 import { parseRoll, parseSpellLines, rollDice } from '../dice';
@@ -591,6 +591,24 @@ function ItemRow({
                 <div className="item-menu-heading muted">
                   Sold{item.qty > 1 ? ` ${dispQty} —` : ''} for how much{dispQty > 1 ? ' total' : ''}? (goes to {holderById(item.location).name}’s purse)
                 </div>
+                {(() => {
+                  // used gear usually fetches half list — offer both as one-tap fills
+                  const each = item.value ? parseGoldValue(item.value) : null;
+                  if (!each) return null;
+                  const full = each * dispQty;
+                  const half = Math.max(1, Math.floor(full / 2));
+                  const fill = (n: number) => {
+                    setSalePrice(String(n));
+                    setSaleUnit('gp');
+                  };
+                  return (
+                    <div className="sell-hints muted">
+                      List {full.toLocaleString()} gp{dispQty > 1 ? ' total' : ''} · used gear usually fetches half:
+                      <button type="button" className="chip" onClick={() => fill(half)}>½ — {half.toLocaleString()} gp</button>
+                      <button type="button" className="chip" onClick={() => fill(full)}>full — {full.toLocaleString()} gp</button>
+                    </div>
+                  );
+                })()}
                 <form
                   className="dispose-form"
                   onSubmit={(e) => {
