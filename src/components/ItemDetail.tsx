@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AutoTextarea } from './AutoTextarea';
 import type { CategoryKey, Item, JournalEntry } from '../types';
-import { canJournal, categoryOf, defaultIcon, holderById } from '../types';
+import { canJournal, categoryOf, defaultIcon, holderById, isFood } from '../types';
 import { CATALOG } from '../catalog';
 import { diceText, findRoll, neverRecharges, parseSpellLines } from '../dice';
 import { spellDisplay, spellKnown } from '../spellbook';
@@ -117,19 +117,23 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
     ]);
   if (s.language) rows.push(['Language', s.language]);
   if (s.cursed) rows.push(['💀 Cursed', <span className="curse-flicker">{s.curseText || 'Yes — someone should probably mention that.'}</span>]);
-  if (item.freshness !== undefined)
+  if (item.freshness !== undefined) {
+    const food = isFood(item.category, item.subtype);
     rows.push([
-      'Freshness',
+      food ? 'Freshness' : 'Keeps until',
       item.freshness <= 0 ? (
-        <span className="spoiled-text">🤢 Spoiled — eat at your own risk</span>
+        <span className="spoiled-text">
+          {food ? '🤢 Spoiled — eat at your own risk' : '⌛ Expired — no longer any good'}
+        </span>
       ) : (
         <span className="charges-row">
           <FreshnessGauge left={item.freshness} max={item.freshnessMax ?? item.freshness} />
           {item.freshness} of {item.freshnessMax ?? item.freshness} rest{(item.freshnessMax ?? item.freshness) === 1 ? '' : 's'} left
-          {item.freshness <= 2 && <span className="muted"> — eat it soon</span>}
+          {item.freshness <= 2 && <span className="muted"> — {food ? 'eat it soon' : 'not much time left'}</span>}
         </span>
       ),
     ]);
+  }
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
   if (onAmmo) rows.push(['Ammo', <AmmoRow qty={item.qty} onAmmo={onAmmo} />]);
   else if (item.qty > 1) rows.push(['Quantity', item.qty]);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
 import { diceText, findRoll, neverRecharges, rollDice } from './dice';
-import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isMagic, itemIcon, parseGoldValue } from './types';
+import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isFood, isMagic, itemIcon, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -366,7 +366,10 @@ function LongRestDialog({
             )}
             {aging.length > 0 && (
               <p className="rest-line muted">
-                🍏 Age the rations a day: {aging.map((i) => `${i.name}${i.freshness === 1 ? ' (will spoil!)' : ` (${i.freshness! - 1} left after)`}`).join(', ')}
+                {aging.every((i) => isFood(i.category, i.subtype)) ? '🍏 Age the rations a day: ' : '⏳ Tick the perishables down a day: '}
+                {aging
+                  .map((i) => `${i.name}${i.freshness === 1 ? (isFood(i.category, i.subtype) ? ' (will spoil!)' : ' (expires!)') : ` (${i.freshness! - 1} left after)`}`)
+                  .join(', ')}
               </p>
             )}
             {pending.length === 0 && aging.length === 0 && full.length === 0 && (
@@ -477,8 +480,10 @@ function LongRestDialog({
                     🎲 {r.name}: {r.formula.trim()} = <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
                   </p>
                 ))}
-                {result.spoiled.map((n) => (
-                  <p className="rest-line" key={n}>🤢 The {n} spoiled overnight.</p>
+                {result.spoiled.map((sp) => (
+                  <p className="rest-line" key={sp.name}>
+                    {sp.food ? `🤢 The ${sp.name} spoiled overnight.` : `⌛ The ${sp.name} expired overnight.`}
+                  </p>
                 ))}
                 {result.restored.length === 0 && result.rolled.length === 0 && result.spoiled.length === 0 && (
                   <p className="rest-line muted">

@@ -116,7 +116,19 @@ export interface FormPlan { primary: FormField[]; advanced: FormField[] }
 const GENERIC: FormPlan = { primary: ['rarity', 'weight', 'value', 'magic', 'attunement'], advanced: [] };
 const PAPERY = ['note', 'map', 'deed'];
 
+// Perishables are usually food, but a harvested liver, a body under Gentle
+// Repose, or a writ with a deadline all tick down the same way — so every
+// plan offers the field, buried under "More options" unless it's food.
+export const isFood = (category: CategoryKey, subtype: string): boolean =>
+  category === 'consumable' && subtype === 'food & drink';
+
 export function formPlan(category: CategoryKey, subtype: string): FormPlan {
+  const p = basePlan(category, subtype);
+  if (p.primary.includes('freshness') || p.advanced.includes('freshness')) return p;
+  return { primary: p.primary, advanced: [...p.advanced, 'freshness'] };
+}
+
+function basePlan(category: CategoryKey, subtype: string): FormPlan {
   switch (category) {
     case 'papers':
       if (PAPERY.includes(subtype)) return { primary: ['content'], advanced: ['rarity', 'value', 'magic'] };

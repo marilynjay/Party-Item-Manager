@@ -137,7 +137,7 @@ export function ItemEditor({
         );
       case 'freshness':
         return (
-          <label key={field} title="Long rests tick this down; at 0 it spoils. Leave blank for food that keeps (jerky, hardtack).">
+          <label key={field} title="Long rests tick this down; at 0 it spoils or expires. Leave blank for anything that keeps — jerky, hardtack, most gear.">
             Keeps for (rests)
             <input type="number" min={0} placeholder="forever" value={f.freshness} onChange={(e) => set({ freshness: e.target.value })} />
           </label>

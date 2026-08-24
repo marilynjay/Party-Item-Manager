@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
-import { HOLDERS, categoryLabel, defaultIcon, holderById, holderIcon, itemIcon, parseGoldValue } from '../types';
+import { HOLDERS, categoryLabel, defaultIcon, holderById, holderIcon, isFood, itemIcon, parseGoldValue } from '../types';
 import { CATALOG } from '../catalog';
 import { parseRoll } from '../dice';
 import { FreshnessGauge, ItemDetail } from './ItemDetail';
@@ -298,7 +298,9 @@ export function ItemRow({
             </span>
           )}
           {item.freshness !== undefined && item.freshness <= 0 && (
-            <span className="spoiled-peek" title="Spoiled">🤢</span>
+            <span className="spoiled-peek" title={isFood(item.category, item.subtype) ? 'Spoiled' : 'Expired'}>
+              {isFood(item.category, item.subtype) ? '🤢' : '⌛'}
+            </span>
           )}
           {item.freshness !== undefined && item.freshness > 0 && (
             <FreshnessGauge mini left={item.freshness} max={item.freshnessMax ?? item.freshness} />
@@ -339,7 +341,11 @@ export function ItemRow({
                     : undefined
                 }
               >
-                {item.freshness <= 0 ? '🤢 spoiled' : `🍏 ${item.freshness} rest${item.freshness === 1 ? '' : 's'}`}
+                {item.freshness <= 0
+                  ? isFood(item.category, item.subtype)
+                    ? '🤢 spoiled'
+                    : '⌛ expired'
+                  : `${isFood(item.category, item.subtype) ? '🍏' : '⏳'} ${item.freshness} rest${item.freshness === 1 ? '' : 's'}`}
               </span>
             )}
             {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}

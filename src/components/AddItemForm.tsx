@@ -193,7 +193,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
         );
       case 'freshness':
         return (
-          <label key={f} title="Long rests tick this down; at 0 it spoils. Leave blank for food that keeps (jerky, hardtack).">
+          <label key={f} title="Long rests tick this down; at 0 it spoils or expires. Leave blank for anything that keeps — jerky, hardtack, most gear.">
             Keeps for (rests)
             <input type="number" min={1} placeholder="forever" value={adv.freshness} onChange={(e) => setA({ freshness: e.target.value })} />
           </label>

@@ -3,7 +3,7 @@
 // dormant — to bring it back, restore the fetch-based version of this
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
-import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
+import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy, isFood } from './types';
 import { diceText, findRoll, neverRecharges } from './dice';
 import type { SpellRef } from './spellIndex';
 import { applySpellbook } from './spellbook';
@@ -568,7 +568,7 @@ export interface LongRestResult {
   restored: string[];
   rolled: Array<{ name: string; formula: string; total: number; charges: number; max: number }>;
   waiting: Array<{ holder: string; name: string; formula: string }>;
-  spoiled: string[]; // food whose freshness ran out overnight
+  spoiled: Array<{ name: string; food: boolean }>; // perished overnight
   aged: number;      // food items that ticked down but still keep
 }
 
@@ -583,7 +583,7 @@ export function longRest(actor: string, holder?: HolderId, rolls?: Record<string
     if (item.freshness !== undefined && item.freshness > 0) {
       item.freshness -= 1;
       item.updatedAt = now;
-      if (item.freshness === 0) out.spoiled.push(item.name);
+      if (item.freshness === 0) out.spoiled.push({ name: item.name, food: isFood(item.category, item.subtype) });
       else out.aged += 1;
     }
     const s = item.stats;
@@ -613,8 +613,8 @@ export function longRest(actor: string, holder?: HolderId, rolls?: Record<string
     const bits: string[] = [];
     if (out.restored.length) bits.push(`${out.restored.length} item${out.restored.length === 1 ? '' : 's'} recharged with the dawn`);
     for (const r of out.rolled) bits.push(`rolled ${r.formula} = ${r.total} for ${r.name} (${r.charges}/${r.max})`);
-    for (const name of out.spoiled) bits.push(`the ${name} spoiled 🤢`);
-    if (bits.length === 0) bits.push('the rations age a day');
+    for (const s of out.spoiled) bits.push(s.food ? `the ${s.name} spoiled 🤢` : `the ${s.name} expired ⌛`);
+    if (bits.length === 0) bits.push('the perishables age a day');
     addLog(db, actor, `🌅 ${holder ? `long rest for ${holderName(holder)}` : 'called a long rest'} — ${bits.join(' · ')}`);
     save(db);
   }
