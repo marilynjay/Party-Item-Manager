@@ -294,6 +294,12 @@ function ItemRow({
 
   const holderAttuned = item.location !== 'senchez' ? (attunedCounts.get(item.location) ?? 0) : 0;
 
+  // cursed items leak: skull + row glitch share one phase offset (negative
+  // animation delay from the id) so each item flickers on its own schedule
+  const cursePhase = item.stats?.cursed
+    ? -((item.id.charCodeAt(0) * 7 + item.id.charCodeAt(item.id.length - 1) * 13) % 41)
+    : 0;
+
   // a glint sweeps the plaque when attunement takes hold; breaking it dims
   const [shimmer, setShimmer] = useState(false);
   const [dimming, setDimming] = useState(false);
@@ -340,19 +346,19 @@ function ItemRow({
         🗑
       </button>
       )}
-      <div className="item-main" onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}>
+      <div
+        className={`item-main ${item.stats?.cursed && view === 'closed' ? 'cursed-idle' : ''}`}
+        style={item.stats?.cursed ? ({ '--curse-phase': `${cursePhase}s` } as React.CSSProperties) : undefined}
+        onClick={() => { setView(view === 'closed' ? 'detail' : 'closed'); setMenuOpen(false); }}
+      >
         <span className="item-name">
           <span className="item-icon">{itemIcon(item)}</span>
           {item.name}
           {item.qty > 1 && <span className="item-qty">×{item.qty}</span>}
           {item.stats?.cursed && view === 'closed' && (
-            // the curse leaks: a skull that flickers into existence for a
-            // moment or two per minute, desynced per item so it's hard to catch
-            <span
-              className="curse-peek"
-              aria-hidden
-              style={{ animationDelay: `-${(item.id.charCodeAt(0) * 7 + item.id.charCodeAt(item.id.length - 1) * 13) % 41}s` }}
-            >
+            // the skull flickers into existence in the same window the row
+            // glitches — the shared --curse-phase keeps them in lockstep
+            <span className="curse-peek" aria-hidden>
               💀
             </span>
           )}
