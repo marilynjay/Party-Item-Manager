@@ -201,7 +201,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       catDone: true,
       rarity: it.rarity,
       weight: it.weight === null ? '' : String(it.weight),
-      value: '',
+      value: it.value ?? '',
       fungible: true,
       magic: it.magic,
       requiresAttunement: it.requiresAttunement,
@@ -461,6 +461,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
               {picked.stats?.chargesMax !== undefined && <span className="tag charges-tag">⚡ {picked.stats.chargesMax}</span>}
               {picked.stats?.heal && <span className="tag">heals {picked.stats.heal}</span>}
               {picked.weight !== null && <span className="tag muted-tag">{picked.weight} lb</span>}
+              {picked.value && <span className="tag muted-tag">{picked.value}</span>}
             </span>
           </div>
           {picked.rules && <div className="picked-card-rules muted">{picked.rules}</div>}
