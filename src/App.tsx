@@ -924,7 +924,7 @@ export function App() {
                   onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
                   onConsume={(id, note) => run(() => api.consumeItem(id, actor, note))}
                   onSpend={(id) => run(() => api.spendCharge(id, actor))}
-                  onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
+                  onRecharge={(id, rolled) => run(() => api.rechargeItem(id, actor, rolled))}
                   onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
                   onDelete={(id, disposition, qty) => run(() => api.deleteItem(id, actor, disposition, qty))}
@@ -1017,7 +1017,7 @@ export function App() {
               onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
               onConsume={(id, note) => run(() => api.consumeItem(id, actor, note))}
               onSpend={(id) => run(() => api.spendCharge(id, actor))}
-              onRecharge={(id) => run(() => api.rechargeItem(id, actor))}
+              onRecharge={(id, rolled) => run(() => api.rechargeItem(id, actor, rolled))}
               onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
               onDelete={(id, disposition, qty) => run(() => api.deleteItem(id, actor, disposition, qty))}

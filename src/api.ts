@@ -424,13 +424,25 @@ export function castSpell(id: string, spell: string, cost: number, actor: string
   return Promise.resolve({ ok: true });
 }
 
-export function rechargeItem(id: string, actor: string): Promise<{ ok: true }> {
+// Manual ↺ Recharge from the detail view. Items with a dice recharge
+// ("1d6+4 at dawn") must come with the rolled total — the UI collects it
+// (in-app roll or the player's own dice); auto-recharge items refill.
+export function rechargeItem(id: string, actor: string, rolled?: number): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
-  if (!item || !item.stats || item.stats.chargesMax === undefined) return Promise.reject(new Error('Nothing to recharge'));
-  item.stats.charges = item.stats.chargesMax;
+  const s = item?.stats;
+  if (!item || !s || s.chargesMax === undefined) return Promise.reject(new Error('Nothing to recharge'));
+  const dice = s.recharge && !neverRecharges(s.recharge) ? findRoll(s.recharge) : null;
+  if (dice && rolled === undefined) return Promise.reject(new Error(`${item.name} recharges on a roll (${diceText(s.recharge!)})`));
+  if (rolled !== undefined) {
+    const n = Math.max(0, Math.floor(rolled));
+    s.charges = Math.min(s.chargesMax, (s.charges ?? 0) + n);
+    addLog(db, actor, `recharged ${item.name} — ${dice ? `${diceText(s.recharge!)} = ` : '+'}${n} (${s.charges}/${s.chargesMax})`);
+  } else {
+    s.charges = s.chargesMax;
+    addLog(db, actor, `recharged ${item.name} (${s.chargesMax} charges)`);
+  }
   item.updatedAt = Date.now();
-  addLog(db, actor, `recharged ${item.name} (${item.stats.chargesMax} charges)`);
   save(db);
   return Promise.resolve({ ok: true });
 }

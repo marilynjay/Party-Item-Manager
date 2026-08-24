@@ -3,17 +3,19 @@ import { AutoTextarea } from './AutoTextarea';
 import type { CategoryKey, Item, JournalEntry } from '../types';
 import { canJournal, categoryOf, defaultIcon, holderById } from '../types';
 import { CATALOG } from '../catalog';
-import { neverRecharges, parseSpellLines } from '../dice';
+import { diceText, findRoll, neverRecharges, parseSpellLines } from '../dice';
 import { SPELL_NAMES } from '../spellIndex';
 import { findSpellForItem, tokenizeSpells } from '../spellLinks';
 import { SpellCard } from './SpellCard';
+import { RechargeDialog } from './RollDialog';
 import { compressImage } from '../image';
 
-export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill, onAmmo }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void; onAmmo?: (delta: number) => void }) {
+export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill, onAmmo }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: (rolled?: number) => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void; onAmmo?: (delta: number) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
   const [castFx, setCastFx] = useState<number | null>(null); // sparkling spell row
   const [sunrise, setSunrise] = useState(false); // recharge glow sweep
+  const [recharging, setRecharging] = useState(false); // the dice-recharge dialog
   const rows: Array<[string, React.ReactNode]> = [];
   const cat = categoryOf(item.category);
   const s = item.stats ?? {};
@@ -52,6 +54,11 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
             type="button"
             className="charge-btn"
             onClick={() => {
+              // dice recharges ask for the roll; automatic ones just refill
+              if (s.recharge && findRoll(s.recharge)) {
+                setRecharging(true);
+                return;
+              }
               setSunrise(true);
               setTimeout(() => setSunrise(false), 900);
               onRecharge();
@@ -233,6 +240,19 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
       {item.notes && <p className="item-detail-notes">{prose(item.notes)}</p>}
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
       {spellView && <SpellCard name={spellView} onClose={() => setSpellView(null)} />}
+      {recharging && s.recharge && (
+        <RechargeDialog
+          itemName={item.name}
+          formula={diceText(s.recharge)}
+          onDone={(total) => {
+            setRecharging(false);
+            setSunrise(true);
+            setTimeout(() => setSunrise(false), 900);
+            onRecharge(total);
+          }}
+          onCancel={() => setRecharging(false)}
+        />
+      )}
       <div className="item-detail-actions">
         {onUnpack && (
           <button type="button" className="detail-use" onClick={onUnpack}>

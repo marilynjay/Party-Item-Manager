@@ -71,3 +71,93 @@ export function RollDialog({
     </div>
   );
 }
+
+// ↺ Recharge for items that regain charges on a roll ("1d6+4 at dawn"):
+// tumble the dice in-app, or report what the real dice said.
+export function RechargeDialog({
+  itemName,
+  formula,
+  onDone,
+  onCancel,
+}: {
+  itemName: string;
+  formula: string; // just the dice, e.g. "1d6+4"
+  onDone: (total: number) => void;
+  onCancel: () => void;
+}) {
+  const [result, setResult] = useState<RollResult | null>(null);
+  const [settled, setSettled] = useState(false);
+  const [own, setOwn] = useState(false);
+  const [ownVal, setOwnVal] = useState('');
+  const parsed = parseRoll(formula)!;
+  const ownN = Math.max(0, Math.floor(Number(ownVal) || 0));
+
+  return (
+    <div className="overlay" onClick={result ? undefined : onCancel}>
+      <div className="modal roll-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>↺ {itemName}</h2>
+          {!result && <button type="button" className="link-button" onClick={onCancel}>✕</button>}
+        </div>
+        {result ? (
+          <div className="roll-stage">
+            <DiceGroup sides={parsed.d} rolls={result.rolls} onSettled={() => setSettled(true)} />
+            <div className={`roll-total ${settled ? 'shown' : ''}`}>
+              {result.rolls.join(' + ')}
+              {result.mod !== 0 && ` ${result.mod > 0 ? '+' : '−'} ${Math.abs(result.mod)}`} ={' '}
+              <strong>+{result.total} charge{result.total === 1 ? '' : 's'}</strong>
+            </div>
+            <button
+              type="button"
+              className={`coin-add roll-done ${settled ? 'shown' : ''}`}
+              onClick={() => onDone(result.total)}
+            >
+              Done
+            </button>
+          </div>
+        ) : own ? (
+          <>
+            <form
+              className="dispose-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (ownVal !== '') onDone(ownN);
+              }}
+            >
+              <span className="muted">I rolled {formula} and got</span>
+              <input
+                autoFocus
+                type="number"
+                min={0}
+                placeholder="total"
+                value={ownVal}
+                onChange={(e) => setOwnVal(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && setOwn(false)}
+              />
+              <button type="submit" disabled={ownVal === ''}>↺ Recharge</button>
+            </form>
+            <button type="button" className="link-button send-cancel" onClick={() => setOwn(false)}>‹ Back</button>
+          </>
+        ) : (
+          <>
+            <p className="muted roll-blurb">
+              Regains {formula} charges. Who's rolling?
+              <span className="bubbles"><span /><span /><span /></span>
+            </p>
+            <div className="roll-choices">
+              <button type="button" className="coin-add" onClick={() => setResult(rollDice(parsed))}>
+                🎲 Roll it here
+              </button>
+              <button type="button" onClick={() => setOwn(true)}>
+                I'll roll my own dice
+              </button>
+            </div>
+            <button type="button" className="link-button send-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
