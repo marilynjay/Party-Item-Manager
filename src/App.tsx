@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
-import type { AppState, Holder, HolderId } from './types';
+import type { AppState, Holder, HolderId, Item } from './types';
+import { diceText, findRoll } from './dice';
 import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
@@ -166,6 +167,101 @@ function RenameDialog({
               </div>
             </form>
           ))}
+      </div>
+    </div>
+  );
+}
+
+// "We long rest." One tap recharges every charged item in the party — with
+// one etiquette rule: recharges that need a die roll belong to the item's
+// owner, so they only roll when the presser is playing that character
+// (Senchez's things are party property; whoever's playing rolls those).
+function LongRestDialog({
+  items,
+  actor,
+  result,
+  onRest,
+  onClose,
+}: {
+  items: Item[];
+  actor: string;
+  result: api.LongRestResult | null;
+  onRest: () => void;
+  onClose: () => void;
+}) {
+  // preview: the same partition longRest itself will make
+  const pending = items.filter(
+    (i) => i.stats?.chargesMax !== undefined && (i.stats.charges ?? 0) < i.stats.chargesMax && i.category !== 'consumable'
+  );
+  const auto = pending.filter((i) => !i.stats?.recharge || !findRoll(i.stats.recharge));
+  const dicey = pending.filter((i) => i.stats?.recharge && findRoll(i.stats.recharge));
+  const mine = dicey.filter((i) => actor && (holderById(i.location).name === actor || i.location === 'senchez'));
+  const waiting = dicey.filter((i) => !mine.includes(i));
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal rest-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>🌅 Long rest</h2>
+          <button type="button" className="link-button" onClick={onClose}>✕</button>
+        </div>
+        {result ? (
+          <>
+            {result.restored.length > 0 && (
+              <p className="rest-line">
+                ⚡ {result.restored.length === 1 ? result.restored[0] : `${result.restored.length} items`} recharged with the dawn.
+              </p>
+            )}
+            {result.rolled.map((r) => (
+              <p className="rest-line" key={r.name}>
+                🎲 {r.name}: {r.formula.trim()} → {r.rolls.join(' + ')}
+                {r.total !== r.rolls.reduce((s, x) => s + x, 0) ? ` (+${r.total - r.rolls.reduce((s, x) => s + x, 0)})` : ''} ={' '}
+                <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
+              </p>
+            ))}
+            {result.restored.length === 0 && result.rolled.length === 0 && (
+              <p className="rest-line muted">Nothing needed recharging.</p>
+            )}
+            {result.waiting.length > 0 && (
+              <p className="rest-line muted">
+                ⏳ Waiting on their owners: {result.waiting.map((w) => `${w.holder}’s ${w.name} (${w.formula.trim()})`).join(', ')}
+              </p>
+            )}
+            <div className="torch-actions">
+              <button type="button" onClick={onClose}>Good morning ☀️</button>
+            </div>
+          </>
+        ) : pending.length === 0 ? (
+          <>
+            <p className="rest-line muted">Everyone’s gear is fully charged — sleep well.</p>
+            <div className="torch-actions">
+              <button type="button" onClick={onClose}>Close</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {auto.length > 0 && (
+              <p className="rest-line">
+                ⚡ Recharges with the dawn: {auto.map((i) => i.name).join(', ')}
+              </p>
+            )}
+            {mine.length > 0 && (
+              <p className="rest-line">
+                🎲 You’ll roll: {mine.map((i) => `${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
+              </p>
+            )}
+            {waiting.length > 0 && (
+              <p className="rest-line muted">
+                ⏳ Their owners roll these themselves: {waiting.map((i) => `${holderById(i.location).name}’s ${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
+                {!actor && ' — set “Playing as” to roll yours.'}
+              </p>
+            )}
+            <div className="torch-actions">
+              <button type="button" disabled={auto.length + mine.length === 0} onClick={onRest}>🌅 Take a long rest</button>
+              <button type="button" className="link-button" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -555,6 +651,8 @@ export function App() {
   );
   const [pickingIcon, setPickingIcon] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [resting, setResting] = useState(false);
+  const [restResult, setRestResult] = useState<api.LongRestResult | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -777,6 +875,17 @@ export function App() {
             <button type="button" className="add-big" onClick={() => setAdding(true)}>
               <span className="add-big-plus">＋</span> Add
             </button>
+            <button
+              type="button"
+              className="long-rest-btn"
+              title="Recharge the party's items with the dawn"
+              onClick={() => {
+                setRestResult(null);
+                setResting(true);
+              }}
+            >
+              🌅 Long rest
+            </button>
             {filtering && (
               <div className="home-results">
                 <ItemList
@@ -808,12 +917,13 @@ export function App() {
                   onFill={(id, name, doses) => run(() => api.fillContainer(id, name, doses, actor))}
                   onEmpty={(id) => run(() => api.emptyContainer(id, actor))}
                   onSip={(id) => run(() => api.drinkFromContainer(id, actor))}
+                  onAmmo={(id, delta) => run(() => api.adjustAmmo(id, delta, actor))}
                 />
               </div>
             )}
           </div>
         ) : scope === 'log' ? (
-          <LogPanel log={state.log} />
+          <LogPanel log={state.log} icons={state.icons} />
         ) : (
           <>
             {scopeHolder && scopeHolder.kind === 'member' && (() => {
@@ -900,6 +1010,7 @@ export function App() {
               onFill={(id, name, doses) => run(() => api.fillContainer(id, name, doses, actor))}
               onEmpty={(id) => run(() => api.emptyContainer(id, actor))}
               onSip={(id) => run(() => api.drinkFromContainer(id, actor))}
+              onAmmo={(id, delta) => run(() => api.adjustAmmo(id, delta, actor))}
             />
           </>
         )}
@@ -908,6 +1019,24 @@ export function App() {
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}
         {stream && <CoinStream key={stream.key} to={stream.to} onDone={endStream} />}
         {flight && <ItemFlight key={flight.key} icon={flight.icon} name={flight.name} rect={flight.rect} to={flight.to} onDone={endFlight} />}
+        {resting && (
+          <LongRestDialog
+            items={state.items}
+            actor={actor}
+            result={restResult}
+            onRest={async () => {
+              setError(null);
+              try {
+                const res = await api.longRest(actor);
+                setRestResult(res);
+                await refresh();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+              }
+            }}
+            onClose={() => setResting(false)}
+          />
+        )}
         {renaming && scopeHolder && (
           <RenameDialog
             holder={scopeHolder}

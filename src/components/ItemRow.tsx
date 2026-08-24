@@ -38,6 +38,7 @@ export interface ItemListProps {
   onFill: (id: string, name: string, doses: number) => void;
   onEmpty: (id: string) => void;
   onSip: (id: string) => void;
+  onAmmo: (id: string, delta: number) => void;
 }
 
 const rarityClass = (r: string) => 'rarity-' + r.replace(/\s+/g, '-');
@@ -71,6 +72,7 @@ export function ItemRow({
   onFill,
   onEmpty,
   onSip,
+  onAmmo,
 }: ItemListProps & { item: Item }) {
   const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -601,6 +603,7 @@ export function ItemRow({
                 }
               : undefined
           }
+          onAmmo={item.subtype === 'ammunition' ? (delta) => onAmmo(item.id, delta) : undefined}
         />
       )}
       {filling && (

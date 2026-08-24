@@ -11,6 +11,17 @@ export function parseRoll(formula: string): ParsedRoll | null {
   return { n, d, mod: m[3] ? parseInt(m[3], 10) : 0 };
 }
 
+// Just the dice from a recharge phrase: "1d6+1 at dawn" → "1d6+1".
+export const diceText = (text: string): string =>
+  text.match(/\d+d\d+(\s*[+-]\s*\d+)?/)?.[0].replace(/\s+/g, '') ?? text.trim();
+
+// A dice formula buried in prose ("1d6+1 at dawn") — the first one found.
+export function findRoll(text: string): ParsedRoll | null {
+  const m = text.toLowerCase().match(/(\d+)d(\d+)(\s*[+-]\s*\d+)?/);
+  if (!m) return null;
+  return parseRoll(`${m[1]}d${m[2]}${m[3] ? m[3].replace(/\s+/g, '') : ''}`);
+}
+
 export function rollDice(p: ParsedRoll): RollResult {
   const rolls = Array.from({ length: p.n }, () => 1 + Math.floor(Math.random() * p.d));
   const total = rolls.reduce((s, r) => s + r, 0) + p.mod;

@@ -3,7 +3,8 @@
 // dormant — to bring it back, restore the fetch-based version of this
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
-import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
+import { DEFAULT_HOLDER_NAMES, HOLDERS, PP_IN_GP, applyHolderNames, classifyLegacy } from './types';
+import { diceText, findRoll, rollDice } from './dice';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
@@ -427,6 +428,78 @@ export function rechargeItem(id: string, actor: string): Promise<{ ok: true }> {
   return Promise.resolve({ ok: true });
 }
 
+// Ammunition bookkeeping: loose a few arrows (negative delta), scavenge a
+// few back (positive). The last one spent removes the stack.
+export function adjustAmmo(id: string, delta: number, actor: string): Promise<{ ok: true }> {
+  const n = Math.trunc(delta);
+  if (!n) return Promise.resolve({ ok: true });
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item) return Promise.reject(new Error('Item not found'));
+  if (n < 0 && item.qty + n < 0) return Promise.reject(new Error(`Only ${item.qty} left`));
+  item.qty += n;
+  item.updatedAt = Date.now();
+  if (n > 0) {
+    addLog(db, actor, `recovered ${n} × ${item.name} (${item.qty} now) 🏹`);
+  } else if (item.qty === 0) {
+    db.items = db.items.filter((i) => i.id !== id);
+    addLog(db, actor, `spent the last of ${holderName(item.location)}’s ${item.name} 🏹`);
+  } else {
+    addLog(db, actor, `spent ${-n} × ${item.name} (${item.qty} left) 🏹`);
+  }
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// The party beds down. Charged items refill with the dawn — except those
+// whose recharge text carries a dice formula: those rolls belong to the
+// item's owner, so they only happen when the presser is playing that
+// character (items in Senchez are party property; whoever's playing rolls).
+// Consumables are skipped — their "charges" are doses, not dawn magic.
+export interface LongRestResult {
+  restored: string[];
+  rolled: Array<{ name: string; formula: string; rolls: number[]; total: number; charges: number; max: number }>;
+  waiting: Array<{ holder: string; name: string; formula: string }>;
+}
+
+export function longRest(actor: string): Promise<LongRestResult> {
+  const db = load();
+  const out: LongRestResult = { restored: [], rolled: [], waiting: [] };
+  const now = Date.now();
+  for (const item of db.items) {
+    const s = item.stats;
+    if (!s || s.chargesMax === undefined) continue;
+    if (item.category === 'consumable') continue;
+    const cur = s.charges ?? 0;
+    if (cur >= s.chargesMax) continue;
+    const dice = s.recharge ? findRoll(s.recharge) : null;
+    if (!dice) {
+      s.charges = s.chargesMax;
+      item.updatedAt = now;
+      out.restored.push(item.name);
+    } else {
+      const owner = holderName(item.location);
+      const mine = actor && (owner === actor || item.location === 'senchez');
+      if (mine) {
+        const r = rollDice(dice);
+        s.charges = Math.min(s.chargesMax, cur + Math.max(0, r.total));
+        item.updatedAt = now;
+        out.rolled.push({ name: item.name, formula: diceText(s.recharge!), rolls: r.rolls, total: r.total, charges: s.charges, max: s.chargesMax });
+      } else {
+        out.waiting.push({ holder: owner, name: item.name, formula: diceText(s.recharge!) });
+      }
+    }
+  }
+  if (out.restored.length || out.rolled.length) {
+    const bits: string[] = [];
+    if (out.restored.length) bits.push(`${out.restored.length} item${out.restored.length === 1 ? '' : 's'} recharged with the dawn`);
+    for (const r of out.rolled) bits.push(`rolled ${r.formula} = ${r.total} for ${r.name} (${r.charges}/${r.max})`);
+    addLog(db, actor, `🌅 called a long rest — ${bits.join(' · ')}`);
+    save(db);
+  }
+  return Promise.resolve(out);
+}
+
 // Use up one from a stack (drink the potion, throw the dagger of returning-nowhere).
 export function consumeItem(id: string, actor: string, note?: string): Promise<{ ok: true }> {
   const db = load();
@@ -761,26 +834,61 @@ export function transferMoney(from: HolderId, to: HolderId, amount: number, unit
   if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
   if (from === to) return Promise.reject(new Error('Already theirs'));
   const db = load();
+  let note: string;
+  try {
+    note = takeCoins(db, from, n, unit);
+  } catch (e) {
+    return Promise.reject(e);
+  }
   const store = unit === 'pp' ? db.platinum : db.gold;
-  const have = coins(store[from]);
-  if (n > have) return Promise.reject(new Error(`${holderName(from)} only has ${have} ${unit}`));
-  store[from] = have - n;
   store[to] = coins(store[to]) + n;
-  addLog(db, actor, `sent ${n} ${unit} from ${holderName(from)} to ${holderName(to)}`);
+  addLog(db, actor, `sent ${n} ${unit} from ${holderName(from)} to ${holderName(to)}${note}`);
   save(db);
   return Promise.resolve({ ok: true });
 }
 
-// Take coins out (the tavern bill) — refuses to overdraw the purse.
+// Take n coins of `unit` out of a purse, making change from the other coin
+// when short — platinum breaks into gold, and gold bundles into platinum in
+// exact tens. Returns a note for the log ('' when no change was needed);
+// throws when even the combined purse can't cover it.
+function takeCoins(db: AppState, holder: HolderId, n: number, unit: 'gp' | 'pp'): string {
+  const gp = coins(db.gold[holder]);
+  const pp = coins(db.platinum[holder]);
+  if (unit === 'gp') {
+    if (gp >= n) {
+      db.gold[holder] = gp - n;
+      return '';
+    }
+    const broken = Math.ceil((n - gp) / PP_IN_GP);
+    if (broken > pp) throw new Error(`${holderName(holder)} only has ${purseText(gp, pp)} (${gp + pp * PP_IN_GP} gp worth)`);
+    db.platinum[holder] = pp - broken;
+    db.gold[holder] = gp + broken * PP_IN_GP - n;
+    return `, breaking ${broken} pp`;
+  }
+  if (pp >= n) {
+    db.platinum[holder] = pp - n;
+    return '';
+  }
+  const bundled = (n - pp) * PP_IN_GP;
+  if (bundled > gp) throw new Error(`${holderName(holder)} only has ${purseText(gp, pp)} — not enough for ${n} pp`);
+  db.gold[holder] = gp - bundled;
+  db.platinum[holder] = 0;
+  return `, changing ${bundled} gp up`;
+}
+
+// Take coins out (the tavern bill) — refuses to overdraw the purse, but
+// happily breaks platinum (or bundles gold) to cover the bill.
 export function spendMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
   const n = coins(amount);
   if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
   const db = load();
-  const store = unit === 'pp' ? db.platinum : db.gold;
-  const have = coins(store[holder]);
-  if (n > have) return Promise.reject(new Error(`${holderName(holder)} only has ${have} ${unit}`));
-  store[holder] = have - n;
-  addLog(db, actor, `spent ${n} ${unit} from ${holderName(holder)}’s purse (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
+  let note: string;
+  try {
+    note = takeCoins(db, holder, n, unit);
+  } catch (e) {
+    return Promise.reject(e);
+  }
+  addLog(db, actor, `spent ${n} ${unit} from ${holderName(holder)}’s purse${note} (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
   save(db);
   return Promise.resolve({ ok: true });
 }

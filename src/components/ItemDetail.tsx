@@ -9,7 +9,7 @@ import { findSpellForItem, tokenizeSpells } from '../spellLinks';
 import { SpellCard } from './SpellCard';
 import { compressImage } from '../image';
 
-export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void }) {
+export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill, onAmmo }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void; onAmmo?: (delta: number) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
   const [castFx, setCastFx] = useState<number | null>(null); // sparkling spell row
@@ -98,7 +98,8 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
   if (s.language) rows.push(['Language', s.language]);
   if (s.cursed) rows.push(['💀 Cursed', <span className="curse-flicker">{s.curseText || 'Yes — someone should probably mention that.'}</span>]);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);
-  if (item.qty > 1) rows.push(['Quantity', item.qty]);
+  if (onAmmo) rows.push(['Ammo', <AmmoRow qty={item.qty} onAmmo={onAmmo} />]);
+  else if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
     rows.push(['Weight', item.qty > 1 ? `${item.weight} lb each · ${item.weight * item.qty} lb total` : `${item.weight} lb`]);
   if (item.value)
@@ -246,6 +247,50 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
         <button type="button" className="link-button" onClick={onEdit}>✎ Edit</button>
       </div>
     </div>
+  );
+}
+
+// Ammunition's count doubles as a spend/recover tool: − opens a little
+// count form ("loosed 3 arrows"), ＋ the same for scavenging them back.
+// One commit, one log line — no tap-tap-tap spam.
+function AmmoRow({ qty, onAmmo }: { qty: number; onAmmo: (delta: number) => void }) {
+  const [mode, setMode] = useState<null | 'spend' | 'recover'>(null);
+  const [count, setCount] = useState('1');
+  if (!mode) {
+    return (
+      <span className="charges-row">
+        <span key={`q${qty}`} className="pop">🏹 {qty}</span>
+        <button type="button" className="charge-btn" disabled={qty <= 0} onClick={() => { setCount('1'); setMode('spend'); }}>− Spend</button>
+        <button type="button" className="charge-btn" onClick={() => { setCount('1'); setMode('recover'); }}>＋ Recover</button>
+      </span>
+    );
+  }
+  const max = mode === 'spend' ? qty : 999;
+  const n = Math.min(max, Math.max(1, Math.floor(Number(count) || 1)));
+  const commit = () => {
+    setMode(null);
+    onAmmo(mode === 'spend' ? -n : n);
+  };
+  return (
+    <span className="charges-row ammo-form">
+      <input
+        autoFocus
+        type="number"
+        min={1}
+        max={max}
+        value={count}
+        onChange={(e) => setCount(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') setMode(null);
+        }}
+      />
+      <span className="muted">of {mode === 'spend' ? qty : '∞'}</span>
+      <button type="button" className="charge-btn" onClick={commit}>
+        {mode === 'spend' ? `− Spend ${n}` : `＋ Recover ${n}`}
+      </button>
+      <button type="button" className="link-button" title="Cancel" onClick={() => setMode(null)}>✕</button>
+    </span>
   );
 }
 

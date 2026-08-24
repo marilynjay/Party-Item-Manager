@@ -1069,6 +1069,12 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 
 /* ---- log ---- */
 
+.log-tools { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.log-search { width: 100%; }
+.log-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.log-chips .chip { font-size: 0.82rem; }
+.log-count { text-align: center; font-size: 0.8rem; padding: 10px 0; }
+
 .log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .log-entry {
   display: flex;
@@ -1450,6 +1456,24 @@ button.purse-line:hover { background: none; color: var(--text); }
 .rename-label { display: flex; flex-direction: column; gap: 4px; flex: 1; font-size: 0.85rem; color: var(--muted); }
 .rename-label input { width: 100%; }
 .rename-hint { font-size: 0.8rem; margin: 6px 0 0; }
+/* ---- long rest ---- */
+.long-rest-btn {
+  display: block;
+  margin: 4px auto 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 6px 10px;
+}
+.long-rest-btn:hover { background: none; color: var(--text); }
+.rest-modal { width: 420px; }
+.rest-line { margin: 10px 0 0; font-size: 0.9rem; line-height: 1.45; }
+
+/* ammo spend/recover mini-form in the detail row */
+.ammo-form input { width: 64px; }
+
 /* quiet but clearly clickable — muted, dashed underline, no highlight */
 .torch-open {
   display: block;
