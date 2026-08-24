@@ -472,6 +472,7 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .dispose-options { display: flex; flex-direction: column; gap: 8px; }
 .dispose-options button { text-align: left; font-size: 1rem; padding: 10px 12px; }
 .dispose-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fill-doses { width: 70px; text-align: center; }
 .sell-hints { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; }
 .sell-hints .chip { font-size: 0.82rem; }
 .dispose-form input { flex: 1; min-width: 110px; }

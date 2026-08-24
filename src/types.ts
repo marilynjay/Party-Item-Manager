@@ -258,6 +258,8 @@ export interface Item {
   fungible?: boolean;
   // equipment packs: remaining component items, individually removable
   pack?: Array<{ name: string; qty: number }>;
+  // liquid containers (waterskins, bottles, vials…): what's inside right now
+  liquid?: { name: string; doses: number };
   magic: boolean;
   requiresAttunement: boolean;
   attuned: boolean;

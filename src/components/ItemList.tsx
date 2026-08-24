@@ -43,6 +43,9 @@ interface Props {
   onUnpack: (id: string) => void;
   onTakePack: (id: string, entryName: string, to: HolderId) => void;
   onDiscardPack: (id: string, entryName: string) => void;
+  onFill: (id: string, name: string, doses: number) => void;
+  onEmpty: (id: string) => void;
+  onSip: (id: string) => void;
 }
 
 const rarityClass = (r: string) => 'rarity-' + r.replace(/\s+/g, '-');
@@ -233,6 +236,9 @@ function ItemRow({
   onUnpack,
   onTakePack,
   onDiscardPack,
+  onFill,
+  onEmpty,
+  onSip,
 }: Props & { item: Item }) {
   const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -252,6 +258,12 @@ function ItemRow({
   const [healFx, setHealFx] = useState<null | { x: number; y: number; total: number }>(null);
   // which pack component's take-out/send/discard dialog is open
   const [packPick, setPackPick] = useState<string | null>(null);
+  // the refill dialog for liquid containers
+  const [filling, setFilling] = useState(false);
+  const [fillName, setFillName] = useState('');
+  const [fillDoses, setFillDoses] = useState('1');
+  // a vessel can be filled: containers (that aren't equipment packs)
+  const isVessel = item.category === 'supplies' && item.subtype === 'container' && !item.pack?.length;
 
   const unpack = () => {
     const kinds = item.pack?.length ?? 0;
@@ -483,9 +495,10 @@ function ItemRow({
           </span>
         )}
         {view === 'closed' && (() => {
-          // papery preview: the contents line, else the freshest journal entry, else notes
+          // preview: what's poured in, else contents line, else freshest entry, else notes
           const latest = item.entries?.length ? item.entries[item.entries.length - 1] : undefined;
-          const line = item.content || latest?.title || latest?.text || item.notes;
+          const held = item.liquid ? `Contains ${item.liquid.name}${item.liquid.doses > 1 ? ` (${item.liquid.doses} doses)` : ''}` : '';
+          const line = held || item.content || latest?.title || latest?.text || item.notes;
           return line ? <span className="item-notes-preview muted">{previewText(line)}</span> : null;
         })()}
       </div>
@@ -739,7 +752,63 @@ function ItemRow({
           onDeleteEntry={(entryId) => onDeleteEntry(item.id, entryId)}
           onUnpack={item.pack?.length ? unpack : undefined}
           onPackRow={item.pack?.length ? setPackPick : undefined}
+          onSip={item.liquid ? () => onSip(item.id) : undefined}
+          onEmpty={
+            item.liquid
+              ? () => {
+                  if (confirm(`Dump the ${item.liquid!.name} out of the ${item.name}?`)) onEmpty(item.id);
+                }
+              : undefined
+          }
+          onFill={
+            isVessel && !item.liquid
+              ? () => {
+                  setFillName('');
+                  setFillDoses('1');
+                  setFilling(true);
+                }
+              : undefined
+          }
         />
+      )}
+      {filling && (
+        <div className="overlay" onClick={() => setFilling(false)}>
+          <div className="modal send-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>🫗 Fill the {item.name}</h2>
+              <button type="button" className="link-button" onClick={() => setFilling(false)}>✕</button>
+            </div>
+            <div className="item-menu-heading muted">With what? (doses = how many uses it holds)</div>
+            <form
+              className="dispose-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!fillName.trim()) return;
+                setFilling(false);
+                onFill(item.id, fillName.trim(), Math.max(1, Math.floor(Number(fillDoses) || 1)));
+              }}
+            >
+              <input
+                autoFocus
+                placeholder="e.g. swamp water, fire potion…"
+                value={fillName}
+                onChange={(e) => setFillName(e.target.value)}
+              />
+              <input
+                type="number"
+                min={1}
+                className="fill-doses"
+                title="Doses"
+                value={fillDoses}
+                onChange={(e) => setFillDoses(e.target.value)}
+              />
+              <button type="submit" disabled={!fillName.trim()}>🫗 Fill</button>
+            </form>
+            <button type="button" className="link-button send-cancel" onClick={() => setFilling(false)}>
+              Cancel — leave it empty
+            </button>
+          </div>
+        </div>
       )}
       {packPick && (() => {
         const entry = item.pack?.find((e) => e.name === packPick);
@@ -816,7 +885,7 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void }) {
+function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
   const [castFx, setCastFx] = useState<number | null>(null); // sparkling spell row
@@ -882,6 +951,26 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
       </span>,
     ]);
   if (s.capacity) rows.push(['Capacity', s.capacity]);
+  if (item.liquid)
+    rows.push([
+      'Contains',
+      <span className="charges-row">
+        <span key={`l${item.liquid.doses}`} className="pop">
+          🫗 {item.liquid.name}
+          {item.liquid.doses > 1 && <span className="muted"> · {item.liquid.doses} doses</span>}
+        </span>
+        {onSip && <button type="button" className="charge-btn" onClick={onSip}>Use 1</button>}
+        {onEmpty && <button type="button" className="charge-btn" onClick={onEmpty}>🫗 Empty</button>}
+      </span>,
+    ]);
+  else if (onFill)
+    rows.push([
+      'Contains',
+      <span className="charges-row">
+        <span className="muted">— empty —</span>
+        <button type="button" className="charge-btn" onClick={onFill}>🫗 Fill…</button>
+      </span>,
+    ]);
   if (s.language) rows.push(['Language', s.language]);
   if (s.cursed) rows.push(['💀 Cursed', <span className="curse-flicker">{s.curseText || 'Yes — someone should probably mention that.'}</span>]);
   if (item.rarity) rows.push(['Rarity', <span className={`rarity-${item.rarity.replace(/\s+/g, '-')}`}>{item.rarity}</span>]);

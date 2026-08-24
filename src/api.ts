@@ -265,7 +265,9 @@ export function moveItem(id: string, to: HolderId, qty: number, actor: string): 
       i.subtype === item.subtype &&
       i.rarity === item.rarity &&
       !i.entries?.length &&
-      !item.entries?.length
+      !item.entries?.length &&
+      !i.liquid &&
+      !item.liquid
   );
 
   if (n === item.qty) {
@@ -428,14 +430,74 @@ export function consumeItem(id: string, actor: string, note?: string): Promise<{
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   const suffix = note ? ` — ${note}` : '';
+  // drinking a potion leaves the empty vial behind
+  const keepVial = item.category === 'consumable' && item.subtype === 'potion';
+  const vialText = keepVial ? ' · kept the empty vial' : '';
   if (item.qty > 1) {
     item.qty -= 1;
     item.updatedAt = Date.now();
-    addLog(db, actor, `used a ${item.name}${suffix} (${item.qty} left)`);
+    addLog(db, actor, `used a ${item.name}${suffix} (${item.qty} left)${vialText}`);
   } else {
     db.items = db.items.filter((i) => i.id !== id);
-    addLog(db, actor, `used the last ${item.name}${suffix}`);
+    addLog(db, actor, `used the last ${item.name}${suffix}${vialText}`);
   }
+  if (keepVial) {
+    const existing = db.items.find(
+      (i) => i.location === item.location && i.name.toLowerCase() === 'vial' && !i.liquid && !i.entries?.length
+    );
+    if (existing) {
+      existing.qty += 1;
+      existing.updatedAt = Date.now();
+    } else {
+      db.items.push(materialize('Vial', 1, item.location, Date.now()));
+    }
+  }
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// ---- liquid containers ---------------------------------------------------
+// Waterskins, bottles, buckets, vials: they hold whatever the party pours
+// in — a name and a dose count — and can be drunk down, dumped, refilled.
+
+export function fillContainer(id: string, name: string, doses: number, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  const what = name.trim();
+  if (!what) return Promise.reject(new Error('Filled with what?'));
+  const n = Math.max(1, Math.floor(doses) || 1);
+  item.liquid = { name: what, doses: n };
+  item.updatedAt = Date.now();
+  addLog(db, actor, `filled the ${item.name} with ${what}${n > 1 ? ` (${n} doses)` : ''}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function emptyContainer(id: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item?.liquid) return Promise.reject(new Error('It’s already empty'));
+  const what = item.liquid.name;
+  item.liquid = undefined;
+  item.updatedAt = Date.now();
+  addLog(db, actor, `dumped the ${what} out of the ${item.name}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function drinkFromContainer(id: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item?.liquid) return Promise.reject(new Error('It’s empty'));
+  if (item.liquid.doses > 1) {
+    item.liquid = { ...item.liquid, doses: item.liquid.doses - 1 };
+    addLog(db, actor, `used a dose of ${item.liquid.name} from the ${item.name} (${item.liquid.doses} left)`);
+  } else {
+    addLog(db, actor, `used the last of the ${item.liquid.name} in the ${item.name} — it’s empty now`);
+    item.liquid = undefined;
+  }
+  item.updatedAt = Date.now();
   save(db);
   return Promise.resolve({ ok: true });
 }

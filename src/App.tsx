@@ -694,6 +694,9 @@ export function App() {
                   onUnpack={(id) => run(() => api.unpackItem(id, actor))}
                   onTakePack={(id, entryName, to) => run(() => api.takeFromPack(id, entryName, to, actor))}
                   onDiscardPack={(id, entryName) => run(() => api.discardFromPack(id, entryName, actor))}
+                  onFill={(id, name, doses) => run(() => api.fillContainer(id, name, doses, actor))}
+                  onEmpty={(id) => run(() => api.emptyContainer(id, actor))}
+                  onSip={(id) => run(() => api.drinkFromContainer(id, actor))}
                 />
               </div>
             )}
@@ -783,6 +786,9 @@ export function App() {
               onUnpack={(id) => run(() => api.unpackItem(id, actor))}
               onTakePack={(id, entryName, to) => run(() => api.takeFromPack(id, entryName, to, actor))}
               onDiscardPack={(id, entryName) => run(() => api.discardFromPack(id, entryName, actor))}
+              onFill={(id, name, doses) => run(() => api.fillContainer(id, name, doses, actor))}
+              onEmpty={(id) => run(() => api.emptyContainer(id, actor))}
+              onSip={(id) => run(() => api.drinkFromContainer(id, actor))}
             />
           </>
         )}

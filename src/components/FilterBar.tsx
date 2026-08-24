@@ -21,6 +21,7 @@ export function applyFilters(items: Item[], f: Filters): Item[] {
         i.name.toLowerCase().includes(q) ||
         i.notes.toLowerCase().includes(q) ||
         (i.content ?? '').toLowerCase().includes(q) ||
+        (i.liquid?.name ?? '').toLowerCase().includes(q) ||
         (i.entries ?? []).some((en) => en.text.toLowerCase().includes(q) || (en.title ?? '').toLowerCase().includes(q))
       )
     )
