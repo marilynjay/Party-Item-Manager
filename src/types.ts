@@ -301,6 +301,8 @@ export interface Item {
   // remembers how long it kept when new, so the gauge shows a fraction.
   freshness?: number;
   freshnessMax?: number;
+  // said "not yet" once when its last day came due; the next rest is final
+  graced?: boolean;
   magic: boolean;
   requiresAttunement: boolean;
   attuned: boolean;

@@ -295,6 +295,7 @@ export function updateItem(id: string, fields: Partial<Item>, actor: string): Pr
   if ('freshness' in fields) {
     fields.freshnessMax =
       fields.freshness === undefined ? undefined : Math.max(item.freshnessMax ?? 0, fields.freshness);
+    fields.graced = undefined; // a re-set clock gets its "not yet" back
   }
   Object.assign(item, fields, { updatedAt: Date.now() });
   if (fields.location !== undefined && fields.location !== before) {
@@ -572,22 +573,39 @@ export interface LongRestResult {
   rolled: Array<{ name: string; formula: string; total: number; charges: number; max: number }>;
   waiting: Array<{ holder: string; name: string; formula: string }>;
   spoiled: Array<{ name: string; food: boolean }>; // perished overnight
+  spared: Array<{ name: string; food: boolean }>; // last day, given one more
   aged: number;      // food items that ticked down but still keep
 }
 
-export function longRest(actor: string, holder?: HolderId, rolls?: Record<string, number>): Promise<LongRestResult> {
+export function longRest(
+  actor: string,
+  holder?: HolderId,
+  rolls?: Record<string, number>,
+  expiries?: Record<string, boolean>
+): Promise<LongRestResult> {
   const db = load();
-  const out: LongRestResult = { restored: [], rolled: [], waiting: [], spoiled: [], aged: 0 };
+  const out: LongRestResult = { restored: [], rolled: [], waiting: [], spoiled: [], spared: [], aged: 0 };
   const now = Date.now();
   for (const item of db.items) {
     // rest can be scoped to one holder's inventory (their tab's 🌅)
     if (holder && item.location !== holder) continue;
-    // a night passes: fresh food in this inventory ages a day
+    // a night passes: perishables in this inventory age a day. The last day
+    // is genuinely ambiguous — a 24-hour goodberry can outlive one 8-hour
+    // rest — so the first time an item comes due the dialog asks instead of
+    // destroying it. That answer buys exactly one more day: `graced` items
+    // go without being asked again.
     if (item.freshness !== undefined && item.freshness > 0) {
-      item.freshness -= 1;
-      item.updatedAt = now;
-      if (item.freshness === 0) out.spoiled.push({ name: item.name, food: isFood(item.category, item.subtype) });
-      else out.aged += 1;
+      const food = isFood(item.category, item.subtype);
+      if (item.freshness === 1 && !item.graced && expiries?.[item.id] !== true) {
+        item.graced = true;
+        item.updatedAt = now;
+        out.spared.push({ name: item.name, food });
+      } else {
+        item.freshness -= 1;
+        item.updatedAt = now;
+        if (item.freshness === 0) out.spoiled.push({ name: item.name, food });
+        else out.aged += 1;
+      }
     }
     const s = item.stats;
     if (!s || s.chargesMax === undefined) continue;
@@ -612,11 +630,12 @@ export function longRest(actor: string, holder?: HolderId, rolls?: Record<string
       out.waiting.push({ holder: holderName(item.location), name: item.name, formula: diceText(s.recharge!) });
     }
   }
-  if (out.restored.length || out.rolled.length || out.spoiled.length || out.aged > 0) {
+  if (out.restored.length || out.rolled.length || out.spoiled.length || out.spared.length || out.aged > 0) {
     const bits: string[] = [];
     if (out.restored.length) bits.push(`${out.restored.length} item${out.restored.length === 1 ? '' : 's'} recharged with the dawn`);
     for (const r of out.rolled) bits.push(`rolled ${r.formula} = ${r.total} for ${r.name} (${r.charges}/${r.max})`);
     for (const s of out.spoiled) bits.push(s.food ? `the ${s.name} spoiled 🤢` : `the ${s.name} expired ⌛`);
+    for (const s of out.spared) bits.push(`the ${s.name} ${s.food ? 'keeps another day' : 'holds out another day'}`);
     if (bits.length === 0) bits.push('the perishables age a day');
     addLog(db, actor, `🌅 ${holder ? `long rest for ${holderName(holder)}` : 'called a long rest'} — ${bits.join(' · ')}`);
     save(db);

@@ -288,7 +288,7 @@ function LongRestDialog({
   who: string;
   eats: boolean;
   result: api.LongRestResult | null;
-  onRest: (rolls: Record<string, number>) => void;
+  onRest: (rolls: Record<string, number>, expiries: Record<string, boolean>) => void;
   onEat: (id: string) => void;
   onDrink: (id: string) => void;
   onFillWater: (id: string, doses: number) => void;
@@ -300,6 +300,8 @@ function LongRestDialog({
   // an in-app 🎲 tumbles real dice under the row before filling the field;
   // one stage at a time, keyed so a re-roll re-tumbles
   const [rolling, setRolling] = useState<null | { id: string; key: number; d: number; rolls: number[]; mod: number; total: number }>(null);
+  // last-day perishables: true = the table says it's gone off
+  const [expiries, setExpiries] = useState<Record<string, boolean>>({});
   // preview: the same partition longRest itself will make
   const pending = items.filter(
     (i) =>
@@ -321,8 +323,13 @@ function LongRestDialog({
       i.category !== 'consumable' &&
       !neverRecharges(i.stats.recharge)
   );
-  // fresh food ages a day when this inventory rests
+  // perishables age a day when this inventory rests; the ones whose last
+  // day is coming due get asked about rather than quietly destroyed (unless
+  // they already had their one "not yet")
   const aging = items.filter((i) => i.freshness !== undefined && i.freshness > 0);
+  const lastDay = aging.filter((i) => i.freshness === 1 && !i.graced);
+  // the middle page is for everything the table decides: dice and last days
+  const decisions = mine.length + lastDay.length > 0;
 
   const supper = (
     <SupperSection
@@ -368,7 +375,13 @@ function LongRestDialog({
               <p className="rest-line muted">
                 {aging.every((i) => isFood(i.category, i.subtype)) ? '🍏 Age the rations a day: ' : '⏳ Tick the perishables down a day: '}
                 {aging
-                  .map((i) => `${i.name}${i.freshness === 1 ? (isFood(i.category, i.subtype) ? ' (will spoil!)' : ' (expires!)') : ` (${i.freshness! - 1} left after)`}`)
+                  .map((i) =>
+                    i.freshness === 1
+                      ? i.graced
+                        ? `${i.name}${isFood(i.category, i.subtype) ? ' (spoils tonight)' : ' (expires tonight)'}`
+                        : `${i.name} (last day — we'll ask)`
+                      : `${i.name} (${i.freshness! - 1} left after)`
+                  )
                   .join(', ')}
               </p>
             )}
@@ -384,10 +397,10 @@ function LongRestDialog({
               <button
                 type="button"
                 onClick={() => {
-                  if (mine.length > 0) {
+                  if (decisions) {
                     setStage('rolls');
                   } else {
-                    onRest({});
+                    onRest({}, {});
                     setStage('supper');
                   }
                 }}
@@ -402,7 +415,9 @@ function LongRestDialog({
             {auto.length > 0 && (
               <p className="rest-line muted">⚡ {auto.length === 1 ? auto[0].name : `${auto.length} items`} will recharge automatically.</p>
             )}
-            <p className="rest-line">🎲 Roll for the rest — type what the dice said, or let the app roll:</p>
+            {mine.length > 0 && (
+              <p className="rest-line">🎲 Roll for the rest — type what the dice said, or let the app roll:</p>
+            )}
             {mine.map((i) => {
               const formula = diceText(i.stats!.recharge!);
               return (
@@ -447,7 +462,45 @@ function LongRestDialog({
                 </div>
               );
             })}
-            <p className="rest-line muted rest-roll-hint">Left blank = not recharged (roll it later from the item).</p>
+            {mine.length > 0 && (
+              <p className="rest-line muted rest-roll-hint">Left blank = not recharged (roll it later from the item).</p>
+            )}
+            {lastDay.length > 0 && (
+              <>
+                <p className="rest-line">
+                  ⌛ Last day for these — has the table called them gone?
+                </p>
+                {lastDay.map((i) => {
+                  const food = isFood(i.category, i.subtype);
+                  const gone = expiries[i.id] === true;
+                  return (
+                    <div className="rest-roll-row" key={i.id}>
+                      <span className="rest-roll-name">
+                        {itemIcon(i)} {i.name}
+                        {i.qty > 1 && <span className="muted"> ×{i.qty}</span>}
+                      </span>
+                      <button
+                        type="button"
+                        className={`chip ${gone ? '' : 'chip-on'}`}
+                        onClick={() => setExpiries({ ...expiries, [i.id]: false })}
+                      >
+                        {food ? '🍏 Still good' : '⏳ Still good'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`chip ${gone ? 'chip-on' : ''}`}
+                        onClick={() => setExpiries({ ...expiries, [i.id]: true })}
+                      >
+                        {food ? '🤢 Gone off' : '⌛ Expired'}
+                      </button>
+                    </div>
+                  );
+                })}
+                <p className="rest-line muted rest-roll-hint">
+                  Kept things get one more day — the next rest settles it without asking.
+                </p>
+              </>
+            )}
             <div className="torch-actions">
               <button
                 type="button"
@@ -457,7 +510,7 @@ function LongRestDialog({
                     const v = rollVals[i.id] ?? '';
                     if (v !== '') rolls[i.id] = Math.max(0, Math.floor(Number(v) || 0));
                   }
-                  onRest(rolls);
+                  onRest(rolls, expiries);
                   setStage('supper');
                 }}
               >
@@ -480,12 +533,17 @@ function LongRestDialog({
                     🎲 {r.name}: {r.formula.trim()} = <strong>{r.total}</strong> · now ⚡ {r.charges}/{r.max}
                   </p>
                 ))}
+                {result.spared.map((sp) => (
+                  <p className="rest-line" key={sp.name}>
+                    {sp.food ? `🍏 The ${sp.name} keeps another day — eat it soon.` : `⏳ The ${sp.name} holds out another day.`}
+                  </p>
+                ))}
                 {result.spoiled.map((sp) => (
                   <p className="rest-line" key={sp.name}>
                     {sp.food ? `🤢 The ${sp.name} spoiled overnight.` : `⌛ The ${sp.name} expired overnight.`}
                   </p>
                 ))}
-                {result.restored.length === 0 && result.rolled.length === 0 && result.spoiled.length === 0 && (
+                {result.restored.length === 0 && result.rolled.length === 0 && result.spoiled.length === 0 && result.spared.length === 0 && (
                   <p className="rest-line muted">
                     {result.aged > 0 ? 'The rations age a day; nothing needed recharging.' : 'Nothing needed recharging.'}
                   </p>
@@ -1300,10 +1358,10 @@ export function App() {
             who={holderById(resting).name}
             eats={eatsFood(state.needsFood, resting)}
             result={restResult}
-            onRest={async (rolls) => {
+            onRest={async (rolls, expiries) => {
               setError(null);
               try {
-                const res = await api.longRest(actor, resting, rolls);
+                const res = await api.longRest(actor, resting, rolls, expiries);
                 setRestResult(res);
                 await refresh();
               } catch (e) {
