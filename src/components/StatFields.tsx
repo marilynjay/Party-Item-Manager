@@ -2,7 +2,7 @@ import { AutoTextarea } from './AutoTextarea';
 import { useMemo, useRef, useState } from 'react';
 import type { ItemStats, StatField } from '../types';
 import { DAMAGE_TYPES } from '../types';
-import { SPELL_NAMES } from '../spellIndex';
+import { allSpellNames, spellKnown } from '../spellbook';
 import { parseSpellLines } from '../dice';
 
 // Strip empty values; undefined result means "no stats worth storing".
@@ -77,10 +77,10 @@ function SpellsField({ value, onChange }: { value: string; onChange: (v: string)
 
   const matches = useMemo(() => {
     const q = rows[focused]?.name.trim().toLowerCase() ?? '';
-    if (q.length < 2 || SPELL_NAMES.has(q)) return [];
+    if (q.length < 2 || spellKnown(q)) return [];
     const starts: string[] = [];
     const contains: string[] = [];
-    for (const [key, display] of SPELL_NAMES) {
+    for (const [key, display] of allSpellNames()) {
       if (key.startsWith(q)) starts.push(display);
       else if (key.includes(q)) contains.push(display);
     }
@@ -100,7 +100,7 @@ function SpellsField({ value, onChange }: { value: string; onChange: (v: string)
   };
 
   const mark = (name: string) =>
-    !name.trim() ? null : SPELL_NAMES.has(name.trim().toLowerCase()) ? (
+    !name.trim() ? null : spellKnown(name) ? (
       <span className="spell-check known" title="In the compendium — tappable to read in play">✓</span>
     ) : (
       <span className="spell-check muted" title="Not in the 2014 compendium — stays plain text">?</span>

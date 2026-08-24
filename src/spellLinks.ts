@@ -1,7 +1,7 @@
 // Matching logic for the 2014 spell compendium: which item names and which
 // stretches of prose earn a tappable lookup card. Hand-written — the data it
 // leans on (spellIndex.ts / spells2014.ts) is generated.
-import { SPELL_NAMES } from './spellIndex';
+import { allSpellNames, spellbookStamp } from './spellbook';
 
 const pad = (t: string) => ' ' + t.toLowerCase().replace(/[^a-z']+/g, ' ') + ' ';
 // "Fireballs" → "fireball", so plural item names still find their spell
@@ -12,7 +12,7 @@ export function findSpellInText(text: string): string | null {
   const p = pad(text);
   const p2 = pad(depluralize(text));
   let best: string | null = null;
-  for (const key of SPELL_NAMES.keys()) {
+  for (const key of allSpellNames().keys()) {
     const needle = ' ' + key + ' ';
     if ((p.includes(needle) || p2.includes(needle)) && (!best || key.length > best.length)) best = key;
   }
@@ -37,13 +37,15 @@ export interface SpellToken {
 }
 
 let SPELL_RE: RegExp | null = null;
+let SPELL_RE_STAMP = -1; // party-spellbook edits invalidate the cached regex
 
 export function tokenizeSpells(text: string): SpellToken[] {
-  if (!SPELL_RE) {
-    const names = [...SPELL_NAMES.values()]
+  if (!SPELL_RE || SPELL_RE_STAMP !== spellbookStamp()) {
+    const names = [...allSpellNames().values()]
       .sort((a, b) => b.length - a.length)
       .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     SPELL_RE = new RegExp(`\\b(?:${names.join('|')})\\b`, 'g');
+    SPELL_RE_STAMP = spellbookStamp();
   }
   const out: SpellToken[] = [];
   let last = 0;

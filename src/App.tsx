@@ -747,7 +747,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, custom: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, custom: [], spellbook: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -1133,7 +1133,14 @@ export function App() {
             📖
           </button>
         )}
-        {bookOpen && <SpellCompendium onClose={() => setBookOpen(false)} />}
+        {bookOpen && (
+          <SpellCompendium
+            spellbook={state.spellbook}
+            onSave={(sp) => run(() => api.saveSpell(sp, actor))}
+            onDelete={(name) => run(() => api.deleteSpell(name, actor))}
+            onClose={() => setBookOpen(false)}
+          />
+        )}
         {addModal}
         {bursting && <CoinBurst onDone={endBurst} />}
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}

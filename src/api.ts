@@ -5,6 +5,8 @@
 import type { AppState, Gold, HolderId, Item } from './types';
 import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy } from './types';
 import { diceText, findRoll, neverRecharges } from './dice';
+import type { SpellRef } from './spellIndex';
+import { applySpellbook } from './spellbook';
 import type { CatalogItem } from './catalog';
 import { CATALOG } from './catalog';
 
@@ -50,6 +52,7 @@ function load(): AppState {
     if (raw) {
       const db = JSON.parse(raw) as Partial<AppState>;
       applyHolderNames(db.names ?? {});
+      applySpellbook(db.spellbook ?? []);
       return {
         items: (db.items ?? []).map(migrateTaxonomy),
         log: db.log ?? [],
@@ -59,13 +62,15 @@ function load(): AppState {
         portraits: db.portraits ?? {},
         names: db.names ?? {},
         custom: (db.custom ?? []).map(migrateTaxonomy),
+        spellbook: db.spellbook ?? [],
       };
     }
   } catch {
     // corrupted or unavailable storage — start fresh
   }
   applyHolderNames({});
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, custom: [] };
+  applySpellbook([]);
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, custom: [], spellbook: [] };
 }
 
 function save(db: AppState): void {
@@ -425,6 +430,43 @@ export function deleteCustomItem(name: string, actor: string): Promise<{ ok: tru
   db.custom = db.custom.filter((c) => c.name.toLowerCase() !== key);
   addLog(db, actor, `removed ${name} from the party catalogue`);
   save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// ---- the party spellbook -----------------------------------------------
+// Player-entered spells (owned paid content, homebrew) that the shipped
+// SRD compendium can't include. Upserts by name; custom entries outrank
+// SRD ones everywhere names are matched.
+export function saveSpell(spell: SpellRef, actor: string): Promise<{ ok: true }> {
+  const n = spell.n.trim();
+  if (!n) return Promise.reject(new Error('The spell needs a name'));
+  if (!spell.d.trim()) return Promise.reject(new Error('Write in the spell text — that’s the point of the book'));
+  const db = load();
+  const key = n.toLowerCase();
+  const entry: SpellRef = { ...spell, n };
+  const at = db.spellbook.findIndex((s) => s.n.toLowerCase() === key);
+  if (at >= 0) {
+    db.spellbook[at] = entry;
+    addLog(db, actor, `rewrote ${n} in the party spellbook ✦`);
+  } else {
+    db.spellbook.push(entry);
+    db.spellbook.sort((x, y) => x.n.localeCompare(y.n));
+    addLog(db, actor, `added ${n} to the party spellbook ✦`);
+  }
+  save(db);
+  applySpellbook(db.spellbook);
+  return Promise.resolve({ ok: true });
+}
+
+export function deleteSpell(name: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const key = name.trim().toLowerCase();
+  const entry = db.spellbook.find((s) => s.n.toLowerCase() === key);
+  if (!entry) return Promise.reject(new Error('Not in the party spellbook'));
+  db.spellbook = db.spellbook.filter((s) => s.n.toLowerCase() !== key);
+  addLog(db, actor, `tore ${entry.n} out of the party spellbook`);
+  save(db);
+  applySpellbook(db.spellbook);
   return Promise.resolve({ ok: true });
 }
 

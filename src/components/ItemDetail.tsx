@@ -4,7 +4,7 @@ import type { CategoryKey, Item, JournalEntry } from '../types';
 import { canJournal, categoryOf, defaultIcon, holderById } from '../types';
 import { CATALOG } from '../catalog';
 import { diceText, findRoll, neverRecharges, parseSpellLines } from '../dice';
-import { SPELL_NAMES } from '../spellIndex';
+import { spellDisplay, spellKnown } from '../spellbook';
 import { findSpellForItem, tokenizeSpells } from '../spellLinks';
 import { SpellCard } from './SpellCard';
 import { RechargeDialog } from './RollDialog';
@@ -76,7 +76,7 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
         {[s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')}
         {nameSpell && (
           <button type="button" className="charge-btn" title="Read the spell" onClick={() => setSpellView(nameSpell)}>
-            📖 {SPELL_NAMES.get(nameSpell)}
+            📖 {spellDisplay(nameSpell)}
           </button>
         )}
       </span>,
@@ -177,7 +177,7 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
           <span className="item-menu-heading muted">Spells</span>
           {parseSpellLines(s.spells).map((sp, i) => (
             <div className={`spell-row ${castFx === i ? 'casting' : ''}`} key={sp.name + i}>
-              {SPELL_NAMES.has(sp.name.trim().toLowerCase()) ? (
+              {spellKnown(sp.name) ? (
                 <button
                   type="button"
                   className="spell-name spell-link"

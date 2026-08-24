@@ -315,6 +315,7 @@ export function parseGoldValue(v: string): number | null {
 }
 
 import type { CatalogItem, ItemStats } from './catalog';
+import type { SpellRef } from './spellIndex';
 
 export type { ItemStats } from './catalog';
 
@@ -327,6 +328,7 @@ export interface AppState {
   portraits: Portraits;
   names: Names;
   custom: CatalogItem[];
+  spellbook: SpellRef[];
 }
 
 // A holder's icon: their chosen one, falling back to the default emoji.
