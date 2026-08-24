@@ -254,11 +254,11 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 :where(.item-row).cursed-shell { animation: curseShell 43s steps(1, end) infinite; animation-delay: var(--curse-phase, 0s); }
 @keyframes curseShell {
   0%, 95.1% { background: var(--bg-raised); border-color: var(--shell-border); }
-  95.2% { background: #17181a; border-color: #3b3b3f; }
-  96% { background: #0e0e10; border-color: #2c2c30; }
-  96.8% { background: #1a1b1d; border-color: #3b3b3f; }
-  97.6% { background: #0a0a0b; border-color: #323236; }
-  98.8% { background: #17181a; border-color: #38383c; }
+  95.2% { background: #232427; border-color: #3f3f44; }
+  96% { background: #1d1e20; border-color: #37373b; }
+  96.8% { background: #25262a; border-color: #3f3f44; }
+  97.6% { background: #1a1b1d; border-color: #3a3a3e; }
+  98.8% { background: #222326; border-color: #3d3d41; }
   99%, 100% { background: var(--bg-raised); border-color: var(--shell-border); }
 }
 @keyframes curseRow {
