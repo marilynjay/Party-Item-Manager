@@ -808,7 +808,7 @@ export function discardFromPack(id: string, entryName: string, actor: string): P
 
 // An item leaves the party. The disposition decides the log line:
 // lost (default, the old "discarded"), destroyed, or given away.
-export type Disposition = 'lost' | 'destroyed' | 'given';
+export type Disposition = 'lost' | 'destroyed' | 'given' | 'spoiled';
 
 // Removes `take` from the stack — the whole item when that empties it —
 // and returns the log label for what left ("Garnets ×2").
@@ -828,12 +828,15 @@ export function deleteItem(id: string, actor: string, disposition: Disposition =
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
   const { label } = takeFromStack(db, item, qty);
+  const food = isFood(item.category, item.subtype);
   const text =
     disposition === 'destroyed'
       ? `destroyed ${label} 💥`
       : disposition === 'given'
         ? `gave ${label} away 🎁`
-        : `discarded ${label} from ${holderName(item.location)}`;
+        : disposition === 'spoiled'
+          ? `tossed the ${food ? 'spoiled' : 'expired'} ${label} ${food ? '🤢' : '⌛'}`
+          : `discarded ${label} from ${holderName(item.location)}`;
   addLog(db, actor, text);
   save(db);
   return Promise.resolve({ ok: true });

@@ -25,7 +25,7 @@ export interface ItemListProps {
   onRecharge: (id: string, rolled?: number) => void;
   onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
-  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given', qty?: number) => void;
+  onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given' | 'spoiled', qty?: number) => void;
   onSell: (id: string, amount: number, unit: 'gp' | 'pp', qty?: number) => void;
   onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
   onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
@@ -600,6 +600,11 @@ export function ItemRow({
         <ItemDetail
           item={item}
           onEdit={() => setView('edit')}
+          onToss={
+            item.freshness !== undefined && item.freshness <= 0
+              ? () => dispose('toss', () => onDelete(item.id, 'spoiled', item.qty))
+              : undefined
+          }
           onUse={item.category === 'consumable' ? useOne : undefined}
           onToggleAttune={item.requiresAttunement && item.location !== 'senchez' ? toggleAttune : undefined}
           onSpend={() => onSpend(item.id)}

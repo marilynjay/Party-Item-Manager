@@ -23,7 +23,7 @@ export function FreshnessGauge({ left, max, mini = false }: { left: number; max:
   );
 }
 
-export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill, onAmmo }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: (rolled?: number) => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void; onAmmo?: (delta: number) => void }) {
+export function ItemDetail({ item, onEdit, onToss, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow, onSip, onEmpty, onFill, onAmmo }: { item: Item; onEdit: () => void; onToss?: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: (rolled?: number) => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void; onSip?: () => void; onEmpty?: () => void; onFill?: () => void; onAmmo?: (delta: number) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
   const [castFx, setCastFx] = useState<number | null>(null); // sparkling spell row
@@ -122,8 +122,15 @@ export function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRec
     rows.push([
       food ? 'Freshness' : 'Keeps until',
       item.freshness <= 0 ? (
-        <span className="spoiled-text">
-          {food ? '🤢 Spoiled — eat at your own risk' : '⌛ Expired — no longer any good'}
+        <span className="charges-row">
+          <span className="spoiled-text">
+            {food ? '🤢 Spoiled — eat at your own risk' : '⌛ Expired — no longer any good'}
+          </span>
+          {onToss && (
+            <button type="button" className="charge-btn" title="Throw the whole lot out — no questions asked" onClick={onToss}>
+              🗑 Toss it
+            </button>
+          )}
         </span>
       ) : (
         <span className="charges-row">

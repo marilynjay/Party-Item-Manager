@@ -198,6 +198,7 @@ function SupperSection({
   onEat,
   onDrink,
   onFillWater,
+  onToss,
 }: {
   items: Item[];
   who: string;
@@ -205,6 +206,7 @@ function SupperSection({
   onEat: (id: string) => void;
   onDrink: (id: string) => void;
   onFillWater: (id: string, doses: number) => void;
+  onToss: (id: string) => void;
 }) {
   const larder = items.filter((i) => i.category === 'consumable' && i.subtype === 'food & drink' && i.qty > 0);
   const vessels = items.filter((i) => i.category === 'supplies' && i.subtype === 'container' && !i.pack?.length);
@@ -222,16 +224,24 @@ function SupperSection({
   return (
     <div className="supper-section">
       <p className="rest-line">🍽️ Supper — {who} should eat and drink:</p>
-      {larder.map((i) => (
-        <div className="rest-roll-row" key={i.id}>
-          <span className="rest-roll-name">
-            {itemIcon(i)} {i.name}
-            {i.qty > 1 && <span key={i.qty} className="muted pop"> ×{i.qty}</span>}
-            {i.freshness !== undefined && i.freshness <= 0 && <span title="Spoiled"> 🤢</span>}
-          </span>
-          <button type="button" className="charge-btn" onClick={() => onEat(i.id)}>🍽️ Eat one</button>
-        </div>
-      ))}
+      {larder.map((i) => {
+        const off = i.freshness !== undefined && i.freshness <= 0;
+        return (
+          <div className="rest-roll-row" key={i.id}>
+            <span className="rest-roll-name">
+              {itemIcon(i)} {i.name}
+              {i.qty > 1 && <span key={i.qty} className="muted pop"> ×{i.qty}</span>}
+              {off && <span title="Spoiled"> 🤢</span>}
+            </span>
+            <button type="button" className="charge-btn" onClick={() => onEat(i.id)}>🍽️ Eat one</button>
+            {off && (
+              <button type="button" className="charge-btn" title="Throw the whole lot out" onClick={() => onToss(i.id)}>
+                🗑 Toss
+              </button>
+            )}
+          </div>
+        );
+      })}
       {filled.map((i) => (
         <div className="rest-roll-row" key={i.id}>
           <span className="rest-roll-name">
@@ -281,6 +291,7 @@ function LongRestDialog({
   onEat,
   onDrink,
   onFillWater,
+  onToss,
   onClose,
 }: {
   items: Item[];
@@ -292,6 +303,7 @@ function LongRestDialog({
   onEat: (id: string) => void;
   onDrink: (id: string) => void;
   onFillWater: (id: string, doses: number) => void;
+  onToss: (id: string) => void;
   onClose: () => void;
 }) {
   const [stage, setStage] = useState<'preview' | 'rolls' | 'supper'>('preview');
@@ -339,6 +351,7 @@ function LongRestDialog({
       onEat={onEat}
       onDrink={onDrink}
       onFillWater={onFillWater}
+      onToss={onToss}
     />
   );
 
@@ -1371,6 +1384,7 @@ export function App() {
             onEat={(id) => run(() => api.consumeItem(id, actor, 'supper at camp 🍽️'))}
             onDrink={(id) => run(() => api.drinkFromContainer(id, actor))}
             onFillWater={(id, doses) => run(() => api.fillContainer(id, 'water', doses, actor))}
+            onToss={(id) => run(() => api.deleteItem(id, actor, 'spoiled'))}
             onClose={() => setResting(null)}
           />
         )}
