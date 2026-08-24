@@ -691,6 +691,9 @@ export function App() {
                   onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
                   onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
                   onFly={launchItem}
+                  onUnpack={(id) => run(() => api.unpackItem(id, actor))}
+                  onTakePack={(id, entryName, to) => run(() => api.takeFromPack(id, entryName, to, actor))}
+                  onDiscardPack={(id, entryName) => run(() => api.discardFromPack(id, entryName, actor))}
                 />
               </div>
             )}
@@ -777,6 +780,9 @@ export function App() {
               onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
               onDeleteEntry={(id, entryId) => run(() => api.deleteEntry(id, entryId, actor))}
               onFly={launchItem}
+              onUnpack={(id) => run(() => api.unpackItem(id, actor))}
+              onTakePack={(id, entryName, to) => run(() => api.takeFromPack(id, entryName, to, actor))}
+              onDiscardPack={(id, entryName) => run(() => api.discardFromPack(id, entryName, actor))}
             />
           </>
         )}

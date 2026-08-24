@@ -2,7 +2,8 @@ import { AutoTextarea } from './AutoTextarea';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item, JournalEntry } from '../types';
 import type { FormField, ItemStats } from '../types';
-import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, formPlan, notesLabel, parseGoldValue, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
+import { CATEGORIES, HOLDERS, RARITIES, canJournal, categoryLabel, categoryOf, defaultIcon, formPlan, notesLabel, parseGoldValue, planHas, statPlan, holderById, holderIcon, itemIcon } from '../types';
+import { CATALOG } from '../catalog';
 import { StatFieldControl, cleanStats } from './StatFields';
 import { DiceGroup } from './Dice';
 import { parseRoll, parseSpellLines, rollDice } from '../dice';
@@ -39,6 +40,9 @@ interface Props {
   onDeleteEntry: (id: string, entryId: string) => void;
   // a send launches a shrinking ghost of the plaque toward the recipient's tab
   onFly?: (flight: { icon: string; name: string; rect: { x: number; y: number; w: number; h: number }; to: HolderId }) => void;
+  onUnpack: (id: string) => void;
+  onTakePack: (id: string, entryName: string, to: HolderId) => void;
+  onDiscardPack: (id: string, entryName: string) => void;
 }
 
 const rarityClass = (r: string) => 'rarity-' + r.replace(/\s+/g, '-');
@@ -226,6 +230,9 @@ function ItemRow({
   onUpdateEntry,
   onDeleteEntry,
   onFly,
+  onUnpack,
+  onTakePack,
+  onDiscardPack,
 }: Props & { item: Item }) {
   const [view, setView] = useState<'closed' | 'detail' | 'edit'>('closed');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -243,6 +250,19 @@ function ItemRow({
   const [leaving, setLeaving] = useState<string | null>(null);
   // "+9 HP" drifting up from the plaque after an in-app potion roll
   const [healFx, setHealFx] = useState<null | { x: number; y: number; total: number }>(null);
+  // which pack component's take-out/send/discard dialog is open
+  const [packPick, setPackPick] = useState<string | null>(null);
+
+  const unpack = () => {
+    const kinds = item.pack?.length ?? 0;
+    if (
+      confirm(
+        `Unpack ${item.name}? Its contents (${kinds} kinds of gear) become individual items in ${holderById(item.location).name}’s inventory, and the pack itself disappears.`
+      )
+    ) {
+      onUnpack(item.id);
+    }
+  };
   // burst overlay at the plaque's on-screen rect: an emoji pop (💥 / 🎁),
   // with flying shards when there's a demolition to do
   const [boom, setBoom] = useState<null | {
@@ -717,8 +737,65 @@ function ItemRow({
           onAddEntry={(fields) => onAddEntry(item.id, fields)}
           onUpdateEntry={(entryId, fields) => onUpdateEntry(item.id, entryId, fields)}
           onDeleteEntry={(entryId) => onDeleteEntry(item.id, entryId)}
+          onUnpack={item.pack?.length ? unpack : undefined}
+          onPackRow={item.pack?.length ? setPackPick : undefined}
         />
       )}
+      {packPick && (() => {
+        const entry = item.pack?.find((e) => e.name === packPick);
+        if (!entry) return null;
+        const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
+        const icon = cat ? defaultIcon(cat.category as CategoryKey, cat.subtype, cat.name) : '📦';
+        return (
+          <div className="overlay" onClick={() => setPackPick(null)}>
+            <div className="modal send-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-head">
+                <h2>
+                  {icon} {entry.name}
+                  {entry.qty > 1 && <span className="item-qty">×{entry.qty}</span>}
+                </h2>
+                <button type="button" className="link-button" onClick={() => setPackPick(null)}>✕</button>
+              </div>
+              <div className="item-menu-heading muted">From {item.name}</div>
+              <div className="send-holders">
+                {[holderById(item.location), ...HOLDERS.filter((h) => h.id !== item.location)].map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    className="send-holder"
+                    onClick={() => {
+                      setPackPick(null);
+                      if (h.id !== item.location) {
+                        const r = liRef.current?.getBoundingClientRect();
+                        if (r) onFly?.({ icon, name: entry.name, rect: { x: r.x, y: r.y, w: r.width, h: r.height }, to: h.id });
+                      }
+                      onTakePack(item.id, entry.name, h.id);
+                    }}
+                  >
+                    <span className="send-holder-emoji">{holderIcon(icons, h)}</span> {h.name}
+                    {h.id === item.location && <span className="muted"> — take out</span>}
+                  </button>
+                ))}
+              </div>
+              <div className="item-menu-actions">
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => {
+                    setPackPick(null);
+                    onDiscardPack(item.id, entry.name);
+                  }}
+                >
+                  🗑️ Discard it
+                </button>
+              </div>
+              <button type="button" className="link-button send-cancel" onClick={() => setPackPick(null)}>
+                Cancel — leave it packed
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       {view === 'edit' && (
         <ItemEditor
           item={item}
@@ -739,7 +816,7 @@ const NOTES_PREVIEW_CHARS = 90;
 const previewText = (n: string) =>
   n.length > NOTES_PREVIEW_CHARS ? n.slice(0, NOTES_PREVIEW_CHARS).trimEnd() + '…' : n;
 
-function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void }) {
+function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, onCast, onAddEntry, onUpdateEntry, onDeleteEntry, onUnpack, onPackRow }: { item: Item; onEdit: () => void; onUse?: () => void; onToggleAttune?: () => void; onSpend: () => void; onRecharge: () => void; onCast: (spell: string, cost: number) => void; onAddEntry: (fields: { title?: string; text: string; image?: string }) => void; onUpdateEntry: (entryId: string, fields: { title?: string; text: string; image?: string }) => void; onDeleteEntry: (entryId: string) => void; onUnpack?: () => void; onPackRow?: (entryName: string) => void }) {
   const [zoomed, setZoomed] = useState(false);
   const [spellView, setSpellView] = useState<string | null>(null);
   const [castFx, setCastFx] = useState<number | null>(null); // sparkling spell row
@@ -852,6 +929,28 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
           <img src={item.image} alt={item.name} />
         </div>
       )}
+      {item.pack && item.pack.length > 0 && (
+        <div className="pack-list">
+          <span className="item-menu-heading muted">Contents · {item.pack.length}</span>
+          {item.pack.map((e) => {
+            const cat = CATALOG.find((c) => c.name.toLowerCase() === e.name.toLowerCase());
+            const icon = cat ? defaultIcon(cat.category as CategoryKey, cat.subtype, cat.name) : '📦';
+            return (
+              <div className="pack-row" key={e.name}>
+                <span className="pack-name">
+                  <span className="item-icon">{icon}</span> {e.name}
+                  {e.qty > 1 && <span className="item-qty">×{e.qty}</span>}
+                </span>
+                {onPackRow && (
+                  <button type="button" className="pack-send" title="Take out, send, or discard" onClick={() => onPackRow(e.name)}>
+                    ➤
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {s.spells && (
         <div className="spell-list">
           <span className="item-menu-heading muted">Spells</span>
@@ -921,6 +1020,11 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
       {!item.notes && rows.length === 0 && <p className="muted item-detail-notes">Nothing more to tell about this one.</p>}
       {spellView && <SpellCard name={spellView} onClose={() => setSpellView(null)} />}
       <div className="item-detail-actions">
+        {onUnpack && (
+          <button type="button" className="detail-use" onClick={onUnpack}>
+            📤 Unpack
+          </button>
+        )}
         {onUse && (
           <button type="button" className="detail-use" onClick={onUse}>
             🧪 Use one

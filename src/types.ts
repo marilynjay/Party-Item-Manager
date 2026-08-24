@@ -256,6 +256,8 @@ export interface Item {
   // gems: whether the value counts toward the purse's worth (default yes;
   // false = set aside, e.g. a diamond saved for a spell)
   fungible?: boolean;
+  // equipment packs: remaining component items, individually removable
+  pack?: Array<{ name: string; qty: number }>;
   magic: boolean;
   requiresAttunement: boolean;
   attuned: boolean;

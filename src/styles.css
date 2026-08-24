@@ -972,6 +972,22 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .spell-list { display: flex; flex-direction: column; gap: 5px; }
 .spell-row { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
 .spell-name { flex: 1; font-size: 0.92rem; }
+/* pack contents: one row per component, each with its own send button */
+.pack-list { display: flex; flex-direction: column; gap: 4px; }
+.pack-row { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
+.pack-name { flex: 1; font-size: 0.92rem; }
+.pack-send {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--accent);
+  font-size: 0.72rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .spell-cost { font-variant-numeric: tabular-nums; }
 .charge-btn { font-size: 0.82rem; padding: 3px 10px; }
 /* names the 2014 compendium knows open a lookup card — tinted so a

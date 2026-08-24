@@ -23,10 +23,15 @@ function migrateTaxonomy<T extends { name: string }>(entry: T): T {
   if (legacy.category === 'papers' && (legacy.subtype === 'gems' || legacy.subtype === 'art')) {
     legacy.category = 'treasure';
   }
-  // items created before stats existed inherit their catalogue entry's stats
+  // items created before stats existed inherit their catalogue entry's stats,
+  // and packs added before contents existed inherit their component list
   if ((legacy as { stats?: unknown }).stats === undefined) {
     const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
     if (cat?.stats) (legacy as { stats?: unknown }).stats = { ...cat.stats };
+  }
+  if ((legacy as { pack?: unknown }).pack === undefined) {
+    const cat = CATALOG.find((c) => c.name.toLowerCase() === entry.name.toLowerCase());
+    if (cat?.pack) (legacy as { pack?: unknown }).pack = cat.pack.map((e) => ({ ...e }));
   }
   return entry;
 }
@@ -212,6 +217,9 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     createdAt: now,
     updatedAt: now,
   };
+  // equipment packs arrive with their component list attached
+  const packCat = CATALOG.find((c) => c.pack && c.name.toLowerCase() === item.name.trim().toLowerCase());
+  if (packCat?.pack) item.pack = packCat.pack.map((e) => ({ ...e }));
   db.items.push(item);
   addLog(db, actor, `added ${item.qty > 1 ? item.qty + ' × ' : ''}${item.name} to ${holderName(item.location)}`);
   save(db);
@@ -428,6 +436,91 @@ export function consumeItem(id: string, actor: string, note?: string): Promise<{
     db.items = db.items.filter((i) => i.id !== id);
     addLog(db, actor, `used the last ${item.name}${suffix}`);
   }
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// ---- equipment packs -----------------------------------------------------
+// A pack's components can be pulled out one entry at a time, or dumped all
+// at once. Components materialize from their catalogue entries; the pack's
+// own carried weight sheds the component's share as things leave it.
+
+function materialize(name: string, qty: number, location: HolderId, now: number): Item {
+  const cat = CATALOG.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  return {
+    id: newId(),
+    name,
+    category: (cat?.category as Item['category']) ?? '',
+    subtype: cat?.subtype ?? '',
+    rarity: cat?.rarity ?? '',
+    qty,
+    weight: cat?.weight ?? null,
+    value: cat?.value ?? '',
+    magic: cat?.magic ?? false,
+    requiresAttunement: cat?.requiresAttunement ?? false,
+    attuned: false,
+    location,
+    notes: cat?.rules ?? '',
+    stats: cat?.stats ? { ...cat.stats } : undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function shedWeight(pack: Item, name: string, qty: number): void {
+  const cat = CATALOG.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (pack.weight !== null && cat?.weight) {
+    pack.weight = Math.max(0, Math.round((pack.weight - cat.weight * qty) * 100) / 100);
+  }
+}
+
+const entryLabel = (e: { name: string; qty: number }) => (e.qty > 1 ? `${e.name} ×${e.qty}` : e.name);
+
+export function unpackItem(id: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  if (!item.pack?.length) return Promise.reject(new Error('Nothing left in the pack'));
+  const now = Date.now();
+  for (const e of item.pack) {
+    db.items.push(materialize(e.name, e.qty * item.qty, item.location, now));
+  }
+  const kinds = item.pack.length;
+  db.items = db.items.filter((i) => i.id !== id);
+  addLog(db, actor, `unpacked ${item.name} — ${kinds} kinds of gear tumble into ${holderName(item.location)}’s inventory`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function takeFromPack(id: string, entryName: string, to: HolderId, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  const entry = item?.pack?.find((e) => e.name === entryName);
+  if (!item || !entry) return Promise.reject(new Error('That’s no longer in the pack'));
+  item.pack = item.pack!.filter((e) => e.name !== entryName);
+  shedWeight(item, entry.name, entry.qty);
+  item.updatedAt = Date.now();
+  db.items.push(materialize(entry.name, entry.qty, to, Date.now()));
+  addLog(
+    db,
+    actor,
+    to === item.location
+      ? `took ${entryLabel(entry)} out of ${item.name}`
+      : `sent ${entryLabel(entry)} from ${holderName(item.location)}’s ${item.name} to ${holderName(to)}`
+  );
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+export function discardFromPack(id: string, entryName: string, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  const entry = item?.pack?.find((e) => e.name === entryName);
+  if (!item || !entry) return Promise.reject(new Error('That’s no longer in the pack'));
+  item.pack = item.pack!.filter((e) => e.name !== entryName);
+  shedWeight(item, entry.name, entry.qty);
+  item.updatedAt = Date.now();
+  addLog(db, actor, `tossed ${entryLabel(entry)} from ${item.name}`);
   save(db);
   return Promise.resolve({ ok: true });
 }
