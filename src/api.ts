@@ -202,6 +202,38 @@ function seedGemsOnce(): void {
 }
 seedGemsOnce();
 
+// One of each recharge behavior, parked with Radish for playtesting the
+// long-rest and recharge flows: auto (no recharge text), dawn dice big and
+// small, "never", and consumable doses (rests skip those two entirely).
+// Same additive one-time-per-browser pattern as the other seeds.
+const RECHARGE_SEED_FLAG = 'pim-seed-recharge-v1';
+
+function seedRechargeOnce(): void {
+  try {
+    if (localStorage.getItem(RECHARGE_SEED_FLAG)) return;
+    const db = load();
+    const now = Date.now();
+    const set: Array<[string, number]> = [
+      ['Rod of Lordly Might', 1],     // auto — refills at rest, no roll
+      ['Staff of Healing', 3],        // 1d6+4 at dawn — Radish rolls
+      ['Wand of Magic Detection', 0], // 1d3 at dawn — Radish rolls
+      ['Necklace of Fireballs', 2],   // never — rests skip it, no ↺ button
+      ["Keoghtom's Ointment", 1],     // doses — consumables sit rests out
+    ];
+    for (const [name, charges] of set) {
+      const item = materialize(name, 1, 'radish', now);
+      if (item.stats) item.stats.charges = charges;
+      db.items.push(item);
+    }
+    addLog(db, 'Senchez', 'coughed up a pile of half-drained gear for Radish — recharge playtest 🔋');
+    save(db);
+    localStorage.setItem(RECHARGE_SEED_FLAG, '1');
+  } catch {
+    // storage unavailable — nothing to seed
+  }
+}
+seedRechargeOnce();
+
 export const getState = (): Promise<AppState> => Promise.resolve(clone(load()));
 
 export function createItem(fields: Partial<Item> & { name: string }, actor: string): Promise<Item> {
