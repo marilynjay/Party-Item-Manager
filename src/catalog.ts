@@ -35,6 +35,8 @@ export interface CatalogItem {
   value?: string; // list price, mundane gear mostly ("1 gp")
   // equipment packs: the component items (names resolve against this catalogue)
   pack?: Array<{ name: string; qty: number }>;
+  // perishables: how many long rests it keeps when fresh (goodberries: 1)
+  freshness?: number;
   stats?: ItemStats;
   rules: string;
 }
@@ -357,6 +359,7 @@ export const CATALOG: CatalogItem[] = [
   { name: "Portable Ram", category: "supplies", subtype: "tool", rarity: "", magic: false, requiresAttunement: false, weight: 35, value: "4 gp", rules: "+4 on Strength checks to break down doors; a helper gives you advantage." },
   { name: "Pouch", category: "supplies", subtype: "container", rarity: "", magic: false, requiresAttunement: false, weight: 1, value: "5 sp", stats: {"capacity": "6 lb / one-fifth cubic foot"}, rules: "" },
   { name: "Quiver", category: "supplies", subtype: "container", rarity: "", magic: false, requiresAttunement: false, weight: 1, value: "1 gp", stats: {"capacity": "20 arrows"}, rules: "" },
+  { name: "Goodberry", category: "consumable", subtype: "food & drink", rarity: "", magic: true, requiresAttunement: false, weight: null, value: "", freshness: 1, rules: "Eat one: regain 1 hit point and enough nourishment for a day. The berries lose their potency 24 hours after the spell is cast — gone by morning." },
   { name: "Rations (1 day)", category: "consumable", subtype: "food & drink", rarity: "", magic: false, requiresAttunement: false, weight: 2, value: "5 sp", rules: "Jerky, hardtack, dried fruit, and nuts." },
   { name: "Hempen Rope (50 feet)", category: "supplies", subtype: "camp gear", rarity: "", magic: false, requiresAttunement: false, weight: 10, value: "1 gp", rules: "2 hp; DC 17 Strength to burst." },
   { name: "Silk Rope (50 feet)", category: "supplies", subtype: "camp gear", rarity: "", magic: false, requiresAttunement: false, weight: 5, value: "10 gp", rules: "2 hp; DC 17 Strength to burst. Lighter and finer than hemp." },

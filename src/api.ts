@@ -271,7 +271,10 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     createdAt: now,
     updatedAt: now,
   };
-  // equipment packs arrive with their component list attached
+  // equipment packs arrive with their component list attached. Shelf life
+  // deliberately isn't backfilled here: a bare typed name gets no category
+  // either, and a perishable with no category can't tell spoiled from
+  // expired. Picking the catalogue entry fills both (applyCatalog).
   const packCat = CATALOG.find((c) => c.pack && c.name.toLowerCase() === item.name.trim().toLowerCase());
   if (packCat?.pack) item.pack = packCat.pack.map((e) => ({ ...e }));
   db.items.push(item);

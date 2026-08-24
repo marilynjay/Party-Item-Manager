@@ -211,7 +211,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       weight: it.weight === null ? '' : String(it.weight),
       value: it.value ?? '',
       fungible: true,
-      freshness: '',
+      freshness: it.freshness === undefined ? '' : String(it.freshness),
       magic: it.magic,
       requiresAttunement: it.requiresAttunement,
       attuned: false,
