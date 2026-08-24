@@ -817,7 +817,9 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .rarity-legendary { color: var(--gold); }
 .rarity-artifact { color: #e08c5c; }
 
-.item-row { position: relative; padding-right: 44px; }
+/* min-height keeps the absolute ➤ button off the bottom edge on bare
+   name-only plaques (7px above + 30px button + ≥7px below) */
+.item-row { position: relative; padding-right: 44px; min-height: 46px; }
 .item-send {
   position: absolute;
   top: 7px;
