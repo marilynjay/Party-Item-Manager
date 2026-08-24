@@ -329,12 +329,17 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
   20% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
 }
-/* given to an NPC: off it goes, out the right side of the screen */
-.exit-gift { animation: exitGift 520ms ease-in forwards; pointer-events: none; }
-@keyframes exitGift {
-  15% { transform: translateX(-8px); }
-  100% { transform: translateX(120%); opacity: 0; }
+/* given to an NPC: the plaque fades (transform-free, same anchoring rule
+   as destroy) while a 🎁 pops up and rapidly expands over it */
+.exit-gift { animation: giftShell 520ms ease forwards; pointer-events: none; }
+@keyframes giftShell {
+  15% { border-color: var(--accent); box-shadow: 0 0 18px rgba(180, 140, 242, 0.4); }
+  40%, 100% { background: transparent; border-color: transparent; box-shadow: none; }
 }
+.exit-gift > *:not(.demolition) { animation: destroyVanish 240ms ease-in forwards; }
+/* partial gift: accent flash, plaque stays */
+.exit-giftflash { animation: giftFlash 420ms ease; }
+@keyframes giftFlash { 25% { border-color: var(--accent); box-shadow: 0 0 16px rgba(180, 140, 242, 0.35); } }
 
 /* a sent item's ghost plaque lifts off and shrinks into the recipient's tab */
 .item-flight {

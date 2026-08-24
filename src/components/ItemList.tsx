@@ -190,13 +190,15 @@ function ItemRow({
   const [salePrice, setSalePrice] = useState('');
   const [saleUnit, setSaleUnit] = useState<'gp' | 'pp'>('gp');
   const [leaving, setLeaving] = useState<string | null>(null);
-  // demolition debris: shards blasted from the plaque's on-screen rect
+  // burst overlay at the plaque's on-screen rect: an emoji pop (💥 / 🎁),
+  // with flying shards when there's a demolition to do
   const [boom, setBoom] = useState<null | {
     x: number;
     y: number;
     w: number;
     h: number;
-    shards: Array<{ l: number; t: number; s: number; dx: number; dy: number; rot: number; delay: number }>;
+    emoji: string;
+    shards?: Array<{ l: number; t: number; s: number; dx: number; dy: number; rot: number; delay: number }>;
   }>(null);
 
   const openDisposal = () => {
@@ -213,7 +215,7 @@ function ItemRow({
   // debris off the plaque, whole stack or not.
   const dispose = (exit: string, action: () => void) => {
     setDisposing(false);
-    if (exit === 'destroy') {
+    if (exit === 'destroy' || exit === 'gift') {
       const r = liRef.current?.getBoundingClientRect();
       if (r) {
         setBoom({
@@ -221,25 +223,32 @@ function ItemRow({
           y: r.y,
           w: r.width,
           h: r.height,
-          shards: Array.from({ length: 14 }, () => {
-            const l = 6 + Math.random() * 88; // start position, % across the plaque
-            const t = 8 + Math.random() * 84;
-            return {
-              l,
-              t,
-              s: 7 + Math.random() * 13,
-              dx: (l - 50) * (1.6 + Math.random()) + Math.random() * 30 - 15,
-              dy: (t - 50) * 1.2 - 20 - Math.random() * 60,
-              rot: Math.random() * 520 - 260,
-              delay: Math.random() * 70,
-            };
-          }),
+          emoji: exit === 'destroy' ? '💥' : '🎁',
+          shards:
+            exit === 'destroy'
+              ? Array.from({ length: 14 }, () => {
+                  const l = 6 + Math.random() * 88; // start position, % across the plaque
+                  const t = 8 + Math.random() * 84;
+                  return {
+                    l,
+                    t,
+                    s: 7 + Math.random() * 13,
+                    dx: (l - 50) * (1.6 + Math.random()) + Math.random() * 30 - 15,
+                    dy: (t - 50) * 1.2 - 20 - Math.random() * 60,
+                    rot: Math.random() * 520 - 260,
+                    delay: Math.random() * 70,
+                  };
+                })
+              : undefined,
         });
       }
     }
-    // partial destroys flash instead of blipping: exit-part scales the
-    // plaque, and a transformed ancestor would drag the debris with it
-    setLeaving(dispQty >= item.qty ? exit : exit === 'destroy' ? 'boomflash' : 'part');
+    // destroys and gifts must stay transform-free on the plaque (a
+    // transformed ancestor would drag the fixed burst overlay with it),
+    // so their partial variants flash instead of playing the scaling blip
+    setLeaving(
+      dispQty >= item.qty ? exit : exit === 'destroy' ? 'boomflash' : exit === 'gift' ? 'giftflash' : 'part'
+    );
     setTimeout(() => {
       setLeaving(null);
       setBoom(null);
@@ -532,8 +541,8 @@ function ItemRow({
       )}
       {boom && (
         <span className="demolition" aria-hidden style={{ left: boom.x, top: boom.y, width: boom.w, height: boom.h }}>
-          <span className="boom">💥</span>
-          {boom.shards.map((sh, i) => (
+          <span className="boom">{boom.emoji}</span>
+          {boom.shards?.map((sh, i) => (
             <span
               key={i}
               className="shard"
