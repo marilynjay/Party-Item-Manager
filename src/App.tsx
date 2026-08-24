@@ -459,6 +459,7 @@ export function App() {
             })()}
             {scopeHolder && (
               <PursePanel
+                key={scopeHolder.id}
                 name={scopeHolder.name}
                 gp={state.gold[scopeHolder.id] ?? 0}
                 pp={state.platinum[scopeHolder.id] ?? 0}

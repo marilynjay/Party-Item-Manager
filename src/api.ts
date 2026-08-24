@@ -139,6 +139,53 @@ function seedOnce(): void {
 }
 seedOnce();
 
+// A pouch of playtest gems for trying the purse panel's gem accounting:
+// varied values, a couple set aside, one with a prose value. Same additive
+// one-time-per-browser pattern as the main seed.
+const GEM_SEED_FLAG = 'pim-seed-gems-v1';
+
+function seedGemsOnce(): void {
+  try {
+    if (localStorage.getItem(GEM_SEED_FLAG)) return;
+    const db = load();
+    const now = Date.now();
+    const gems: Array<{ name: string; location: HolderId; qty: number; value: string; fungible?: boolean; notes: string }> = [
+      { name: 'Fire Opal', location: 'senchez', qty: 1, value: '500 gp', notes: 'Glows faintly warm to the touch.' },
+      { name: 'Garnets', location: 'senchez', qty: 4, value: '100 gp each', notes: 'A matched set from the wyvern hoard.' },
+      { name: 'Resurrection Diamond', location: 'senchez', qty: 1, value: '1,000 gp', fungible: false, notes: 'NOT FOR SPENDING — this is the spell component. Ask Radish.' },
+      { name: 'Uncut Stone', location: 'senchez', qty: 1, value: 'who knows?', notes: 'Might be worthless, might be a star sapphire. Needs an appraiser.' },
+      { name: 'Moonstone', location: 'astrielle', qty: 1, value: '250 gp', notes: 'A gift from the grove — Astrielle carries it for luck.' },
+      { name: 'Black Pearl', location: 'yiptik', qty: 2, value: '75 pp', fungible: false, notes: 'Yiptik insists these are "an investment".' },
+    ];
+    for (const g of gems) {
+      db.items.push({
+        id: newId(),
+        name: g.name,
+        category: 'treasure',
+        subtype: 'gems',
+        rarity: '',
+        qty: g.qty,
+        weight: null,
+        value: g.value,
+        fungible: g.fungible,
+        magic: false,
+        requiresAttunement: false,
+        attuned: false,
+        location: g.location,
+        notes: g.notes,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    addLog(db, 'Senchez', 'coughed up a pouch of assorted gems for playtesting 💎');
+    save(db);
+    localStorage.setItem(GEM_SEED_FLAG, '1');
+  } catch {
+    // storage unavailable — nothing to seed
+  }
+}
+seedGemsOnce();
+
 export const getState = (): Promise<AppState> => Promise.resolve(clone(load()));
 
 export function createItem(fields: Partial<Item> & { name: string }, actor: string): Promise<Item> {
