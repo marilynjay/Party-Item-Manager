@@ -208,22 +208,35 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 .badge.sagging { animation: sag 750ms ease; }
 @keyframes sag { 35% { transform: translateY(4px) scale(1.12); } 62% { transform: translateY(-1px); } }
 
-/* an empty inventory gets a slow tumbleweed-ish leaf */
+/* an empty inventory: a hand-drawn tumbleweed bounces through now and then.
+   The pass is a one-shot (the component remounts it per pass): outer span
+   drifts, .tw-bounce hops with decaying height, the SVG spins. */
 .empty { position: relative; overflow: hidden; }
 .tumbleweed {
   position: absolute;
-  left: -24px;
-  bottom: 6px;
-  opacity: 0.45;
-  animation: tumble 12s linear infinite;
+  left: -34px;
+  bottom: 2px;
+  opacity: 0.6;
+  pointer-events: none;
+  animation: twDrift 3.4s linear both;
 }
-@keyframes tumble {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  30% { transform: translate(min(26vw, 210px), -7px) rotate(200deg); }
-  55% { transform: translate(min(48vw, 380px), 0) rotate(390deg); }
-  80% { transform: translate(min(70vw, 560px), -5px) rotate(580deg); }
-  100% { transform: translate(min(92vw, 740px), 0) rotate(760deg); }
+@keyframes twDrift { to { transform: translateX(min(96vw, 720px)); } }
+.tw-bounce { display: block; animation: twHop 3.4s linear both; }
+@keyframes twHop {
+  0% { transform: translateY(0); animation-timing-function: ease-out; }
+  9% { transform: translateY(-11px); animation-timing-function: ease-in; }
+  19% { transform: translateY(0); animation-timing-function: ease-out; }
+  30% { transform: translateY(-8px); animation-timing-function: ease-in; }
+  42% { transform: translateY(0); animation-timing-function: ease-out; }
+  54% { transform: translateY(-6px); animation-timing-function: ease-in; }
+  66% { transform: translateY(0); animation-timing-function: ease-out; }
+  77% { transform: translateY(-4px); animation-timing-function: ease-in; }
+  87% { transform: translateY(0); animation-timing-function: ease-out; }
+  94% { transform: translateY(-2px); animation-timing-function: ease-in; }
+  100% { transform: translateY(0); }
 }
+.tw-svg { display: block; animation: twSpin 3.4s linear both; }
+@keyframes twSpin { to { transform: rotate(880deg); } }
 
 /* breaking attunement: the magic drains out */
 .attune-dim { animation: attuneDim 700ms ease; }
