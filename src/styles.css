@@ -1256,6 +1256,12 @@ button.purse-line:hover { background: none; color: var(--text); }
 .purse-actions button { font-size: 0.88rem; padding: 5px 12px; }
 .purse-actions .link-button { padding: 5px 6px; }
 
+.ledger-entry { display: flex; flex-direction: column; }
+.ledger-row.ledger-open { color: var(--text); }
+.ledger-tools { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 4px 0 6px; }
+.ledger-tools button { font-size: 0.85rem; padding: 4px 11px; }
+.ledger-tools .link-button { padding: 4px 6px; }
+
 .give-gold-select {
   margin-top: 6px;
   color: var(--text-muted);

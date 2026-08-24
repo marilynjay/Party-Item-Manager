@@ -666,6 +666,7 @@ export function App() {
               icons={state.icons}
               onSetPurse={(holder, gp, pp) => run(() => api.setPurse(holder, gp, pp, actor))}
               onGive={(holder, amount, unit) => run(() => api.addMoney(holder, amount, unit, actor))}
+              onSpend={(holder, amount, unit) => run(() => api.spendMoney(holder, amount, unit, actor))}
             />
             <FilterBar filters={filters} onChange={setFilters} />
             <button type="button" className="add-big" onClick={() => setAdding(true)}>

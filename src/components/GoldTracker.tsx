@@ -8,6 +8,7 @@ interface Props {
   icons: Icons;
   onSetPurse: (holder: HolderId, gp: number, pp: number) => void;
   onGive: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
+  onSpend: (holder: HolderId, amount: number, unit: 'gp' | 'pp') => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -36,9 +37,11 @@ function useCountUp(value: number, ms = 600): number {
   return shown;
 }
 
-export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props) {
+export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend }: Props) {
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<HolderId | null>(null);
+  // tapping a row opens its ＋ Add / − Spend / ✎ tools, purse-panel style
+  const [active, setActive] = useState<HolderId | null>(null);
+  const [mode, setMode] = useState<'add' | 'spend' | 'exact' | null>(null);
   const [giveTo, setGiveTo] = useState<HolderId | ''>('');
   const gpOf = (id: HolderId) => gold[id] ?? 0;
   const ppOf = (id: HolderId) => platinum[id] ?? 0;
@@ -55,26 +58,16 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props
       </button>
       {open && (
         <div className="gold-breakdown">
-          {holdersWithMoney.map((h) =>
-            editing === h.id ? (
-              <PurseEdit
-                key={h.id}
-                label={`${holderIcon(icons, h)} ${h.name}`}
-                gp={gpOf(h.id)}
-                pp={ppOf(h.id)}
-                onSave={(gp, pp) => {
-                  onSetPurse(h.id, gp, pp);
-                  setEditing(null);
-                }}
-                onCancel={() => setEditing(null)}
-              />
-            ) : (
+          {holdersWithMoney.map((h) => (
+            <div key={h.id} className="ledger-entry">
               <button
-                key={h.id}
                 type="button"
-                className="ledger-row"
-                title={`Tap to edit ${h.name}’s purse${ppOf(h.id) > 0 ? ` (${fmt(gpOf(h.id))} gp + ${fmt(ppOf(h.id))} pp)` : ''}`}
-                onClick={() => setEditing(h.id)}
+                className={`ledger-row ${active === h.id ? 'ledger-open' : ''}`}
+                title={`${h.name}’s purse — tap for add/spend${ppOf(h.id) > 0 ? ` (${fmt(gpOf(h.id))} gp + ${fmt(ppOf(h.id))} pp)` : ''}`}
+                onClick={() => {
+                  setActive(active === h.id ? null : h.id);
+                  setMode(null);
+                }}
               >
                 <span className="ledger-name">
                   {holderIcon(icons, h)} {h.name}
@@ -82,8 +75,39 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive }: Props
                 </span>
                 <span className="ledger-amount">{fmt(worth(h.id))}</span>
               </button>
-            )
-          )}
+              {active === h.id && mode === null && (
+                <div className="ledger-tools">
+                  <button type="button" onClick={() => setMode('add')}>＋ Add</button>
+                  <button type="button" disabled={worth(h.id) <= 0} onClick={() => setMode('spend')}>− Spend</button>
+                  <button type="button" className="link-button" title="Set exact amounts" onClick={() => setMode('exact')}>✎</button>
+                </div>
+              )}
+              {active === h.id && (mode === 'add' || mode === 'spend') && (
+                <GiveForm
+                  label={mode === 'add' ? '＋' : '−'}
+                  onGive={(amount, unit) => {
+                    (mode === 'add' ? onGive : onSpend)(h.id, amount, unit);
+                    setActive(null);
+                    setMode(null);
+                  }}
+                  onCancel={() => setMode(null)}
+                />
+              )}
+              {active === h.id && mode === 'exact' && (
+                <PurseEdit
+                  label={`${holderIcon(icons, h)} ${h.name}`}
+                  gp={gpOf(h.id)}
+                  pp={ppOf(h.id)}
+                  onSave={(gp, pp) => {
+                    onSetPurse(h.id, gp, pp);
+                    setActive(null);
+                    setMode(null);
+                  }}
+                  onCancel={() => setMode(null)}
+                />
+              )}
+            </div>
+          ))}
           {holdersWithMoney.length === 0 && (
             <div className="ledger-row ledger-empty muted">Nobody's holding any gold yet.</div>
           )}
