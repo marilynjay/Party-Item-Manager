@@ -94,7 +94,7 @@ export const itemIcon = (i: Pick<Item, 'icon' | 'category' | 'subtype' | 'name'>
 // Each kind of item gets the fields that make sense for it up front; the
 // rest wait under "More options". A field in neither list is hidden and
 // scrubbed on save. "Other"/unset subtypes get the full generic form.
-export type FormField = 'rarity' | 'weight' | 'value' | 'magic' | 'attunement' | 'content';
+export type FormField = 'rarity' | 'weight' | 'value' | 'magic' | 'attunement' | 'content' | 'fungible';
 export interface FormPlan { primary: FormField[]; advanced: FormField[] }
 
 const GENERIC: FormPlan = { primary: ['rarity', 'weight', 'value', 'magic', 'attunement'], advanced: [] };
@@ -107,7 +107,9 @@ export function formPlan(category: CategoryKey, subtype: string): FormPlan {
       if (subtype === 'book') return { primary: ['content', 'weight'], advanced: ['rarity', 'value', 'magic', 'attunement'] };
       return { primary: ['content', ...GENERIC.primary], advanced: [] };
     case 'treasure':
-      if (subtype === 'gems' || subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic', 'attunement'] };
+      // gems can opt out of the purse's worth figures (saved for a spell, not spendable)
+      if (subtype === 'gems') return { primary: ['value', 'weight', 'fungible'], advanced: ['rarity', 'magic', 'attunement'] };
+      if (subtype === 'art') return { primary: ['value', 'weight'], advanced: ['rarity', 'magic', 'attunement'] };
       return { primary: ['value', 'weight', 'rarity', 'magic', 'attunement'], advanced: [] };
     case 'consumable':
       if (subtype === 'food & drink') return { primary: ['weight'], advanced: ['rarity', 'value', 'magic'] };
@@ -251,6 +253,9 @@ export interface Item {
   qty: number;
   weight: number | null;
   value: string;
+  // gems: whether the value counts toward the purse's worth (default yes;
+  // false = set aside, e.g. a diamond saved for a spell)
+  fungible?: boolean;
   magic: boolean;
   requiresAttunement: boolean;
   attuned: boolean;
@@ -274,6 +279,16 @@ export type Portraits = Partial<Record<HolderId, string>>;
 
 // Standard 5e exchange rate: 1 platinum = 10 gold.
 export const PP_IN_GP = 10;
+
+// "500 gp", "2,500gp", "5 pp" — money-looking item values, converted to gp.
+// Prose ("priceless?") returns null and simply doesn't count.
+export function parseGoldValue(v: string): number | null {
+  const m = v.trim().replace(/,/g, '').match(/^(\d+)\s*(gp|gold|pp|plat|platinum)?\b/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (!n) return null;
+  return (m[2] ?? 'gp').toLowerCase().startsWith('g') ? n : n * PP_IN_GP;
+}
 
 import type { CatalogItem, ItemStats } from './catalog';
 

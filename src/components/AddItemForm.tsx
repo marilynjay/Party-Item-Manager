@@ -69,6 +69,7 @@ const blankAdvanced = {
   rarity: '',
   weight: '' as string,
   value: '',
+  fungible: true,
   magic: false,
   requiresAttunement: false,
   attuned: false,
@@ -182,6 +183,13 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             <AutoTextarea rows={3} value={adv.content} onChange={(e) => setA({ content: e.target.value })} />
           </label>
         );
+      case 'fungible':
+        return (
+          <label key={f} className="check" title="Unchecked = set aside (a diamond saved for a spell) — the value won't count toward the purse">
+            <input type="checkbox" checked={adv.fungible} onChange={(e) => setA({ fungible: e.target.checked })} />
+            💰 Counts toward gold total
+          </label>
+        );
     }
   };
 
@@ -194,6 +202,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       rarity: it.rarity,
       weight: it.weight === null ? '' : String(it.weight),
       value: '',
+      fungible: true,
       magic: it.magic,
       requiresAttunement: it.requiresAttunement,
       attuned: false,
@@ -275,6 +284,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       rarity: adv.rarity,
       weight,
       value: adv.value,
+      fungible: planHas(adv.category, adv.subtype, 'fungible') ? adv.fungible : undefined,
       magic: adv.magic || impliedMagic,
       requiresAttunement: !noAttune && adv.requiresAttunement,
       attuned: !noAttune && adv.attuned,

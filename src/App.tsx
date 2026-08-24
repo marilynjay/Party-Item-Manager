@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as api from './api';
 import type { AppState, HolderId } from './types';
-import { ATTUNEMENT_SLOTS, MEMBERS, holderById, holderIcon, isMagic } from './types';
+import { ATTUNEMENT_SLOTS, MEMBERS, holderById, holderIcon, isMagic, parseGoldValue } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -79,37 +79,142 @@ function HolderPortrait({
   );
 }
 
-// A holder's coin line, shown on their own tab when they carry anything;
-// tapping it opens an inline gp/pp editor.
-function PurseLine({ name, gp, pp, onSave }: { name: string; gp: number; pp: number; onSave: (gp: number, pp: number) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [gpVal, setGpVal] = useState('');
-  const [ppVal, setPpVal] = useState('');
-  if (gp <= 0 && pp <= 0 && !editing) return null;
+// A holder's coin line: collapsed it shows the coins' gp worth; tapping
+// expands a purse panel with the gold/platinum/gems breakdown, Add and
+// Spend buttons, and a small ✎ for setting exact amounts.
+interface GemSummary {
+  count: number;     // gems held (qty-aware)
+  countedGp: number; // total gp worth of gems that count toward the purse
+  asideCount: number; // gems marked "set aside" (not counted)
+}
 
-  if (!editing) {
+function PursePanel({
+  name,
+  gp,
+  pp,
+  gems,
+  onAdd,
+  onSpend,
+  onSetExact,
+}: {
+  name: string;
+  gp: number;
+  pp: number;
+  gems: GemSummary;
+  onAdd: (amount: number, unit: 'gp' | 'pp') => void;
+  onSpend: (amount: number, unit: 'gp' | 'pp') => void;
+  onSetExact: (gp: number, pp: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'add' | 'spend' | 'exact' | null>(null);
+  const fmt = (n: number) => n.toLocaleString();
+  const coinsWorth = gp + pp * PP_IN_GP;
+  const totalWorth = coinsWorth + gems.countedGp;
+
+  if (!open) {
     return (
-      <button
-        type="button"
-        className="purse-line muted"
-        title={`Change ${name}’s coins`}
-        onClick={() => {
-          setGpVal(String(gp));
-          setPpVal(String(pp));
-          setEditing(true);
-        }}
-      >
-        🟡 {gp.toLocaleString()} gp
-        {pp > 0 && (
-          <>
-            {' '}+ ⚪ {pp.toLocaleString()} pp <span className="purse-worth">(= {(gp + pp * PP_IN_GP).toLocaleString()} gp)</span>
-          </>
-        )}
-        <span className="purse-edit-hint">✎</span>
+      <button type="button" className="purse-line muted" title={`${name}’s purse — tap for the breakdown`} onClick={() => setOpen(true)}>
+        🟡 {fmt(coinsWorth)} gp
+        {gems.count > 0 && <span> · 💎 {gems.count}</span>}
+        <span className="purse-edit-hint">▾</span>
       </button>
     );
   }
 
+  return (
+    <div className="purse-panel">
+      <button type="button" className="purse-line muted" title="Fold the purse back up" onClick={() => { setOpen(false); setMode(null); }}>
+        🟡 {fmt(coinsWorth)} gp
+        <span className="purse-edit-hint">▴</span>
+      </button>
+      <div className="purse-rows">
+        <div className="purse-row">
+          <span>🟡 Gold</span>
+          <span className="purse-amt">{fmt(gp)} gp</span>
+        </div>
+        {pp > 0 && (
+          <div className="purse-row">
+            <span>⚪ Platinum</span>
+            <span className="purse-amt">
+              {fmt(pp)} pp <span className="muted">(= {fmt(pp * PP_IN_GP)} gp)</span>
+            </span>
+          </div>
+        )}
+        {gems.count > 0 && (
+          <div className="purse-row">
+            <span>💎 Gems <span className="muted">×{gems.count}</span></span>
+            <span className="purse-amt">
+              {gems.countedGp > 0 ? `~${fmt(gems.countedGp)} gp` : '—'}
+              {gems.asideCount > 0 && <span className="muted"> ({gems.asideCount} set aside)</span>}
+            </span>
+          </div>
+        )}
+        {(pp > 0 || gems.countedGp > 0) && (
+          <div className="purse-row purse-total">
+            <span>Total worth</span>
+            <span className="purse-amt">{gems.countedGp > 0 ? '~' : ''}{fmt(totalWorth)} gp</span>
+          </div>
+        )}
+      </div>
+      {mode === null ? (
+        <div className="purse-actions">
+          <button type="button" onClick={() => setMode('add')}>＋ Add coins</button>
+          <button type="button" disabled={coinsWorth <= 0} onClick={() => setMode('spend')}>− Spend coins</button>
+          <button type="button" className="link-button" title="Set exact amounts" onClick={() => setMode('exact')}>✎</button>
+        </div>
+      ) : mode === 'exact' ? (
+        <ExactPurseForm gp={gp} pp={pp} onSave={(g, p) => { onSetExact(g, p); setMode(null); }} onCancel={() => setMode(null)} />
+      ) : (
+        <CoinDelta
+          verb={mode === 'add' ? '＋ Add' : '− Spend'}
+          onDone={(n, unit) => {
+            (mode === 'add' ? onAdd : onSpend)(n, unit);
+            setMode(null);
+          }}
+          onCancel={() => setMode(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Amount + gp/pp — shared by Add and Spend.
+function CoinDelta({ verb, onDone, onCancel }: { verb: string; onDone: (n: number, unit: 'gp' | 'pp') => void; onCancel: () => void }) {
+  const [amount, setAmount] = useState('');
+  const [unit, setUnit] = useState<'gp' | 'pp'>('gp');
+  return (
+    <form
+      className="purse-line purse-editing"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const n = Math.floor(Number(amount) || 0);
+        if (n > 0) onDone(n, unit);
+        else onCancel();
+      }}
+    >
+      <input
+        autoFocus
+        type="number"
+        min={1}
+        placeholder="amount"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+      />
+      <select value={unit} onChange={(e) => setUnit(e.target.value as 'gp' | 'pp')}>
+        <option value="gp">gp</option>
+        <option value="pp">pp</option>
+      </select>
+      <button type="submit">{verb}</button>
+      <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
+    </form>
+  );
+}
+
+// The old outright editor, demoted to the correction tool.
+function ExactPurseForm({ gp, pp, onSave, onCancel }: { gp: number; pp: number; onSave: (gp: number, pp: number) => void; onCancel: () => void }) {
+  const [gpVal, setGpVal] = useState(String(gp));
+  const [ppVal, setPpVal] = useState(String(pp));
   const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
   return (
     <form
@@ -117,19 +222,18 @@ function PurseLine({ name, gp, pp, onSave }: { name: string; gp: number; pp: num
       onSubmit={(e) => {
         e.preventDefault();
         onSave(parse(gpVal), parse(ppVal));
-        setEditing(false);
       }}
     >
       <label className="coin-field">
-        <input autoFocus type="number" min={0} value={gpVal} onChange={(e) => setGpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setEditing(false)} />
+        <input autoFocus type="number" min={0} value={gpVal} onChange={(e) => setGpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
         gp
       </label>
       <label className="coin-field">
-        <input type="number" min={0} value={ppVal} onChange={(e) => setPpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setEditing(false)} />
+        <input type="number" min={0} value={ppVal} onChange={(e) => setPpVal(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onCancel()} />
         pp
       </label>
       <button type="submit" title="Save">✓</button>
-      <button type="button" className="link-button" title="Cancel" onClick={() => setEditing(false)}>✕</button>
+      <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
     </form>
   );
 }
@@ -196,6 +300,22 @@ export function App() {
     }
     return counts;
   }, [state.items]);
+
+  // gems in the current holder's hoard, for their purse panel
+  const gemSummary = useMemo<GemSummary>(() => {
+    const out = { count: 0, countedGp: 0, asideCount: 0 };
+    for (const i of state.items) {
+      if (i.location !== scope || i.category !== 'treasure' || i.subtype !== 'gems') continue;
+      out.count += i.qty;
+      if (i.fungible === false) {
+        out.asideCount += i.qty;
+      } else {
+        const worth = i.value ? parseGoldValue(i.value) : null;
+        if (worth) out.countedGp += worth * i.qty;
+      }
+    }
+    return out;
+  }, [state.items, scope]);
 
   if (phase === 'checking')
     return (
@@ -338,11 +458,14 @@ export function App() {
               );
             })()}
             {scopeHolder && (
-              <PurseLine
+              <PursePanel
                 name={scopeHolder.name}
                 gp={state.gold[scopeHolder.id] ?? 0}
                 pp={state.platinum[scopeHolder.id] ?? 0}
-                onSave={(gp, pp) => run(() => api.setPurse(scopeHolder.id, gp, pp, actor))}
+                gems={gemSummary}
+                onAdd={(n, unit) => run(() => api.addMoney(scopeHolder.id, n, unit, actor))}
+                onSpend={(n, unit) => run(() => api.spendMoney(scopeHolder.id, n, unit, actor))}
+                onSetExact={(gp, pp) => run(() => api.setPurse(scopeHolder.id, gp, pp, actor))}
               />
             )}
             {scope === 'all' && (

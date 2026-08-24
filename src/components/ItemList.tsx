@@ -476,7 +476,17 @@ function ItemDetail({ item, onEdit, onUse, onToggleAttune, onSpend, onRecharge, 
   if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
     rows.push(['Weight', item.qty > 1 ? `${item.weight} lb each · ${item.weight * item.qty} lb total` : `${item.weight} lb`]);
-  if (item.value) rows.push(['Value', item.value]);
+  if (item.value)
+    rows.push([
+      'Value',
+      item.fungible === false ? (
+        <span>
+          {item.value} <span className="muted" title="Not counted in the purse's worth">· 🔒 set aside</span>
+        </span>
+      ) : (
+        item.value
+      ),
+    ]);
   if (item.requiresAttunement)
     rows.push([
       'Attunement',
@@ -772,6 +782,7 @@ function ItemEditor({
     rarity: item.rarity,
     weight: item.weight === null ? '' : String(item.weight),
     value: item.value,
+    fungible: item.fungible !== false,
     magic: item.magic,
     requiresAttunement: item.requiresAttunement,
     attuned: item.attuned,
@@ -866,6 +877,13 @@ function ItemEditor({
             <AutoTextarea rows={3} value={f.content} onChange={(e) => set({ content: e.target.value })} />
           </label>
         );
+      case 'fungible':
+        return (
+          <label key={field} className="check" title="Unchecked = set aside (a diamond saved for a spell) — the value won't count toward the purse">
+            <input type="checkbox" checked={f.fungible} onChange={(e) => set({ fungible: e.target.checked })} />
+            💰 Counts toward gold total
+          </label>
+        );
     }
   };
 
@@ -889,6 +907,7 @@ function ItemEditor({
           rarity: f.rarity,
           weight: noWeight || f.weight === '' ? null : Number(f.weight),
           value: f.value,
+          fungible: planHas(f.category, f.subtype, 'fungible') ? f.fungible : undefined,
           magic: f.magic,
           requiresAttunement: !noAttune && f.requiresAttunement,
           attuned: !noAttune && f.requiresAttunement ? f.attuned : false,

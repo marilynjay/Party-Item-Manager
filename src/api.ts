@@ -153,6 +153,7 @@ export function createItem(fields: Partial<Item> & { name: string }, actor: stri
     qty: Math.max(1, Math.floor(fields.qty ?? 1) || 1),
     weight: fields.weight ?? null,
     value: fields.value ?? '',
+    fungible: fields.fungible,
     magic: fields.magic ?? false,
     requiresAttunement: fields.requiresAttunement ?? false,
     attuned: Boolean(fields.requiresAttunement && fields.attuned && (fields.location ?? 'senchez') !== 'senchez'),
@@ -452,6 +453,20 @@ export function addMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', ac
   const store = unit === 'pp' ? db.platinum : db.gold;
   store[holder] = coins(store[holder]) + n;
   addLog(db, actor, `added ${n} ${unit} to ${holderName(holder)} (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// Take coins out (the tavern bill) — refuses to overdraw the purse.
+export function spendMoney(holder: HolderId, amount: number, unit: 'gp' | 'pp', actor: string): Promise<{ ok: true }> {
+  const n = coins(amount);
+  if (n <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+  const db = load();
+  const store = unit === 'pp' ? db.platinum : db.gold;
+  const have = coins(store[holder]);
+  if (n > have) return Promise.reject(new Error(`${holderName(holder)} only has ${have} ${unit}`));
+  store[holder] = have - n;
+  addLog(db, actor, `spent ${n} ${unit} from ${holderName(holder)}’s purse (now ${purseText(coins(db.gold[holder]), coins(db.platinum[holder]))})`);
   save(db);
   return Promise.resolve({ ok: true });
 }
