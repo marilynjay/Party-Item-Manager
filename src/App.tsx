@@ -174,12 +174,14 @@ function RenameDialog({
   );
 }
 
-// "We long rest." One tap recharges every auto-recharge item — with two
-// etiquette rules: recharges that need a die roll belong to the item's
-// owner (they only appear when the presser is playing that character;
-// Senchez's things are party property), and nothing rolls those dice
-// without being asked — each one gets a field for the rolled total, plus
-// a 🎲 that rolls in-app on request. Blank fields simply wait.
+// Per-inventory long rest, in two steps: first a preview of what a rest
+// would recharge (so the 🌅 button explains itself), then — after "Take a
+// long rest" — the page where it happens. Two etiquette rules hold:
+// dice recharges belong to the item's owner (they only appear when the
+// presser is playing that character; Senchez's things are party
+// property), and nothing rolls those dice without being asked — each one
+// gets a field for the rolled total, plus a 🎲 that tumbles the dice
+// in-app on request. Blank fields simply wait.
 function LongRestDialog({
   items,
   actor,
@@ -195,6 +197,9 @@ function LongRestDialog({
   onRest: (rolls: Record<string, number>) => void;
   onClose: () => void;
 }) {
+  // first show what a rest would recharge; "Take a long rest" moves to the
+  // roll page where the actual recharges (and any dice) happen
+  const [stage, setStage] = useState<'preview' | 'rolls'>('preview');
   // one entry per dice item of "mine": what the player says they rolled
   const [rollVals, setRollVals] = useState<Record<string, string>>({});
   // an in-app 🎲 tumbles real dice under the row before filling the field;
@@ -251,62 +256,18 @@ function LongRestDialog({
               <button type="button" onClick={onClose}>Close</button>
             </div>
           </>
-        ) : (
+        ) : stage === 'preview' ? (
           <>
+            <p className="rest-line muted">A long rest would recharge:</p>
             {auto.length > 0 && (
               <p className="rest-line">
-                ⚡ Recharges with the dawn: {auto.map((i) => i.name).join(', ')}
+                ⚡ With the dawn, automatically: {auto.map((i) => i.name).join(', ')}
               </p>
             )}
             {mine.length > 0 && (
-              <>
-                <p className="rest-line">🎲 Yours to roll — type what the dice said, or let the app roll:</p>
-                {mine.map((i) => {
-                  const formula = diceText(i.stats!.recharge!);
-                  return (
-                    <div key={i.id}>
-                      <div className="rest-roll-row">
-                        <span className="rest-roll-name">
-                          {i.name} <span className="muted">({formula})</span>
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="rolled"
-                          value={rollVals[i.id] ?? ''}
-                          onChange={(e) => setRollVals({ ...rollVals, [i.id]: e.target.value })}
-                        />
-                        <button
-                          type="button"
-                          className="charge-btn"
-                          title={`Roll ${formula} in the app`}
-                          onClick={() => {
-                            const parsed = findRoll(i.stats!.recharge!)!;
-                            const r = rollDice(parsed);
-                            setRolling({ id: i.id, key: Date.now(), d: parsed.d, rolls: r.rolls, mod: r.mod, total: r.total });
-                          }}
-                        >
-                          🎲 Roll
-                        </button>
-                      </div>
-                      {rolling?.id === i.id && (
-                        <div className="rest-roll-stage" key={rolling.key}>
-                          <DiceGroup
-                            sides={rolling.d}
-                            rolls={rolling.rolls}
-                            size={30}
-                            onSettled={() => setRollVals((v) => ({ ...v, [i.id]: String(rolling.total) }))}
-                          />
-                          {rolling.mod !== 0 && (
-                            <span className="muted rest-roll-mod">{rolling.mod > 0 ? `+${rolling.mod}` : rolling.mod}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <p className="rest-line muted rest-roll-hint">Left blank = not recharged (roll it later from the item).</p>
-              </>
+              <p className="rest-line">
+                🎲 With a roll from you: {mine.map((i) => `${i.name} (${diceText(i.stats!.recharge!)})`).join(', ')}
+              </p>
             )}
             {waiting.length > 0 && (
               <p className="rest-line muted">
@@ -314,6 +275,68 @@ function LongRestDialog({
                 {!actor && ' — set “Playing as” to roll yours.'}
               </p>
             )}
+            <div className="torch-actions">
+              <button
+                type="button"
+                disabled={auto.length + mine.length === 0}
+                onClick={() => (mine.length > 0 ? setStage('rolls') : onRest({}))}
+              >
+                🌅 Take a long rest
+              </button>
+              <button type="button" className="link-button" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {auto.length > 0 && (
+              <p className="rest-line muted">⚡ {auto.length === 1 ? auto[0].name : `${auto.length} items`} will recharge automatically.</p>
+            )}
+            <p className="rest-line">🎲 Roll for the rest — type what the dice said, or let the app roll:</p>
+            {mine.map((i) => {
+              const formula = diceText(i.stats!.recharge!);
+              return (
+                <div key={i.id}>
+                  <div className="rest-roll-row">
+                    <span className="rest-roll-name">
+                      {i.name} <span className="muted">({formula})</span>
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="rolled"
+                      value={rollVals[i.id] ?? ''}
+                      onChange={(e) => setRollVals({ ...rollVals, [i.id]: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="charge-btn"
+                      title={`Roll ${formula} in the app`}
+                      onClick={() => {
+                        const parsed = findRoll(i.stats!.recharge!)!;
+                        const r = rollDice(parsed);
+                        setRolling({ id: i.id, key: Date.now(), d: parsed.d, rolls: r.rolls, mod: r.mod, total: r.total });
+                      }}
+                    >
+                      🎲 Roll
+                    </button>
+                  </div>
+                  {rolling?.id === i.id && (
+                    <div className="rest-roll-stage" key={rolling.key}>
+                      <DiceGroup
+                        sides={rolling.d}
+                        rolls={rolling.rolls}
+                        size={30}
+                        onSettled={() => setRollVals((v) => ({ ...v, [i.id]: String(rolling.total) }))}
+                      />
+                      {rolling.mod !== 0 && (
+                        <span className="muted rest-roll-mod">{rolling.mod > 0 ? `+${rolling.mod}` : rolling.mod}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <p className="rest-line muted rest-roll-hint">Left blank = not recharged (roll it later from the item).</p>
             <div className="torch-actions">
               <button
                 type="button"
@@ -327,9 +350,9 @@ function LongRestDialog({
                   onRest(rolls);
                 }}
               >
-                🌅 Take a long rest
+                ☀️ Finish the rest
               </button>
-              <button type="button" className="link-button" onClick={onClose}>Cancel</button>
+              <button type="button" className="link-button" onClick={() => setStage('preview')}>‹ Back</button>
             </div>
           </>
         )}
@@ -736,8 +759,8 @@ export function App() {
   const [pickingIcon, setPickingIcon] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  // 'party' = the Home button (everything); a HolderId rests just that inventory
-  const [resting, setResting] = useState<'party' | HolderId | null>(null);
+  // rests are per-inventory: each holder tab's heading 🌅 rests that holder
+  const [resting, setResting] = useState<HolderId | null>(null);
   const [restResult, setRestResult] = useState<api.LongRestResult | null>(null);
 
   const refresh = useCallback(async () => {
@@ -1101,27 +1124,14 @@ export function App() {
           </>
         )}
         {scope === 'home' && (
-          <>
-            <button
-              type="button"
-              className="spell-book-btn rest-corner"
-              title="Long rest — recharge the party's items with the dawn"
-              onClick={() => {
-                setRestResult(null);
-                setResting('party');
-              }}
-            >
-              🌅
-            </button>
-            <button
-              type="button"
-              className="spell-book-btn"
-              title="Spell compendium"
-              onClick={() => setBookOpen(true)}
-            >
-              📖
-            </button>
-          </>
+          <button
+            type="button"
+            className="spell-book-btn"
+            title="Spell compendium"
+            onClick={() => setBookOpen(true)}
+          >
+            📖
+          </button>
         )}
         {bookOpen && <SpellCompendium onClose={() => setBookOpen(false)} />}
         {addModal}
@@ -1131,14 +1141,14 @@ export function App() {
         {flight && <ItemFlight key={flight.key} icon={flight.icon} name={flight.name} rect={flight.rect} to={flight.to} onDone={endFlight} />}
         {resting && (
           <LongRestDialog
-            items={resting === 'party' ? state.items : state.items.filter((i) => i.location === resting)}
+            items={state.items.filter((i) => i.location === resting)}
             actor={actor}
-            who={resting === 'party' ? undefined : holderById(resting).name}
+            who={holderById(resting).name}
             result={restResult}
             onRest={async (rolls) => {
               setError(null);
               try {
-                const res = await api.longRest(actor, resting === 'party' ? undefined : resting, rolls);
+                const res = await api.longRest(actor, resting, rolls);
                 setRestResult(res);
                 await refresh();
               } catch (e) {
