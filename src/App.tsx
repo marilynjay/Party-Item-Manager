@@ -853,6 +853,17 @@ export function App() {
                   {scopeHolder!.name}
                 </button>
                 ’s inventory
+                <button
+                  type="button"
+                  className="heading-rest"
+                  title={`Long rest — recharge ${scopeHolder!.name}’s items`}
+                  onClick={() => {
+                    setRestResult(null);
+                    setResting(scopeHolder!.id);
+                  }}
+                >
+                  🌅
+                </button>
               </>
             )}
           </h1>
@@ -896,17 +907,6 @@ export function App() {
             <FilterBar filters={filters} onChange={setFilters} />
             <button type="button" className="add-big" onClick={() => setAdding(true)}>
               <span className="add-big-plus">＋</span> Add
-            </button>
-            <button
-              type="button"
-              className="long-rest-btn"
-              title="Recharge the party's items with the dawn"
-              onClick={() => {
-                setRestResult(null);
-                setResting('party');
-              }}
-            >
-              🌅 Long rest
             </button>
             {filtering && (
               <div className="home-results">
@@ -999,19 +999,6 @@ export function App() {
               <button type="button" className="add-big add-small" onClick={() => setAdding(true)}>
                 <span className="add-big-plus">＋</span> Add
               </button>
-              {scopeHolder && (
-                <button
-                  type="button"
-                  className="long-rest-btn long-rest-mini"
-                  title={`Long rest — recharge ${scopeHolder.name}’s items`}
-                  onClick={() => {
-                    setRestResult(null);
-                    setResting(scopeHolder.id);
-                  }}
-                >
-                  🌅
-                </button>
-              )}
             </div>
             <ItemList
               items={visible}
@@ -1050,14 +1037,27 @@ export function App() {
           </>
         )}
         {scope === 'home' && (
-          <button
-            type="button"
-            className="spell-book-btn"
-            title="Spell compendium"
-            onClick={() => setBookOpen(true)}
-          >
-            📖
-          </button>
+          <>
+            <button
+              type="button"
+              className="spell-book-btn rest-corner"
+              title="Long rest — recharge the party's items with the dawn"
+              onClick={() => {
+                setRestResult(null);
+                setResting('party');
+              }}
+            >
+              🌅
+            </button>
+            <button
+              type="button"
+              className="spell-book-btn"
+              title="Spell compendium"
+              onClick={() => setBookOpen(true)}
+            >
+              📖
+            </button>
+          </>
         )}
         {bookOpen && <SpellCompendium onClose={() => setBookOpen(false)} />}
         {addModal}

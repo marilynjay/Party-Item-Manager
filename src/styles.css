@@ -1482,21 +1482,20 @@ button.purse-line:hover { background: none; color: var(--text); }
 .rename-label input { width: 100%; }
 .rename-hint { font-size: 0.8rem; margin: 6px 0 0; }
 /* ---- long rest ---- */
-.long-rest-btn {
-  display: block;
-  margin: 2px auto 0;
+/* Home's rest lives in the corner beside the spellbook */
+.spell-book-btn.rest-corner { right: 72px; }
+/* the holder-tab version rides the heading, after the name */
+.heading-rest {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--muted);
-  font-size: 0.78rem;
-  padding: 4px 10px;
-  opacity: 0.55;
+  font-size: 1.05rem;
+  padding: 2px 6px;
+  margin-left: 6px;
+  opacity: 0.45;
   transition: opacity 150ms ease;
 }
-.long-rest-btn:hover { background: none; color: var(--text); opacity: 1; }
-/* the holder-tab version: just the sunrise, tucked beside the Add button */
-.long-rest-mini { margin: 0; font-size: 1.05rem; padding: 4px 6px; }
+.heading-rest:hover { background: none; opacity: 1; }
 .rest-modal { width: 420px; }
 .rest-line { margin: 10px 0 0; font-size: 0.9rem; line-height: 1.45; }
 
