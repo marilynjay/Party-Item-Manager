@@ -632,7 +632,7 @@ export function consumeItem(id: string, actor: string, note?: string): Promise<{
   if (item.qty > 1) {
     item.qty -= 1;
     item.updatedAt = Date.now();
-    addLog(db, actor, `used a ${item.name}${suffix} (${item.qty} left)${vialText}`);
+    addLog(db, actor, `used 1 ${item.name}${suffix} (${item.qty} left)${vialText}`);
   } else {
     db.items = db.items.filter((i) => i.id !== id);
     addLog(db, actor, `used the last ${item.name}${suffix}${vialText}`);

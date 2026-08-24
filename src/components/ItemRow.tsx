@@ -188,7 +188,7 @@ export function ItemRow({
       return;
     }
     const tail = item.qty > 1 ? `(${item.qty - 1} left after)` : "that's the last one!";
-    if (confirm(`Use a ${item.name}? ${tail}`)) onConsume(item.id);
+    if (confirm(`Use 1 ${item.name}? ${tail}`)) onConsume(item.id);
   };
 
   const startMove = (to: HolderId) => {
