@@ -175,11 +175,17 @@ export function copyItem(id: string, to: HolderId, actor: string): Promise<{ ok:
   if (item.category !== 'papers') return Promise.reject(new Error('Only information can be copied'));
   const now = Date.now();
   const copy = clone(item);
+  // A deed is an instrument, not just words: you can transcribe what it
+  // says, but the copy carries no title. So a copied deed files as a note —
+  // the wording travels, and only one thing in the party is ever the deed.
+  const subtype = item.subtype === 'deed' ? 'note' : item.subtype;
   db.items.push({
     ...copy,
     id: newId(),
     // don't stack "(copy) (copy) (copy)" on a copy of a copy
     name: /\(copy\)\s*$/i.test(item.name) ? item.name : `${item.name} (copy)`,
+    subtype,
+    icon: item.subtype === 'deed' ? undefined : copy.icon,
     qty: 1,
     location: to,
     attuned: false,
@@ -187,7 +193,13 @@ export function copyItem(id: string, to: HolderId, actor: string): Promise<{ ok:
     createdAt: now,
     updatedAt: now,
   });
-  addLog(db, actor, `copied ${item.name} for ${holderName(to)} 📋`);
+  addLog(
+    db,
+    actor,
+    item.subtype === 'deed'
+      ? `transcribed ${item.name} for ${holderName(to)} 📋 (a copy of a deed is just a note)`
+      : `copied ${item.name} for ${holderName(to)} 📋`
+  );
   save(db);
   return Promise.resolve({ ok: true });
 }

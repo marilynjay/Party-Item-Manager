@@ -83,6 +83,8 @@ export function ItemRow({
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   // papers can be handed over or transcribed; everything else only moves
   const canCopy = item.category === 'papers';
+  // a deed's copy is a transcript, not title — say so before they tap
+  const isDeed = item.subtype === 'deed';
   const [copying, setCopying] = useState(false);
   const [moveQty, setMoveQty] = useState(1);
   const liRef = useRef<HTMLLIElement>(null);
@@ -377,7 +379,7 @@ export function ItemRow({
               </h2>
               <button type="button" className="link-button" onClick={() => setMenuOpen(false)}>✕</button>
             </div>
-            <div className="item-menu-heading muted">{copying ? 'Copy for' : 'Give to'}</div>
+            <div className="item-menu-heading muted">{copying ? (isDeed ? 'Transcribe for' : 'Copy for') : 'Give to'}</div>
             {canCopy && (
               <div className="copy-modes">
                 <button type="button" className={`chip ${copying ? '' : 'chip-on'}`} onClick={() => setCopying(false)}>
@@ -386,10 +388,14 @@ export function ItemRow({
                 <button
                   type="button"
                   className={`chip ${copying ? 'chip-on' : ''}`}
-                  title="They get their own transcription — you keep yours"
+                  title={
+                    isDeed
+                      ? 'They get the wording, filed as a note — a copy of a deed carries no title'
+                      : 'They get their own transcription — you keep yours'
+                  }
                   onClick={() => setCopying(true)}
                 >
-                  📋 Send a copy
+                  📋 {isDeed ? 'Send a transcript' : 'Send a copy'}
                 </button>
               </div>
             )}
