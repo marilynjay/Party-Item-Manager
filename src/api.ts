@@ -3,7 +3,7 @@
 // dormant — to bring it back, restore the fetch-based version of this
 // file from git history (commit 7fcebd2) and nothing else changes.
 import type { AppState, Gold, HolderId, Item } from './types';
-import { DEFAULT_HOLDER_NAMES, HOLDERS, applyHolderNames, classifyLegacy, isFood } from './types';
+import { DEFAULT_HOLDER_NAMES, HOLDERS, MEMBERS, applyHolderNames, classifyLegacy, isFood } from './types';
 import { diceText, findRoll, neverRecharges } from './dice';
 import type { SpellRef } from './spellIndex';
 import { applySpellbook } from './spellbook';
@@ -936,6 +936,51 @@ export function transferMoney(from: HolderId, to: HolderId, gp: number, pp: numb
   db.gold[to] = coins(db.gold[to]) + g;
   db.platinum[to] = coins(db.platinum[to]) + p;
   addLog(db, actor, `sent ${deltaText(g, p)} from ${holderName(from)} to ${holderName(to)}`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
+// Divide a pile evenly among the five party members. Each coin type is
+// split on its own — platinum doesn't break into gold, so 7 pp among five
+// is 1 pp each with 2 pp over — and whatever won't divide goes into the
+// bag rather than being quietly rounded away or handed to whoever asked.
+// The sender takes a share like everyone else, so splitting 100 gp from
+// your own purse leaves you with 20 of it, not none.
+export function splitMoney(from: HolderId, gp: number, pp: number, actor: string): Promise<{ ok: true }> {
+  const g = coins(gp);
+  const p = coins(pp);
+  if (g + p <= 0) return Promise.reject(new Error('Amount must be at least 1'));
+  const db = load();
+  const short = checkPurse(db, from, g, p);
+  if (short) return Promise.reject(new Error(short));
+  const shares = MEMBERS.length;
+  const eachG = Math.floor(g / shares);
+  const eachP = Math.floor(p / shares);
+  const restG = g - eachG * shares;
+  const restP = p - eachP * shares;
+  db.gold[from] = coins(db.gold[from]) - g;
+  db.platinum[from] = coins(db.platinum[from]) - p;
+  for (const m of MEMBERS) {
+    db.gold[m.id] = coins(db.gold[m.id]) + eachG;
+    db.platinum[m.id] = coins(db.platinum[m.id]) + eachP;
+  }
+  db.gold.senchez = coins(db.gold.senchez) + restG;
+  db.platinum.senchez = coins(db.platinum.senchez) + restP;
+  // when the bag itself is splitting, the remainder never goes anywhere —
+  // saying "over to Senchez" would read like a bug rather than a no-op
+  const rest =
+    restG + restP === 0
+      ? ''
+      : from === 'senchez'
+      ? `, ${deltaText(restG, restP)} stays in the bag`
+      : `, ${deltaText(restG, restP)} over to ${holderName('senchez')}`;
+  addLog(
+    db,
+    actor,
+    eachG + eachP > 0
+      ? `split ${deltaText(g, p)} from ${holderName(from)} — ${deltaText(eachG, eachP)} each to the party${rest} 🪙`
+      : `split ${deltaText(g, p)} from ${holderName(from)} — too little to go round${rest} 🪙`
+  );
   save(db);
   return Promise.resolve({ ok: true });
 }

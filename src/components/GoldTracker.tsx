@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Gold, HolderId, Icons } from '../types';
-import { HOLDERS, PP_IN_GP, holderIcon } from '../types';
+import { HOLDERS, MEMBERS, PP_IN_GP, holderIcon } from '../types';
 
 interface Props {
   gold: Gold;
@@ -10,6 +10,7 @@ interface Props {
   onGive: (holder: HolderId, gp: number, pp: number) => void;
   onSpend: (holder: HolderId, gp: number, pp: number) => void;
   onTransfer: (from: HolderId, to: HolderId, gp: number, pp: number) => void;
+  onSplit: (from: HolderId, gp: number, pp: number) => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -38,12 +39,12 @@ function useCountUp(value: number, ms = 600): number {
   return shown;
 }
 
-export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend, onTransfer }: Props) {
+export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend, onTransfer, onSplit }: Props) {
   const [open, setOpen] = useState(false);
   // tapping a row opens its ＋ Add / − Spend / ➤ Send / ✎ tools, purse-panel style
   const [active, setActive] = useState<HolderId | null>(null);
   const [mode, setMode] = useState<'add' | 'spend' | 'send' | 'exact' | null>(null);
-  const [sendTo, setSendTo] = useState<HolderId | ''>('');
+  const [sendTo, setSendTo] = useState<HolderId | 'split' | ''>('');
   const [giveTo, setGiveTo] = useState<HolderId | ''>('');
   const gpOf = (id: HolderId) => gold[id] ?? 0;
   const ppOf = (id: HolderId) => platinum[id] ?? 0;
@@ -106,14 +107,28 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                           <span className="send-holder-emoji">{holderIcon(icons, o)}</span> {o.name}
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        className="send-holder send-split"
+                        title={`Even shares to all ${MEMBERS.length} party members — anything left over goes to ${holderOf('senchez').name}`}
+                        onClick={() => setSendTo('split')}
+                      >
+                        <span className="send-holder-emoji">🤝</span> Split among party
+                      </button>
                     </div>
                     <button type="button" className="link-button" onClick={() => setMode(null)}>✕ Cancel</button>
                   </div>
                 ) : (
                   <GiveForm
-                    label={`➤ ${holderOf(sendTo).name}`}
+                    label={sendTo === 'split' ? '🤝 Split' : `➤ ${holderOf(sendTo).name}`}
+                    note={
+                      sendTo === 'split'
+                        ? `Even shares to all ${MEMBERS.length} party members — each coin split on its own, remainder to ${holderOf('senchez').name}.`
+                        : undefined
+                    }
                     onGive={(gp, pp) => {
-                      onTransfer(h.id, sendTo, gp, pp);
+                      if (sendTo === 'split') onSplit(h.id, gp, pp);
+                      else onTransfer(h.id, sendTo, gp, pp);
                       setActive(null);
                       setMode(null);
                       setSendTo('');
@@ -221,10 +236,12 @@ function PurseEdit({
 
 function GiveForm({
   label,
+  note,
   onGive,
   onCancel,
 }: {
   label: string;
+  note?: string;
   onGive: (gp: number, pp: number) => void;
   onCancel: () => void;
 }) {
@@ -235,6 +252,8 @@ function GiveForm({
   const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
 
   return (
+    <>
+    {note && <p className="split-note muted">{note}</p>}
     <form
       className="ledger-row ledger-editing"
       onSubmit={(e) => {
@@ -259,5 +278,6 @@ function GiveForm({
         <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
       </span>
     </form>
+    </>
   );
 }

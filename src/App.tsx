@@ -687,6 +687,7 @@ function PursePanel({
   onAdd,
   onSpend,
   onSend,
+  onSplit,
   onSetExact,
 }: {
   self: HolderId;
@@ -698,11 +699,12 @@ function PursePanel({
   onAdd: (gp: number, pp: number) => void;
   onSpend: (gp: number, pp: number) => void;
   onSend: (to: HolderId, gp: number, pp: number) => void;
+  onSplit: (gp: number, pp: number) => void;
   onSetExact: (gp: number, pp: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'add' | 'spend' | 'send' | 'exact' | null>(null);
-  const [sendTo, setSendTo] = useState<HolderId | ''>('');
+  const [sendTo, setSendTo] = useState<HolderId | 'split' | ''>('');
   const fmt = (n: number) => n.toLocaleString();
   const coinsWorth = gp + pp * PP_IN_GP;
   const totalWorth = coinsWorth + gems.countedGp;
@@ -784,14 +786,24 @@ function PursePanel({
                   <span className="send-holder-emoji">{holderIcon(icons, h)}</span> {h.name}
                 </button>
               ))}
+              <button
+                type="button"
+                className="send-holder send-split"
+                title={`Even shares to all ${MEMBERS.length} party members — anything left over goes to ${holderById('senchez').name}`}
+                onClick={() => setSendTo('split')}
+              >
+                <span className="send-holder-emoji">🤝</span> Split among party
+              </button>
             </div>
             <button type="button" className="link-button" onClick={() => setMode(null)}>✕ Cancel</button>
           </div>
         ) : (
           <CoinDelta
-            verb={`➤ Send to ${holderById(sendTo).name}`}
+            verb={sendTo === 'split' ? '🤝 Split among party' : `➤ Send to ${holderById(sendTo).name}`}
+            preview={sendTo === 'split' ? splitPreview : undefined}
             onDone={(g, p) => {
-              onSend(sendTo, g, p);
+              if (sendTo === 'split') onSplit(g, p);
+              else onSend(sendTo, g, p);
               setMode(null);
               setSendTo('');
             }}
@@ -812,13 +824,34 @@ function PursePanel({
   );
 }
 
+const noop = () => {};
+
+// What a split will actually do, worked out live as they type: nobody
+// should have to guess whether 103 gp divides nicely, or discover after
+// the fact that their own share came back to them.
+function splitPreview(gp: number, pp: number): string {
+  const n = MEMBERS.length;
+  if (gp + pp <= 0) return `Even shares among all ${n} party members — your own included. Each coin splits on its own; anything left over goes to ${holderById('senchez').name}.`;
+  const eachG = Math.floor(gp / n);
+  const eachP = Math.floor(pp / n);
+  const restG = gp - eachG * n;
+  const restP = pp - eachP * n;
+  const each = [eachG > 0 && `${eachG.toLocaleString()} gp`, eachP > 0 && `${eachP.toLocaleString()} pp`].filter(Boolean).join(' + ');
+  const rest = [restG > 0 && `${restG.toLocaleString()} gp`, restP > 0 && `${restP.toLocaleString()} pp`].filter(Boolean).join(' + ');
+  const head = each ? `${each} each to all ${n}` : `Too little to go round`;
+  return rest ? `${head} · ${rest} over to ${holderById('senchez').name}` : head;
+}
+
 // Gold and platinum fields side by side — shared by Add, Spend, and Send.
 // Both can move in one action; coins never convert (DM's table rules).
-function CoinDelta({ verb, onDone, onCancel }: { verb: string; onDone: (gp: number, pp: number) => void; onCancel: () => void }) {
+function CoinDelta({ verb, preview, onDone, onCancel }: { verb: string; preview?: (gp: number, pp: number) => string; onDone: (gp: number, pp: number) => void; onCancel: () => void }) {
   const [gpVal, setGpVal] = useState('');
   const [ppVal, setPpVal] = useState('');
   const parse = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
+  const hint = preview?.(parse(gpVal), parse(ppVal));
   return (
+    <>
+    {hint && <p className="split-note muted">{hint}</p>}
     <form
       className="purse-line purse-editing"
       onSubmit={(e) => {
@@ -855,6 +888,7 @@ function CoinDelta({ verb, onDone, onCancel }: { verb: string; onDone: (gp: numb
       <button type="submit">{verb}</button>
       <button type="button" className="link-button" title="Cancel" onClick={onCancel}>✕</button>
     </form>
+    </>
   );
 }
 
@@ -1175,7 +1209,7 @@ export function App() {
   const endBurst = useCallback(() => setBursting(false), []);
   const endSpendFx = useCallback(() => setSpendFx(null), []);
   // sent coins stream toward the recipient's rail tab
-  const [stream, setStream] = useState<{ to: HolderId; key: number } | null>(null);
+  const [stream, setStream] = useState<{ to: HolderId[]; key: number } | null>(null);
   const endStream = useCallback(() => setStream(null), []);
   // sent items launch a shrinking ghost of their plaque the same way
   type Flight = { icon: string; name: string; rect: { x: number; y: number; w: number; h: number }; to: HolderId; key: number };
@@ -1312,7 +1346,13 @@ export function App() {
               onTransfer={(from, to, gp, pp) =>
                 run(async () => {
                   await api.transferMoney(from, to, gp, pp, actor);
-                  setStream({ to, key: Date.now() });
+                  setStream({ to: [to], key: Date.now() });
+                })
+              }
+              onSplit={(from, gp, pp) =>
+                run(async () => {
+                  await api.splitMoney(from, gp, pp, actor);
+                  setStream({ to: MEMBERS.map((m) => m.id), key: Date.now() });
                 })
               }
             />
@@ -1394,7 +1434,13 @@ export function App() {
                 onSend={(to, gp, pp) =>
                   run(async () => {
                     await api.transferMoney(scopeHolder.id, to, gp, pp, actor);
-                    setStream({ to, key: Date.now() });
+                    setStream({ to: [to], key: Date.now() });
+                  })
+                }
+                onSplit={(gp, pp) =>
+                  run(async () => {
+                    await api.splitMoney(scopeHolder.id, gp, pp, actor);
+                    setStream({ to: MEMBERS.map((m) => m.id), key: Date.now() });
                   })
                 }
                 onSetExact={(gp, pp) => run(() => api.setPurse(scopeHolder.id, gp, pp, actor))}
@@ -1519,7 +1565,10 @@ export function App() {
         {addModal}
         {bursting && <CoinBurst onDone={endBurst} />}
         {spendFx && <SpendFall amount={spendFx.amount} moth={spendFx.moth} onDone={endSpendFx} />}
-        {stream && <CoinStream key={stream.key} to={stream.to} onDone={endStream} />}
+        {stream &&
+          stream.to.map((h, i) => (
+            <CoinStream key={`${stream.key}:${h}`} to={h} onDone={i === 0 ? endStream : noop} />
+          ))}
         {flight && <ItemFlight key={flight.key} icon={flight.icon} name={flight.name} rect={flight.rect} to={flight.to} onDone={endFlight} />}
         {resting && (
           <LongRestDialog

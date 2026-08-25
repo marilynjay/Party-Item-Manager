@@ -1414,6 +1414,17 @@ button.purse-line:hover { background: none; color: var(--text); }
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
 .print-btn:hover { background: var(--bg-raised); }
 
+/* ---- splitting the hoard ---- */
+/* the split sits with the recipients, but reads as the different thing it is */
+.send-split { border-style: dashed; }
+.send-split:hover { border-style: solid; }
+.split-note {
+  font-size: 0.8rem;
+  margin: 0 0 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--gold);
+}
+
 /* ---- carrying weight ---- */
 /* the gauge sits with the attunement line: information until it isn't */
 .carry-line {
