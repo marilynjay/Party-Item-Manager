@@ -144,7 +144,7 @@ export function ItemRow({
   // disposal keeps the plaque (the stack just shrinks), so it gets a quick
   // blip instead of the full send-off — though destruction always blasts
   // debris off the plaque, whole stack or not.
-  const dispose = (exit: string, action: () => void) => {
+  const dispose = (exit: string, action: () => void, qty = dispQty) => {
     setDisposing(false);
     if (exit === 'destroy' || exit === 'gift') {
       const r = liRef.current?.getBoundingClientRect();
@@ -178,7 +178,16 @@ export function ItemRow({
     // transformed ancestor would drag the fixed burst overlay with it),
     // so their partial variants flash instead of playing the scaling blip
     setLeaving(
-      dispQty >= item.qty ? exit : exit === 'destroy' ? 'boomflash' : exit === 'gift' ? 'giftflash' : 'part'
+      qty >= item.qty
+        ? exit
+        : exit === 'destroy'
+        ? 'boomflash'
+        : exit === 'gift'
+        ? 'giftflash'
+        : // eating part of a stack is one bite, not the whole chew-through
+        exit === 'eat'
+        ? 'nibble'
+        : 'part'
     );
     setTimeout(() => {
       setLeaving(null);
@@ -200,7 +209,8 @@ export function ItemRow({
       return;
     }
     const tail = item.qty > 1 ? `(${item.qty - 1} left after)` : "that's the last one!";
-    if (confirm(`Use 1 ${item.name}? ${tail}`)) onConsume(item.id);
+    if (confirm(`Use 1 ${item.name}? ${tail}`))
+      dispose(eaten ? 'eat' : 'dissolve', () => onConsume(item.id), 1);
   };
 
   const startMove = (to: HolderId) => {

@@ -556,6 +556,20 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
          transform: rotate(0.8deg) translateX(2px); opacity: 0.9; }
   100% { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); transform: none; opacity: 0; }
 }
+/* One off a stack is one bite: it snaps out of the edge, the plaque flinches,
+   and it closes up again — there are still five apples in the bag. Same
+   steps(1) snap as the full chew-through, and no `forwards`, since the
+   plaque is staying. */
+.exit-nibble { animation: eatNibble 420ms steps(1, end); }
+@keyframes eatNibble {
+  0%   { clip-path: polygon(0 0, 100% 0, 100% 25%, 100% 50%, 100% 75%, 100% 100%, 0 100%); }
+  25%  { clip-path: polygon(0 0, 87% 0, 82% 25%, 89% 50%, 81% 75%, 88% 100%, 0 100%);
+         transform: rotate(-0.7deg) translateX(-2px); }
+  55%  { clip-path: polygon(0 0, 93% 0, 89% 25%, 95% 50%, 88% 75%, 93% 100%, 0 100%);
+         transform: rotate(0.5deg) translateX(1px); }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 25%, 100% 50%, 100% 75%, 100% 100%, 0 100%);
+         transform: none; }
+}
 /* Everything else consumable just goes: swallowed, burnt, thrown, spent. */
 .exit-dissolve { animation: dissolveAway 520ms ease-in forwards; pointer-events: none; }
 @keyframes dissolveAway {
