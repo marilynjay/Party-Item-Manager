@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "server": "node server/index.js"
+    "server": "node server/index.js",
+    "smoke": "npm run build && node scripts/smoke.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

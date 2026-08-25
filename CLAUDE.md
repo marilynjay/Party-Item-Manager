@@ -16,8 +16,9 @@ Shared D&D party inventory tracker. Five party members (Yiptik, Radish, Tuffany,
 - `npm run typecheck` — typecheck only.
 - `npm run preview` — serve the production build locally.
 - `npm run server` — the dormant Express backend (only relevant if shared storage is revived).
+- `npm run smoke` — builds, then drives the real app in Chromium through the party's flows (add, move, sell, long rest with rolls/perishables/supper, compendium, log filter, passing the torch). **Run this before pushing anything structural, especially changes to `src/api.ts`** — it's the safety net for the move off localStorage. Point at another browser with `CHROMIUM=/path/to/chrome`.
 
-There are no automated tests; verify changes via `npm run build` at minimum, ideally by driving the built app in a browser.
+`npm run smoke` is the automated test; verify changes with `npm run build` at minimum and `npm run smoke` for anything touching domain logic.
 
 ## Domain rules encoded in the app
 
