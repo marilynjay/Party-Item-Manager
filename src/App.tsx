@@ -338,8 +338,14 @@ function LongRestDialog({
   // perishables age a day when this inventory rests; the ones whose last
   // day is coming due get asked about rather than quietly destroyed (unless
   // they already had their one "not yet")
-  const aging = items.filter((i) => i.freshness !== undefined && i.freshness > 0);
-  const lastDay = aging.filter((i) => i.freshness === 1 && !i.graced);
+  const perishing = items.filter((i) => i.freshness !== undefined && i.freshness > 0);
+  // only a single-day clock is ambiguous (24 hours of goodberries can
+  // outlast one 8-hour rest); a ten-day apple counted out in days just goes
+  const lastDay = perishing.filter(
+    (i) => i.freshness === 1 && !i.graced && (i.freshnessMax ?? i.freshness) === 1
+  );
+  const spoiling = perishing.filter((i) => i.freshness === 1 && !lastDay.includes(i));
+  const aging = perishing.filter((i) => (i.freshness ?? 0) > 1);
   // the middle page is for everything the table decides: dice and last days
   const decisions = mine.length + lastDay.length > 0;
 
@@ -384,21 +390,34 @@ function LongRestDialog({
                 ✅ Leave these be — already full: {full.map((i) => `${i.name} (⚡ ${i.stats!.charges}/${i.stats!.chargesMax})`).join(', ')}
               </p>
             )}
+            {spoiling.length > 0 && (
+              <p className="rest-line">
+                {spoiling.every((i) => isFood(i.category, i.subtype))
+                  ? '🤢 Spoil overnight: '
+                  : spoiling.some((i) => isFood(i.category, i.subtype))
+                    ? '⌛ Gone by morning: '
+                    : '⌛ Expire overnight: '}
+                {spoiling.map((i) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ')}
+              </p>
+            )}
+            {lastDay.length > 0 && (
+              <p className="rest-line muted">
+                ❓ Ask whether these lasted the night: {lastDay.map((i) => i.name).join(', ')}
+              </p>
+            )}
             {aging.length > 0 && (
               <p className="rest-line muted">
                 {aging.every((i) => isFood(i.category, i.subtype)) ? '🍏 Age the rations a day: ' : '⏳ Tick the perishables down a day: '}
                 {aging
                   .map((i) =>
-                    i.freshness === 1
-                      ? i.graced
-                        ? `${i.name}${isFood(i.category, i.subtype) ? ' (spoils tonight)' : ' (expires tonight)'}`
-                        : `${i.name} (last day — we'll ask)`
+                    i.freshness === 2
+                      ? `${i.name} (last day after this)`
                       : `${i.name} (${i.freshness! - 1} left after)`
                   )
                   .join(', ')}
               </p>
             )}
-            {pending.length === 0 && aging.length === 0 && full.length === 0 && (
+            {pending.length === 0 && perishing.length === 0 && full.length === 0 && (
               <p className="rest-line muted">⚡ Nothing here needs recharging.</p>
             )}
             <p className="rest-line muted">
@@ -481,7 +500,7 @@ function LongRestDialog({
             {lastDay.length > 0 && (
               <>
                 <p className="rest-line">
-                  ⌛ Last day for these — has the table called them gone?
+                  ⌛ These only keep a day — did they last the night?
                 </p>
                 {lastDay.map((i) => {
                   const food = isFood(i.category, i.subtype);

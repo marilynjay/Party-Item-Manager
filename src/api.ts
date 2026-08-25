@@ -592,14 +592,16 @@ export function longRest(
   for (const item of db.items) {
     // rest can be scoped to one holder's inventory (their tab's 🌅)
     if (holder && item.location !== holder) continue;
-    // a night passes: perishables in this inventory age a day. The last day
-    // is genuinely ambiguous — a 24-hour goodberry can outlive one 8-hour
-    // rest — so the first time an item comes due the dialog asks instead of
-    // destroying it. That answer buys exactly one more day: `graced` items
-    // go without being asked again.
+    // a night passes: perishables in this inventory age a day. Only a
+    // single-day clock is genuinely ambiguous — a 24-hour goodberry can
+    // outlive one 8-hour rest — so those get asked about once instead of
+    // being destroyed, and the answer buys exactly one more day. Anything
+    // with a longer shelf life was counted out in days already and simply
+    // expires on schedule.
     if (item.freshness !== undefined && item.freshness > 0) {
       const food = isFood(item.category, item.subtype);
-      if (item.freshness === 1 && !item.graced && expiries?.[item.id] !== true) {
+      const dayOnly = (item.freshnessMax ?? item.freshness) === 1;
+      if (dayOnly && item.freshness === 1 && !item.graced && expiries?.[item.id] !== true) {
         item.graced = true;
         item.updatedAt = now;
         out.spared.push({ name: item.name, food });
