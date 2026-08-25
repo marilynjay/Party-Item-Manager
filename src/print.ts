@@ -134,12 +134,15 @@ function itemHtml(item: Item): string {
   </div>
   ${preview ? `<div class="prev">${esc(preview)}</div>` : ''}
   <div class="det">
-    ${rows.length ? `<dl>${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
-    ${item.pack?.length ? `<div class="sub"><h4>Contents · ${item.pack.length}</h4><ul>${item.pack.map((e) => `<li>${esc(e.name)}${e.qty > 1 ? ` ×${e.qty}` : ''}</li>`).join('')}</ul></div>` : ''}
-    ${spells.length ? `<div class="sub"><h4>Spells</h4><ul>${spells.map((sp) => `<li>${esc(sp.name)} <span class="q">⚡${sp.cost}</span></li>`).join('')}</ul></div>` : ''}
-    ${item.content ? `<div class="sub"><h4>Contents</h4><blockquote>${esc(item.content)}</blockquote></div>` : ''}
-    ${item.notes ? `<p class="notes">${esc(item.notes)}</p>` : ''}
-    ${item.entries?.length ? `<div class="sub"><h4>Journal · ${item.entries.length}</h4>${item.entries.map((e) => `<div class="entry"><span class="edate">${esc(entryDate(e.at))}${e.title ? ` — ${esc(e.title)}` : ''}</span>${e.text ? `<p>${esc(e.text)}</p>` : ''}${e.image ? `<p class="q">[sketch]</p>` : ''}</div>`).join('')}</div>` : ''}
+    ${item.image ? `<div class="shot"><img src="${esc(item.image)}" alt="${esc(item.name)}"></div>` : ''}
+    <div class="body">
+      ${rows.length ? `<dl>${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
+      ${item.pack?.length ? `<div class="sub"><h4>Contents · ${item.pack.length}</h4><ul>${item.pack.map((e) => `<li>${esc(e.name)}${e.qty > 1 ? ` ×${e.qty}` : ''}</li>`).join('')}</ul></div>` : ''}
+      ${spells.length ? `<div class="sub"><h4>Spells</h4><ul>${spells.map((sp) => `<li>${esc(sp.name)} <span class="q">⚡${sp.cost}</span></li>`).join('')}</ul></div>` : ''}
+      ${item.content ? `<div class="sub"><h4>Contents</h4><blockquote>${esc(item.content)}</blockquote></div>` : ''}
+      ${item.notes ? `<p class="notes">${esc(item.notes)}</p>` : ''}
+      ${item.entries?.length ? `<div class="sub"><h4>Journal · ${item.entries.length}</h4>${item.entries.map((e) => `<div class="entry"><span class="edate">${esc(entryDate(e.at))}${e.title ? ` — ${esc(e.title)}` : ''}</span>${e.text ? `<p>${esc(e.text)}</p>` : ''}${e.image ? `<div class="sketch"><img src="${esc(e.image)}" alt="Sketch"></div>` : ''}</div>`).join('')}</div>` : ''}
+    </div>
   </div>
 </article>`;
 }
@@ -173,7 +176,16 @@ const CSS = `
           font-family: system-ui, sans-serif; }
   .tag + .tag::before { content: " · "; }
   .prev { margin: 1px 0 0 19px; color: #6b6357; font-size: 13px; font-style: italic; }
-  .det { margin: 6px 0 8px 19px; }
+  .det { margin: 6px 0 8px 19px; display: flex; align-items: flex-start; gap: 12px; }
+  .det .body { flex: 1; min-width: 0; }
+  /* the photo rides alongside the rows rather than pushing them down the page */
+  .det .shot { flex: none; order: 2; width: 150px; }
+  /* a portrait photo shrinks to fit rather than running down the page */
+  .det .shot img { display: block; max-width: 100%; max-height: 210px; width: auto; height: auto;
+                   margin-left: auto; border: 1px solid #d6cfc2; border-radius: 3px; }
+  .sketch { margin-top: 3px; }
+  .sketch img { display: block; max-width: 230px; max-height: 230px; border: 1px solid #d6cfc2;
+                border-radius: 3px; }
   .det dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 18px; font-size: 13px; }
   .det dl > div { display: flex; gap: 6px; }
   .det dt { flex: none; min-width: 74px; color: #6b6357; margin: 0; }
@@ -207,7 +219,13 @@ const CSS = `
     .it { padding: 2.5px 0; }
     body.detailed .it { padding: 5px 0; }
     .tags, .prev, .det dl, .sub ul, .notes, .entry { font-size: 11px; }
-    .det { margin: 4px 0 5px 19px; }
+    .det { margin: 4px 0 5px 19px; gap: 10px; }
+    /* photos are the expensive part of a print job — enough to recognise
+       the thing by, not enough to empty a cartridge */
+    .det .shot { width: 118px; }
+    .det .shot img { max-height: 165px; }
+    .sketch img { max-width: 190px; max-height: 190px; }
+    img { break-inside: avoid; page-break-inside: avoid; }
     @page { margin: 13mm; }
   }
 `;
