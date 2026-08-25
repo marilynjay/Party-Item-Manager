@@ -35,8 +35,8 @@ export function ItemDetail({ item, onEdit, onToss, onUse, onToggleAttune, onSpen
   // an item named for a known spell ("Spell Scroll: Fireball", "Wand of
   // Fireballs") gets a lookup card, unless its spell list already covers that
   const nameSpell = useMemo(
-    () => (s.spells ? null : findSpellForItem(item.name, item.subtype)),
-    [s.spells, item.subtype, item.name]
+    () => (s.spells || s.spell ? null : findSpellForItem(item.name, item.subtype)),
+    [s.spells, s.spell, item.subtype, item.name]
   );
   // prose with a spell name in book casing gets an inline link
   const prose = (text: string) =>
@@ -82,18 +82,34 @@ export function ItemDetail({ item, onEdit, onToss, onUse, onToggleAttune, onSpen
         )}
       </span>,
     ]);
-  if (s.spellLevel || s.dc || nameSpell)
+  const carried = s.spell?.trim();
+  if (carried || s.spellLevel || s.dc || nameSpell) {
+    const meta = [s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ');
     rows.push([
       'Spell',
       <span className="charges-row">
-        {[s.spellLevel && `${s.spellLevel} level`, s.dc].filter(Boolean).join(' · ')}
-        {nameSpell && (
+        {carried &&
+          (spellKnown(carried) ? (
+            <button
+              type="button"
+              className="spell-link"
+              title="Read the spell"
+              onClick={() => setSpellView(carried.toLowerCase())}
+            >
+              {spellDisplay(carried)}
+            </button>
+          ) : (
+            <span>{carried}</span>
+          ))}
+        {meta && <span className="muted">{meta}</span>}
+        {!carried && nameSpell && (
           <button type="button" className="charge-btn" title="Read the spell" onClick={() => setSpellView(nameSpell)}>
             📖 {spellDisplay(nameSpell)}
           </button>
         )}
       </span>,
     ]);
+  }
   if (s.capacity) rows.push(['Capacity', s.capacity]);
   if (item.liquid)
     rows.push([

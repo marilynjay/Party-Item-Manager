@@ -1377,6 +1377,11 @@ button.purse-line:hover { background: none; color: var(--text); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; }
 .modal-head h2 { font-size: 1.1rem; }
 
+/* the one-spell field on a scroll: input, ✓/? mark, suggestion chips */
+.spell-one { display: flex; flex-direction: column; gap: 4px; }
+.spell-one-row { display: flex; align-items: center; gap: 6px; }
+.spell-one-row input { flex: 1; min-width: 0; }
+
 /* ---- spell compendium ---- */
 /* the quiet book in Home's corner — noticeable if you look, silent if not */
 .spell-book-btn {

@@ -27,6 +27,7 @@ export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | 
     if (stats.recharge?.trim()) out.recharge = stats.recharge.trim();
   }
   if (has('spells') && stats.spells?.trim()) out.spells = stats.spells.trim();
+  if (has('spell') && stats.spell?.trim()) out.spell = stats.spell.trim();
   if (has('spellLevel') && stats.spellLevel) out.spellLevel = stats.spellLevel;
   if (has('dc') && stats.dc?.trim()) out.dc = stats.dc.trim();
   if (has('capacity') && stats.capacity?.trim()) out.capacity = stats.capacity.trim();
@@ -39,6 +40,70 @@ export function cleanStats(stats: ItemStats, allowed: StatField[]): ItemStats | 
 }
 
 const SPELL_LEVELS = ['cantrip', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+
+// Compendium (and party spellbook) names matching what's been typed so far;
+// names that start with the query come first. Shared by the single-spell
+// field on scrolls and the per-row names in the spells list.
+function spellMatches(query: string): string[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2 || spellKnown(q)) return [];
+  const starts: string[] = [];
+  const contains: string[] = [];
+  for (const [key, display] of allSpellNames()) {
+    if (key.startsWith(q)) starts.push(display);
+    else if (key.includes(q)) contains.push(display);
+  }
+  return [...starts, ...contains].slice(0, 5);
+}
+
+// A live ✓/? beside a typed spell name: in the book, or your own words.
+const spellMark = (name: string) =>
+  !name.trim() ? null : spellKnown(name) ? (
+    <span className="spell-check known" title="In the compendium — tappable to read in play">✓</span>
+  ) : (
+    <span className="spell-check muted" title="Not in the compendium — stays plain text (add it from 📖 if you own it)">?</span>
+  );
+
+// One spell, for the things that carry exactly one — a scroll. Same
+// autocomplete as the spells list, no charge cost, and anything you type
+// is accepted whether the book knows it or not.
+function SpellNameField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const matches = useMemo(() => (open ? spellMatches(value) : []), [value, open]);
+  return (
+    <label className="wide spell-one">
+      Spell
+      <span className="spell-one-row">
+        <input
+          placeholder="e.g. Polymorph"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+        {spellMark(value)}
+      </span>
+      {matches.length > 0 && (
+        <span className="spell-suggest">
+          {matches.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="chip"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange(m);
+                setOpen(false);
+              }}
+            >
+              {m}
+            </button>
+          ))}
+        </span>
+      )}
+    </label>
+  );
+}
 
 // Spells entry as one row per spell — a name field (with compendium
 // autocomplete and a live ✓/? match mark) plus a small charge-cost field,
@@ -59,7 +124,12 @@ const serializeRows = (rows: SpellRow[]): string =>
     .join('\n');
 
 function SpellsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [rows, setRows] = useState<SpellRow[]>(() => rowsFromValue(value));
+  // start with one empty row, so the field looks like somewhere to type
+  // rather than a lone ＋ link nobody notices
+  const [rows, setRows] = useState<SpellRow[]>(() => {
+    const parsed = rowsFromValue(value);
+    return parsed.length ? parsed : [{ name: '', cost: '' }];
+  });
   const [focused, setFocused] = useState(-1);
   const nameRefs = useRef<Array<HTMLInputElement | null>>([]);
   const costRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -75,17 +145,7 @@ function SpellsField({ value, onChange }: { value: string; onChange: (v: string)
     requestAnimationFrame(() => nameRefs.current[rows.length]?.focus());
   };
 
-  const matches = useMemo(() => {
-    const q = rows[focused]?.name.trim().toLowerCase() ?? '';
-    if (q.length < 2 || spellKnown(q)) return [];
-    const starts: string[] = [];
-    const contains: string[] = [];
-    for (const [key, display] of allSpellNames()) {
-      if (key.startsWith(q)) starts.push(display);
-      else if (key.includes(q)) contains.push(display);
-    }
-    return [...starts, ...contains].slice(0, 5);
-  }, [rows, focused]);
+  const matches = useMemo(() => spellMatches(rows[focused]?.name ?? ''), [rows, focused]);
 
   const complete = (i: number, display: string) => {
     update(i, { name: display });
@@ -98,13 +158,6 @@ function SpellsField({ value, onChange }: { value: string; onChange: (v: string)
     });
     setFocused(-1);
   };
-
-  const mark = (name: string) =>
-    !name.trim() ? null : spellKnown(name) ? (
-      <span className="spell-check known" title="In the compendium — tappable to read in play">✓</span>
-    ) : (
-      <span className="spell-check muted" title="Not in the 2014 compendium — stays plain text">?</span>
-    );
 
   return (
     <div className="wide spell-field">
@@ -129,7 +182,7 @@ function SpellsField({ value, onChange }: { value: string; onChange: (v: string)
                 }
               }}
             />
-            {mark(r.name)}
+            {spellMark(r.name)}
             <input
               ref={(el) => { costRefs.current[i] = el; }}
               className="spell-cost-input"
@@ -273,6 +326,8 @@ export function StatFieldControl({ field, stats: s, onChange }: Props) {
       );
     case 'spells':
       return <SpellsField value={s.spells ?? ''} onChange={(v) => onChange({ spells: v })} />;
+    case 'spell':
+      return <SpellNameField value={s.spell ?? ''} onChange={(v) => onChange({ spell: v })} />;
     case 'spellLevel':
       return (
         <label>

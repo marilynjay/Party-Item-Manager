@@ -174,7 +174,7 @@ export type StatField =
   | 'heal'
   | 'dmg' | 'dtype' | 'bonus' | 'properties'
   | 'ac' | 'armorClass' | 'stealthStr'
-  | 'charges' | 'spells' | 'spellLevel' | 'dc'
+  | 'charges' | 'spells' | 'spell' | 'spellLevel' | 'dc'
   | 'capacity' | 'language' | 'cursed';
 export interface StatPlan { primary: StatField[]; advanced: StatField[] }
 
@@ -195,7 +195,7 @@ export function statPlan(category: CategoryKey, subtype: string): StatPlan {
     // harmful potions exist too (Potion of Poison)
     if (category === 'consumable' && subtype === 'potion') return { primary: ['heal'], advanced: ['dmg', 'dc'] };
     if (category === 'consumable' && subtype === 'food & drink') return { primary: [], advanced: ['heal'] };
-    if (category === 'consumable' && subtype === 'scroll') return { primary: ['spellLevel', 'dc'], advanced: [] };
+    if (category === 'consumable' && subtype === 'scroll') return { primary: ['spell', 'spellLevel', 'dc'], advanced: [] };
     if (category === 'consumable' && subtype === 'alchemical') return { primary: ['dmg', 'dc'], advanced: ['heal'] };
     if (category === 'supplies' && subtype === 'container') return { primary: ['capacity'], advanced: [] };
     if (category === 'papers') return { primary: [], advanced: ['language'] };

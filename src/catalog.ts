@@ -15,6 +15,7 @@ export interface ItemStats {
   charges?: number;
   chargesMax?: number;
   recharge?: string;
+  spell?: string;   // the spell a scroll carries
   spellLevel?: string;
   dc?: string;
   capacity?: string;

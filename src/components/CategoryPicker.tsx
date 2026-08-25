@@ -7,6 +7,8 @@ const CROSS_LINKS: Partial<Record<CategoryKey, Array<[CategoryKey, string]>>> = 
   supplies: [['consumable', 'food & drink']],
   papers: [['consumable', 'scroll'], ['arcana', 'spellbook']],
   gear: [['arcana', 'wand'], ['arcana', 'staff'], ['consumable', 'alchemical']],
+  // scrolls and potions are magic, so people look for them here first
+  arcana: [['consumable', 'scroll'], ['consumable', 'potion']],
 };
 
 interface Props {
