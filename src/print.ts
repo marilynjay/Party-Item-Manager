@@ -162,6 +162,7 @@ const CSS = `
   .bar .print { background: #b08d3f; border-color: #b08d3f; color: #16130f; font-weight: 600; }
   h1 { font-size: 24px; margin: 22px 0 2px; }
   .meta { color: #6b6357; font-size: 13px; margin-bottom: 4px; }
+  .meta .over { color: #9d2b2b; font-weight: 600; }
   .purse { font-size: 14px; margin: 0 0 18px; padding-bottom: 14px; border-bottom: 2px solid #16130f; }
   h2 { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; margin: 22px 0 6px;
        padding-bottom: 3px; border-bottom: 1px solid #b8b0a2; page-break-after: avoid; break-after: avoid; }
@@ -237,12 +238,14 @@ export interface PrintSheetInput {
   gold: Gold;
   platinum: Gold;
   holderId: HolderId;
+  // the holder's carrying limit, when they've set one
+  carryLimit?: number;
   // a filter was on when they hit print — the sheet says so rather than
   // quietly handing them a short inventory
   filtered?: boolean;
 }
 
-export function sheetHtml({ holderName, holderIcon, items, gold, platinum, holderId, filtered }: PrintSheetInput): string {
+export function sheetHtml({ holderName, holderIcon, items, gold, platinum, holderId, filtered, carryLimit }: PrintSheetInput): string {
   const sorted = [...items].sort(byTaxonomy);
   const groups: Array<{ label: string; items: Item[] }> = [];
   for (const cat of CATEGORIES) {
@@ -296,7 +299,11 @@ export function sheetHtml({ holderName, holderIcon, items, gold, platinum, holde
 </div>
 <div class="sheet">
   <h1>${esc(holderIcon)} ${esc(holderName)}’s inventory</h1>
-  <div class="meta">${sorted.length} item${sorted.length === 1 ? '' : 's'} · ${total.toLocaleString()} lb carried · ${esc(stamp)}</div>
+  <div class="meta">${sorted.length} item${sorted.length === 1 ? '' : 's'} · ${
+    carryLimit === undefined
+      ? `${total.toLocaleString()} lb carried`
+      : `<span class="${total > carryLimit ? 'over' : ''}">${total.toLocaleString()}/${carryLimit.toLocaleString()} lb carried${total > carryLimit ? ' — over encumbered' : ''}</span>`
+  } · ${esc(stamp)}</div>
   <div class="purse">${esc(purse)}${filtered ? ' <span class="q">— filtered view, not the whole inventory</span>' : ''}</div>
   ${body}
   <div class="foot">Party Item Manager</div>

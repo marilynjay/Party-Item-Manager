@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
 import { diceText, findRoll, neverRecharges, rollDice } from './dice';
-import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isFood, isMagic, itemIcon, parseGoldValue } from './types';
+import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isFood, isMagic, itemIcon, parseGoldValue, weighItems } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -90,6 +90,9 @@ function HolderPortrait({
 function RenameDialog({
   holder,
   eats,
+  carry,
+  carried,
+  onSetCarry,
   onRename,
   onSetEats,
   onTorch,
@@ -97,6 +100,9 @@ function RenameDialog({
 }: {
   holder: Holder;
   eats: boolean;
+  carry?: number;
+  carried: number;
+  onSetCarry: (lb: number | null) => void;
   onRename: (name: string) => void;
   onSetEats: (eats: boolean) => void;
   onTorch: (newName: string, sweep: boolean) => void;
@@ -104,6 +110,7 @@ function RenameDialog({
 }) {
   const [name, setName] = useState(holder.name);
   const [torch, setTorch] = useState(false);
+  const [limit, setLimit] = useState(carry === undefined ? '' : String(carry));
   const [newName, setNewName] = useState('');
   const [sweep, setSweep] = useState(false);
   const [gone, setGone] = useState(false);
@@ -137,6 +144,33 @@ function RenameDialog({
             🔩 Doesn’t need food or water
           </label>
         )}
+        <form
+          className="carry-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = limit.trim();
+            onSetCarry(v === '' ? null : Number(v));
+          }}
+        >
+          <label className="rename-label">
+            ⚖️ Carrying limit (lb)
+            <input
+              type="number"
+              min={0}
+              placeholder="not counted"
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+            />
+          </label>
+          <button type="submit" disabled={limit.trim() === (carry === undefined ? '' : String(carry))}>
+            Save
+          </button>
+        </form>
+        <p className="muted rename-hint">
+          {carry === undefined
+            ? `Leave it blank and nobody counts. Set one and ${holder.name} gets a weight gauge — a nudge, never a wall.`
+            : `Carrying ${carried.toLocaleString()} of ${carry.toLocaleString()} lb. Clear the box to stop counting.`}
+        </p>
         {holder.kind === 'member' &&
           (!torch ? (
             <button type="button" className="torch-open" onClick={() => setTorch(true)}>
@@ -1020,7 +1054,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, needsFood: {}, lastRest: {}, custom: [], spellbook: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, needsFood: {}, lastRest: {}, carry: {}, custom: [], spellbook: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -1083,6 +1117,16 @@ export function App() {
     }
     return counts;
   }, [state.items]);
+
+  // the scoped holder's carried weight against their limit, when they've set
+  // one — absent means nobody is counting and the gauge never appears
+  const carryState = useMemo(() => {
+    if (scope === 'home' || scope === 'all' || scope === 'log') return null;
+    const limit = state.carry[scope];
+    if (limit === undefined) return null;
+    const carried = weighItems(state.items.filter((i) => i.location === scope));
+    return { carried, limit, over: carried > limit };
+  }, [state.items, state.carry, scope]);
 
   // gems in the current holder's hoard, for their purse panel
   const gemSummary = useMemo<GemSummary>(() => {
@@ -1162,6 +1206,11 @@ export function App() {
         <AddItemForm
           defaultLocation={isHolderScope ? scope : 'senchez'}
           custom={state.custom}
+          weighIn={(h) => {
+            const limit = state.carry[h];
+            if (limit === undefined) return null;
+            return { carried: weighItems(state.items.filter((i) => i.location === h)), limit };
+          }}
           onAdd={(fields) => run(() => api.createItem(fields, actor))}
           onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, unit === 'pp' ? 0 : amount, unit === 'pp' ? amount : 0, actor))}
           onSaveCustom={(entry) => run(() => api.saveCustomItem(entry, actor))}
@@ -1312,6 +1361,16 @@ export function App() {
           <LogPanel log={state.log} icons={state.icons} />
         ) : (
           <>
+            {scopeHolder && carryState && (
+              <div className={`carry-line ${carryState.over ? 'carry-over' : 'muted'}`} title={
+                carryState.over
+                  ? `Over by ${(carryState.carried - carryState.limit).toLocaleString()} lb`
+                  : `${(carryState.limit - carryState.carried).toLocaleString()} lb to spare`
+              }>
+                ⚖️ {carryState.carried.toLocaleString()}/{carryState.limit.toLocaleString()} lb
+                {carryState.over && <span className="carry-over-note"> · over encumbered</span>}
+              </div>
+            )}
             {scopeHolder && scopeHolder.kind === 'member' && (() => {
               const att = state.items.filter((i) => i.location === scopeHolder.id && i.attuned);
               if (att.length === 0) return null;
@@ -1435,6 +1494,7 @@ export function App() {
                     holderIcon: holderIcon(state.icons, scopeHolder!),
                     items: visible,
                     filtered: filtering,
+                    carryLimit: state.carry[scopeHolder!.id],
                     gold: state.gold,
                     platinum: state.platinum,
                   })
@@ -1492,6 +1552,9 @@ export function App() {
             holder={scopeHolder}
             eats={eatsFood(state.needsFood, scopeHolder.id)}
             onSetEats={(needs) => run(() => api.setNeedsFood(scopeHolder.id, needs, actor))}
+            carry={state.carry[scopeHolder.id]}
+            carried={weighItems(state.items.filter((i) => i.location === scopeHolder.id))}
+            onSetCarry={(lb) => run(() => api.setCarryLimit(scopeHolder.id, lb, actor))}
             onRename={(name) => {
               const old = scopeHolder.name;
               setRenaming(false);

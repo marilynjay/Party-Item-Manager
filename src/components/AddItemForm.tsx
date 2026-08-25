@@ -14,6 +14,9 @@ import { CatalogBrowser } from './CatalogBrowser';
 interface Props {
   defaultLocation: HolderId;
   custom: CatalogItem[];
+  // how heavy the destination already is against their limit, when they've
+  // set one — null means nobody's counting them
+  weighIn: (holder: HolderId) => { carried: number; limit: number } | null;
   onAdd: (fields: Partial<Item> & { name: string }) => Promise<unknown> | void;
   onAddMoney: (amount: number, unit: 'gp' | 'pp', location: HolderId) => Promise<unknown> | void;
   onSaveCustom: (entry: CatalogItem) => Promise<unknown> | void;
@@ -84,7 +87,7 @@ const blankAdvanced = {
   stats: {} as ItemStats,
 };
 
-export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSaveCustom, onDeleteCustom, onClose }: Props) {
+export function AddItemForm({ defaultLocation, custom, weighIn, onAdd, onAddMoney, onSaveCustom, onDeleteCustom, onClose }: Props) {
   const [name, setName] = useState('');
   const [qty, setQty] = useState(1);
   const [location, setLocation] = useState<HolderId | 'auto'>('auto');
@@ -105,6 +108,17 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
 
   const toCatalog = catalogChoice ?? adv.category !== 'papers';
   const target = location === 'auto' ? defaultLocation : location;
+  // Only a nudge: what they'd be carrying once this lands, shown when a limit
+  // is set and this add would leave them over it. Nothing here blocks Add.
+  const load = (() => {
+    const w = weighIn(target);
+    if (!w) return null;
+    const each = adv.weight !== '' ? Number(adv.weight) : picked?.weight ?? null;
+    const adding = each === null || !Number.isFinite(each) ? 0 : each * qty;
+    const after = Math.round((w.carried + adding) * 10) / 10;
+    if (after <= w.limit) return null;
+    return { after, limit: w.limit, wasOver: w.carried > w.limit };
+  })();
   const money = parseMoney(name);
   // no catalogue matches for what's typed: the two options are Quick Add or a custom item
   const nothingMatches =
@@ -465,6 +479,15 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       {money && (
         <div className="picked-note money-note">
           🟡 Adding {money.amount.toLocaleString()} {money.unit} to {holderName(target)}’s purse
+        </div>
+      )}
+      {!money && load && (
+        <div className="picked-note carry-note">
+          ⚖️ {holderName(target)} is carrying {load.after.toLocaleString()} of {load.limit.toLocaleString()} lb
+          {load.wasOver
+            ? ' — already over encumbered.'
+            : ` — this would put them ${(load.after - load.limit).toLocaleString()} lb over.`}
+          <span className="muted"> Add it anyway if that’s the call.</span>
         </div>
       )}
       {picked && !money && (

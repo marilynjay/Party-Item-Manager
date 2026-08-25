@@ -28,6 +28,10 @@ export type Names = Partial<Record<HolderId, string>>;
 // false = a warforged, construct, undead, or anything else that doesn't.
 export type NeedsFood = Partial<Record<HolderId, boolean>>;
 export type LastRest = Partial<Record<HolderId, { at: number; actor: string }>>;
+// Optional per-character carrying limit in pounds. Absent = nobody's
+// counting, which is how most tables play it — so it stays off until
+// someone sets one.
+export type CarryLimits = Partial<Record<HolderId, number>>;
 // Senchez is the bag, not a boarder: he carries the rations, he has never
 // once eaten one. Not a setting — there's nothing to toggle.
 export const eatsFood = (needs: NeedsFood, id: HolderId): boolean => id !== 'senchez' && needs[id] !== false;
@@ -369,6 +373,7 @@ export interface AppState {
   // when each holder last took a long rest, and who pressed it — anyone can
   // rest Senchez, so the dialog can say whether someone already has
   lastRest: LastRest;
+  carry: CarryLimits;
   custom: CatalogItem[];
   spellbook: SpellRef[];
 }
@@ -378,5 +383,10 @@ export const holderIcon = (icons: Icons, h: Holder): string => icons[h.id] || h.
 
 // An item counts as "magic" for filtering if flagged, or if it has any rarity
 // above common, or if it needs attunement.
+// What a pile of items weighs, quantity included. Items with no weight
+// (papers, most treasure) simply don't count.
+export const weighItems = (items: Item[]): number =>
+  Math.round(items.reduce((sum, i) => sum + (i.weight ?? 0) * i.qty, 0) * 10) / 10;
+
 export const isMagic = (i: Item) =>
   i.magic || i.requiresAttunement || (i.rarity !== '' && i.rarity !== 'common');

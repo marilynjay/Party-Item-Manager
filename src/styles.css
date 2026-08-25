@@ -1414,6 +1414,22 @@ button.purse-line:hover { background: none; color: var(--text); }
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
 .print-btn:hover { background: var(--bg-raised); }
 
+/* ---- carrying weight ---- */
+/* the gauge sits with the attunement line: information until it isn't */
+.carry-line {
+  font-size: 0.85rem;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.carry-over { color: var(--danger); font-weight: 600; }
+.carry-over-note { font-weight: 400; }
+.carry-form { display: flex; align-items: flex-end; gap: 8px; margin-top: 10px; }
+.carry-form .rename-label { flex: 1; }
+.carry-form input { width: 100%; }
+.carry-note { color: var(--danger); }
+
 /* "someone already rested this one" — quiet after a night, loud after a minute */
 .rest-last { border-left: 2px solid var(--border); padding-left: 8px; }
 .rest-last-warn { border-left-color: var(--gold); color: var(--gold); }

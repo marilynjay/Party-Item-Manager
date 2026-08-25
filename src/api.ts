@@ -66,6 +66,7 @@ function load(): AppState {
         names: db.names ?? {},
         needsFood: db.needsFood ?? {},
         lastRest: db.lastRest ?? {},
+        carry: db.carry ?? {},
         custom: (db.custom ?? []).map(migrateTaxonomy),
         spellbook: db.spellbook ?? [],
       };
@@ -75,7 +76,7 @@ function load(): AppState {
   }
   applyHolderNames({});
   applySpellbook([]);
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, needsFood: {}, lastRest: {}, custom: [], spellbook: [] };
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, needsFood: {}, lastRest: {}, carry: {}, custom: [], spellbook: [] };
 }
 
 function save(db: AppState): void {
@@ -842,6 +843,25 @@ export function passTorch(holder: HolderId, newName: string, sweep: boolean, act
 
 // Warforged, constructs, the occasional undead: some characters sit supper
 // out, so the rest dialog stops nudging them about food and water.
+// A carrying limit is a house rule, not a law: setting one turns on the
+// gauge and the nudges, clearing it turns them off again. Nothing anywhere
+// refuses an item for being too heavy.
+export function setCarryLimit(holder: HolderId, lb: number | null, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const n = lb === null ? null : Math.max(0, Math.round(lb));
+  if (n === null || n === 0) {
+    if (db.carry[holder] === undefined) return Promise.resolve({ ok: true });
+    delete db.carry[holder];
+    addLog(db, actor, `stopped counting ${holderName(holder)}’s carried weight`);
+  } else {
+    if (db.carry[holder] === n) return Promise.resolve({ ok: true });
+    db.carry[holder] = n;
+    addLog(db, actor, `set ${holderName(holder)}’s carrying limit to ${n.toLocaleString()} lb`);
+  }
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
 export function setNeedsFood(holder: HolderId, needs: boolean, actor: string): Promise<{ ok: true }> {
   const db = load();
   if (needs) delete db.needsFood[holder];
