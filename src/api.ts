@@ -292,7 +292,10 @@ export function updateItem(id: string, fields: Partial<Item>, actor: string): Pr
   // freshness edits keep the gauge honest: clearing it clears the max, a
   // bigger value is a fresh batch (new max), a smaller one just adjusts
   // what's left of the old one
-  if ('freshness' in fields) {
+  // only when the clock itself actually changed — the editor sends the
+  // field on every save, and tidying an item's notes shouldn't hand it a
+  // fresh "not yet"
+  if ('freshness' in fields && fields.freshness !== item.freshness) {
     fields.freshnessMax =
       fields.freshness === undefined ? undefined : Math.max(item.freshnessMax ?? 0, fields.freshness);
     fields.graced = undefined; // a re-set clock gets its "not yet" back
