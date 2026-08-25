@@ -92,6 +92,8 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const [browsing, setBrowsing] = useState(false);
   const [coining, setCoining] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // custom builds join the catalogue by default; one-off finds can opt out
+  const [toCatalog, setToCatalog] = useState(true);
   const [photoError, setPhotoError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<number | undefined>(undefined);
@@ -270,6 +272,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     setDetailsOpen(false);
     setPicked(null);
     setSuggestions([]);
+    setToCatalog(true);
   };
 
   const doAdd = (andAnother: boolean) => {
@@ -306,8 +309,9 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
       image: adv.image,
       stats,
     });
-    // anything built through the custom-item panel joins the party catalogue
-    if (!picked && adv.catDone) {
+    // anything built through the custom-item panel joins the party catalogue,
+    // unless it's a one-off nobody will ever add again
+    if (!picked && adv.catDone && toCatalog) {
       void onSaveCustom({
         name: name.trim(),
         category: adv.category,
@@ -543,7 +547,13 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
             {sPlan.advanced.map(statEl)}
           </>)}
           {!picked && (
-            <div className="wide muted panel-hint">✦ Saved to the party catalogue automatically.</div>
+            <label
+              className="wide check panel-hint catalog-check"
+              title="Keeps it in ✦ Custom for next time — turn it off for one-off finds nobody will add again"
+            >
+              <input type="checkbox" checked={toCatalog} onChange={(e) => setToCatalog(e.target.checked)} />
+              ✦ Save to the party catalogue{toCatalog ? '' : ' — just this once'}
+            </label>
           )}
           </>)}
           <button type="submit" className="wide add-bottom" disabled={!name.trim()}>
