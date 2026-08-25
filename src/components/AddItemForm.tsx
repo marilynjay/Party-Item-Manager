@@ -8,6 +8,7 @@ import { compressImage } from '../image';
 import { CategoryPicker } from './CategoryPicker';
 import type { CatalogItem } from '../catalog';
 import { searchCatalog } from '../catalog';
+import { scrollSuggestions } from '../scrolls';
 import { CatalogBrowser } from './CatalogBrowser';
 
 interface Props {
@@ -46,6 +47,9 @@ function suggestFor(name: string, custom: CatalogItem[]): Suggestion[] {
     if (n > 0) return [{ kind: 'coins', amount: n, unit: 'gp' }, { kind: 'coins', amount: n, unit: 'pp' }];
   }
   const rows: Suggestion[] = [];
+  // "scroll of fi" conjures a scroll for every matching spell — no stored
+  // catalogue entries, just the names the bundle already carries
+  for (const it of scrollSuggestions(t)) rows.push({ kind: 'item', item: it });
   if (t.length >= 2) {
     // the party's own creations outrank the SRD
     for (const it of custom) {
