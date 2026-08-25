@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { QtyInput } from './QtyInput';
 import { AutoTextarea } from './AutoTextarea';
 import type { CategoryKey, FormField, Item, ItemStats } from '../types';
 import { RARITIES, formPlan, holderById, itemIcon, notesLabel, planHas, statPlan } from '../types';
@@ -190,7 +191,7 @@ export function ItemEditor({
       </label>
       <label>
         Qty
-        <input type="number" min={1} value={f.qty} onChange={(e) => set({ qty: Math.max(1, Number(e.target.value) || 1) })} />
+        <QtyInput value={f.qty} onChange={(qty) => set({ qty })} />
       </label>
       <div className="wide">
         <CategoryPicker

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
 import { HOLDERS, categoryLabel, defaultIcon, holderById, holderIcon, isFood, itemIcon, parseGoldValue, valueParts } from '../types';
 import { CATALOG } from '../catalog';
+import { QtyInput } from './QtyInput';
 import { parseRoll } from '../dice';
 import { FreshnessGauge, ItemDetail } from './ItemDetail';
 import { ItemEditor } from './ItemEditor';
@@ -439,13 +440,7 @@ export function ItemRow({
               <div className="move-qty-form">
                 <div className="qty-stepper">
                   <button type="button" disabled={moveQty <= 1} onClick={() => setMoveQty(moveQty - 1)}>−</button>
-                  <input
-                    type="number"
-                    min={1}
-                    max={item.qty}
-                    value={moveQty}
-                    onChange={(e) => setMoveQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
-                  />
+                  <QtyInput value={moveQty} max={item.qty} onChange={setMoveQty} />
                   <button type="button" disabled={moveQty >= item.qty} onClick={() => setMoveQty(moveQty + 1)}>＋</button>
                 </div>
                 <span className="muted">of {item.qty}</span>
@@ -502,13 +497,7 @@ export function ItemRow({
                   <div className="dispose-qty">
                     <div className="qty-stepper">
                       <button type="button" disabled={dispQty <= 1} onClick={() => setDispQty(dispQty - 1)}>−</button>
-                      <input
-                        type="number"
-                        min={1}
-                        max={item.qty}
-                        value={dispQty}
-                        onChange={(e) => setDispQty(Math.min(item.qty, Math.max(1, Number(e.target.value) || 1)))}
-                      />
+                      <QtyInput value={dispQty} max={item.qty} onChange={setDispQty} />
                       <button type="button" disabled={dispQty >= item.qty} onClick={() => setDispQty(dispQty + 1)}>＋</button>
                     </div>
                     <span className="muted">of {item.qty}</span>

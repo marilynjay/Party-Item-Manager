@@ -6,6 +6,7 @@ import { HOLDERS, RARITIES, categoryLabel, defaultIcon, formPlan, notesLabel, pl
 import { StatFieldControl, cleanStats } from './StatFields';
 import { compressImage } from '../image';
 import { CategoryPicker } from './CategoryPicker';
+import { QtyInput } from './QtyInput';
 import type { CatalogItem } from '../catalog';
 import { searchCatalog } from '../catalog';
 import { scrollSuggestions } from '../scrolls';
@@ -443,14 +444,7 @@ export function AddItemForm({ defaultLocation, custom, weighIn, onAdd, onAddMone
             {nothingMatches ? 'Quick Add' : 'Add'}
           </button>
         )}
-        <input
-          className="add-qty"
-          type="number"
-          min={1}
-          value={qty}
-          title="Quantity"
-          onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-        />
+        <QtyInput className="add-qty" title="Quantity" value={qty} onChange={setQty} />
         <select
           className="add-location"
           value={location}
