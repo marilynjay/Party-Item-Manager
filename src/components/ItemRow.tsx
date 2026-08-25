@@ -144,7 +144,7 @@ export function ItemRow({
   // disposal keeps the plaque (the stack just shrinks), so it gets a quick
   // blip instead of the full send-off — though destruction always blasts
   // debris off the plaque, whole stack or not.
-  const dispose = (exit: string, action: () => void, qty = dispQty) => {
+  const dispose = (exit: string, action: () => void, qty = dispQty, delay = 520) => {
     setDisposing(false);
     if (exit === 'destroy' || exit === 'gift') {
       const r = liRef.current?.getBoundingClientRect();
@@ -193,7 +193,7 @@ export function ItemRow({
       setLeaving(null);
       setBoom(null);
       action();
-    }, 520);
+    }, delay);
   };
 
   const fly = (to: HolderId) => {
@@ -644,18 +644,18 @@ export function ItemRow({
           formula={item.stats.heal}
           onConsume={(note, total) => {
             setRollFor(false);
+            // float the healing up from the plaque, and let the plaque go the
+            // way every other consume does — a potion shouldn't blink out of
+            // existence just because it was rolled for. The consume waits a
+            // beat longer than usual so the float has a plaque to rise from.
             if (total !== undefined) {
-              // float the healing up from the plaque; the consume waits a
-              // beat so the plaque is still there to float from
               const r = liRef.current?.getBoundingClientRect();
               if (r) {
                 setHealFx({ x: r.x + r.width / 2, y: r.y + 6, total });
                 setTimeout(() => setHealFx(null), 950);
-                setTimeout(() => onConsume(item.id, note), 650);
-                return;
               }
             }
-            onConsume(item.id, note);
+            dispose(eaten ? 'eat' : 'dissolve', () => onConsume(item.id, note), 1, 650);
           }}
           onCancel={() => setRollFor(false)}
         />
