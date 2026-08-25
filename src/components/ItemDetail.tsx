@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AutoTextarea } from './AutoTextarea';
 import type { CategoryKey, Item, JournalEntry } from '../types';
-import { canJournal, categoryOf, defaultIcon, holderById, isFood } from '../types';
+import { canJournal, categoryOf, defaultIcon, holderById, isFood, valueParts } from '../types';
 import { CATALOG } from '../catalog';
 import { diceText, findRoll, neverRecharges, parseSpellLines } from '../dice';
 import { spellDisplay, spellKnown } from '../spellbook';
@@ -162,17 +162,21 @@ export function ItemDetail({ item, onEdit, onToss, onUse, onToggleAttune, onSpen
   else if (item.qty > 1) rows.push(['Quantity', item.qty]);
   if (item.weight !== null)
     rows.push(['Weight', item.qty > 1 ? `${item.weight} lb each · ${item.weight * item.qty} lb total` : `${item.weight} lb`]);
-  if (item.value)
+  if (item.value) {
+    // a stack's value is per item — spell that out rather than leaving
+    // "1,000 gp" on two rubies to be read either way
+    const worth = valueParts(item.value, item.qty).full;
     rows.push([
       'Value',
       item.fungible === false ? (
         <span>
-          {item.value} <span className="muted" title="Not counted in the purse's worth">· 🔒 set aside</span>
+          {worth} <span className="muted" title="Not counted in the purse's worth">· 🔒 set aside</span>
         </span>
       ) : (
-        item.value
+        worth
       ),
     ]);
+  }
   if (item.requiresAttunement)
     rows.push([
       'Attunement',

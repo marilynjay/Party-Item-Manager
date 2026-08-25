@@ -7,7 +7,7 @@
 // adds everything the expanded card shows — and the toggle is a CSS class
 // flip, so switching never re-renders or loses the scroll position.
 import type { Gold, HolderId, Item } from './types';
-import { CATEGORIES, PP_IN_GP, categoryLabel, categoryOf, isFood, itemIcon, parseGoldValue } from './types';
+import { CATEGORIES, PP_IN_GP, categoryLabel, categoryOf, isFood, itemIcon, parseGoldValue, valueParts } from './types';
 import { parseSpellLines } from './dice';
 
 const esc = (s: string): string =>
@@ -64,7 +64,10 @@ function tagsOf(item: Item): string[] {
   if (item.weight !== null) out.push(`${lb(weightOf(item))} lb`);
   // on paper a value you can't actually spend needs saying so up front —
   // nobody tallying by hand should count a diamond that's been set aside
-  if (item.value) out.push(item.fungible === false ? `${item.value} 🔒` : item.value);
+  if (item.value) {
+    const v = valueParts(item.value, item.qty).compact;
+    out.push(item.fungible === false ? `${v} 🔒` : v);
+  }
   return out;
 }
 
@@ -106,7 +109,10 @@ function rowsOf(item: Item): Array<[string, string]> {
   if (item.qty > 1) rows.push([item.subtype === 'ammunition' ? 'Ammo' : 'Quantity', String(item.qty)]);
   if (item.weight !== null)
     rows.push(['Weight', item.qty > 1 ? `${item.weight} lb each · ${lb(weightOf(item))} lb total` : `${item.weight} lb`]);
-  if (item.value) rows.push(['Value', item.fungible === false ? `${item.value} · 🔒 set aside` : item.value]);
+  if (item.value) {
+    const v = valueParts(item.value, item.qty).full;
+    rows.push(['Value', item.fungible === false ? `${v} · 🔒 set aside` : v]);
+  }
   if (item.requiresAttunement)
     rows.push(['Attunement', item.attuned ? '◈ Attuned' : '◇ Required, not attuned']);
   else if (item.magic) rows.push(['Magic', 'Yes']);

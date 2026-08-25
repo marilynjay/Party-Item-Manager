@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Icons, Item } from '../types';
-import { HOLDERS, categoryLabel, defaultIcon, holderById, holderIcon, isFood, itemIcon, parseGoldValue } from '../types';
+import { HOLDERS, categoryLabel, defaultIcon, holderById, holderIcon, isFood, itemIcon, parseGoldValue, valueParts } from '../types';
 import { CATALOG } from '../catalog';
 import { parseRoll } from '../dice';
 import { FreshnessGauge, ItemDetail } from './ItemDetail';
@@ -356,7 +356,7 @@ export function ItemRow({
               </span>
             )}
             {item.weight !== null && <span className="tag muted-tag">{item.weight * item.qty} lb</span>}
-            {item.value && <span className="tag muted-tag">{item.value}</span>}
+            {item.value && <span className="tag muted-tag">{valueParts(item.value, item.qty).compact}</span>}
           </span>
         )}
         {view === 'closed' && (() => {

@@ -337,6 +337,18 @@ export function parseGoldValue(v: string): number | null {
   return (m[2] ?? 'gp').toLowerCase().startsWith('g') ? n : n * PP_IN_GP;
 }
 
+// "1,000 gp" on a stack of two rubies is ambiguous — each, or the lot?
+// Weight has always said "each · total"; value should too, whenever the
+// number is one we can actually multiply. Prose values ("priceless", "a
+// king's ransom") are left exactly as written.
+export function valueParts(value: string, qty: number): { compact: string; full: string } {
+  if (!value) return { compact: '', full: '' };
+  const each = parseGoldValue(value);
+  if (qty <= 1 || each === null) return { compact: value, full: value };
+  // totals are gp-equivalent everywhere else in the app, so they are here too
+  return { compact: `${value} ea.`, full: `${value} each · ${(each * qty).toLocaleString()} gp total` };
+}
+
 import type { CatalogItem, ItemStats } from './catalog';
 import type { SpellRef } from './spellIndex';
 
