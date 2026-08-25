@@ -1407,6 +1407,12 @@ button.purse-line:hover { background: none; color: var(--text); }
   transition: opacity 150ms ease, transform 150ms ease;
 }
 .spell-book-btn:hover { opacity: 1; transform: translateY(-2px); background: var(--panel, rgba(30, 26, 44, 0.85)); }
+/* the same quiet corner, wearing a press instead of a book. Opaque where
+   the book is translucent — it floats over a full inventory, and a
+   see-through button on top of a plaque reads as a smudge. */
+.print-btn { font-size: 1.15rem; opacity: 0.8; background: var(--bg-raised);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
+.print-btn:hover { background: var(--bg-raised); }
 .spell-comp-modal { height: 88vh; }
 .spell-comp-levels .chip { min-width: 34px; }
 .spell-comp-group { display: flex; flex-direction: column; gap: 4px; }

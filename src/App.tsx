@@ -1375,6 +1375,43 @@ export function App() {
             📖
           </button>
         )}
+        {isHolderScope && (
+          <button
+            type="button"
+            className="spell-book-btn print-btn"
+            title={`Print ${scopeHolder!.name}’s inventory`}
+            onClick={() => {
+              // the window has to be opened inside the click itself, or the
+              // browser files it under "unsolicited popup"
+              const win = window.open('', '_blank');
+              if (!win) {
+                setError('Your browser blocked the printable sheet — allow pop-ups for this site and try again');
+                return;
+              }
+              win.document.write('<title>Setting the press…</title><p style="font:15px system-ui;padding:24px">Setting the press…</p>');
+              // the sheet builder is its own chunk — nobody pays for it until
+              // they print, and the window is already open to receive it
+              import('./print')
+                .then(({ writeSheet }) =>
+                  writeSheet(win, {
+                    holderId: scopeHolder!.id,
+                    holderName: scopeHolder!.name,
+                    holderIcon: holderIcon(state.icons, scopeHolder!),
+                    items: visible,
+                    filtered: filtering,
+                    gold: state.gold,
+                    platinum: state.platinum,
+                  })
+                )
+                .catch(() => {
+                  win.close();
+                  setError('Could not build the printable sheet — check your connection and try again');
+                });
+            }}
+          >
+            🖨️
+          </button>
+        )}
         {bookOpen && (
           <SpellCompendium
             spellbook={state.spellbook}
