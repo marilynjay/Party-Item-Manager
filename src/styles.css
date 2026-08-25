@@ -1413,6 +1413,10 @@ button.purse-line:hover { background: none; color: var(--text); }
 .print-btn { font-size: 1.15rem; opacity: 0.8; background: var(--bg-raised);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
 .print-btn:hover { background: var(--bg-raised); }
+
+/* "someone already rested this one" — quiet after a night, loud after a minute */
+.rest-last { border-left: 2px solid var(--border); padding-left: 8px; }
+.rest-last-warn { border-left-color: var(--gold); color: var(--gold); }
 .spell-comp-modal { height: 88vh; }
 .spell-comp-levels .chip { min-width: 34px; }
 .spell-comp-group { display: flex; flex-direction: column; gap: 4px; }

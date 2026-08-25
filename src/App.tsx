@@ -130,10 +130,13 @@ function RenameDialog({
           <button type="submit" disabled={!name.trim() || name.trim() === holder.name}>Save</button>
         </form>
         <p className="muted rename-hint">Same character, better spelling — nothing else changes.</p>
-        <label className="check eats-toggle" title="Warforged, constructs, the undead — long rests won't nudge them about supper">
-          <input type="checkbox" checked={!eats} onChange={(e) => onSetEats(!e.target.checked)} />
-          🔩 Doesn’t need food or water
-        </label>
+        {/* Senchez's answer is fixed — a bag has never wanted supper */}
+        {holder.kind === 'member' && (
+          <label className="check eats-toggle" title="Warforged, constructs, the undead — long rests won't nudge them about supper">
+            <input type="checkbox" checked={!eats} onChange={(e) => onSetEats(!e.target.checked)} />
+            🔩 Doesn’t need food or water
+          </label>
+        )}
         {holder.kind === 'member' &&
           (!torch ? (
             <button type="button" className="torch-open" onClick={() => setTorch(true)}>
@@ -281,11 +284,27 @@ function SupperSection({
 // that character; Senchez's things are party property), and nothing rolls
 // those dice without being asked — each gets a field for the rolled total,
 // plus a 🎲 that tumbles the dice in-app on request. Blank fields wait.
+// "just now", "40 minutes ago", "yesterday" — enough to tell a second night
+// from a double-press. The exact stamp rides along in the title attribute.
+function sinceText(at: number): string {
+  const mins = Math.max(0, Math.round((Date.now() - at) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+  const days = Math.round(hrs / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  return `on ${new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}
+
 function LongRestDialog({
   items,
   actor,
+  holder,
   who,
   eats,
+  lastRest,
   result,
   onRest,
   onEat,
@@ -296,8 +315,10 @@ function LongRestDialog({
 }: {
   items: Item[];
   actor: string;
+  holder: HolderId;
   who: string;
   eats: boolean;
+  lastRest?: { at: number; actor: string };
   result: api.LongRestResult | null;
   onRest: (rolls: Record<string, number>, expiries: Record<string, boolean>) => void;
   onEat: (id: string) => void;
@@ -307,6 +328,10 @@ function LongRestDialog({
   onClose: () => void;
 }) {
   const [stage, setStage] = useState<'preview' | 'rolls' | 'supper'>('preview');
+  const bagOfHolding = holder === 'senchez';
+  // a rest within the last couple of hours is more likely a slip than a
+  // second night — anyone can press Senchez's, so say so loudly
+  const restedRecently = !!lastRest && Date.now() - lastRest.at < 2 * 60 * 60 * 1000;
   // one entry per dice item of "mine": what the player says they rolled
   const [rollVals, setRollVals] = useState<Record<string, string>>({});
   // an in-app 🎲 tumbles real dice under the row before filling the field;
@@ -370,6 +395,15 @@ function LongRestDialog({
         </div>
         {stage === 'preview' ? (
           <>
+            {lastRest && (
+              <p
+                className={`rest-line rest-last ${restedRecently ? 'rest-last-warn' : 'muted'}`}
+                title={new Date(lastRest.at).toLocaleString()}
+              >
+                {restedRecently ? '⚠️' : '🕰️'} Last rested {sinceText(lastRest.at)} by {lastRest.actor}
+                {restedRecently && ' — resting again will recharge everything a second time.'}
+              </p>
+            )}
             <p className="rest-line muted">A long rest here will:</p>
             {auto.length > 0 && (
               <p className="rest-line">⚡ Recharge with the dawn: {auto.map((i) => i.name).join(', ')}</p>
@@ -423,6 +457,8 @@ function LongRestDialog({
             <p className="rest-line muted">
               {eats
                 ? '🍽️ Then remind you to eat and drink.'
+                : bagOfHolding
+                ? `🎒 ${who} is a bag, not a boarder — supper doesn’t come into it.`
                 : `🔩 ${who} doesn’t need food or water, so there's no supper to see to.`}
             </p>
             <div className="torch-actions">
@@ -984,7 +1020,7 @@ type Phase = 'checking' | 'ready';
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
-  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, needsFood: {}, custom: [], spellbook: [] });
+  const [state, setState] = useState<AppState>({ items: [], log: [], gold: {} as AppState['gold'], platinum: {} as AppState['gold'], icons: {}, portraits: {}, names: {}, needsFood: {}, lastRest: {}, custom: [], spellbook: [] });
   const [scope, setScope] = useState<Scope>('home');
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actor, setActor] = useState<string>(() => localStorage.getItem('pim_actor') ?? '');
@@ -1430,7 +1466,9 @@ export function App() {
             items={state.items.filter((i) => i.location === resting)}
             actor={actor}
             who={holderById(resting).name}
+            holder={resting}
             eats={eatsFood(state.needsFood, resting)}
+            lastRest={state.lastRest[resting]}
             result={restResult}
             onRest={async (rolls, expiries) => {
               setError(null);

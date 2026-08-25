@@ -27,7 +27,10 @@ export type Names = Partial<Record<HolderId, string>>;
 // Who the supper reminder applies to. Absent = eats and drinks like anyone;
 // false = a warforged, construct, undead, or anything else that doesn't.
 export type NeedsFood = Partial<Record<HolderId, boolean>>;
-export const eatsFood = (needs: NeedsFood, id: HolderId): boolean => needs[id] !== false;
+export type LastRest = Partial<Record<HolderId, { at: number; actor: string }>>;
+// Senchez is the bag, not a boarder: he carries the rations, he has never
+// once eaten one. Not a setting — there's nothing to toggle.
+export const eatsFood = (needs: NeedsFood, id: HolderId): boolean => id !== 'senchez' && needs[id] !== false;
 export const DEFAULT_HOLDER_NAMES: Record<HolderId, string> = Object.fromEntries(
   HOLDERS.map((h) => [h.id, h.name])
 ) as Record<HolderId, string>;
@@ -363,6 +366,9 @@ export interface AppState {
   portraits: Portraits;
   names: Names;
   needsFood: NeedsFood;
+  // when each holder last took a long rest, and who pressed it — anyone can
+  // rest Senchez, so the dialog can say whether someone already has
+  lastRest: LastRest;
   custom: CatalogItem[];
   spellbook: SpellRef[];
 }

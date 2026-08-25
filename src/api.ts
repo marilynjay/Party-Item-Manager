@@ -65,6 +65,7 @@ function load(): AppState {
         portraits: db.portraits ?? {},
         names: db.names ?? {},
         needsFood: db.needsFood ?? {},
+        lastRest: db.lastRest ?? {},
         custom: (db.custom ?? []).map(migrateTaxonomy),
         spellbook: db.spellbook ?? [],
       };
@@ -74,7 +75,7 @@ function load(): AppState {
   }
   applyHolderNames({});
   applySpellbook([]);
-  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, needsFood: {}, custom: [], spellbook: [] };
+  return { items: [], log: [], gold: {} as Gold, platinum: {} as Gold, icons: {}, portraits: {}, names: {}, needsFood: {}, lastRest: {}, custom: [], spellbook: [] };
 }
 
 function save(db: AppState): void {
@@ -527,6 +528,9 @@ export function longRest(
       out.waiting.push({ holder: holderName(item.location), name: item.name, formula: diceText(s.recharge!) });
     }
   }
+  // remember the rest itself, even when nothing needed doing — anyone can
+  // rest Senchez, and "did someone already?" is the question worth answering
+  if (holder) db.lastRest[holder] = { at: now, actor: actor || 'someone' };
   if (out.restored.length || out.rolled.length || out.spoiled.length || out.spared.length || out.aged > 0) {
     const bits: string[] = [];
     if (out.restored.length) bits.push(`${out.restored.length} item${out.restored.length === 1 ? '' : 's'} recharged with the dawn`);
@@ -535,8 +539,8 @@ export function longRest(
     for (const s of out.spared) bits.push(`the ${s.name} ${s.food ? 'keeps another day' : 'holds out another day'}`);
     if (bits.length === 0) bits.push('the perishables age a day');
     addLog(db, actor, `🌅 ${holder ? `long rest for ${holderName(holder)}` : 'called a long rest'} — ${bits.join(' · ')}`);
-    save(db);
   }
+  save(db);
   return Promise.resolve(out);
 }
 
