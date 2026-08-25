@@ -1377,6 +1377,10 @@ button.purse-line:hover { background: none; color: var(--text); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; }
 .modal-head h2 { font-size: 1.1rem; }
 
+/* give-or-copy chips above the holder grid, papers only */
+.copy-modes { display: flex; gap: 6px; margin-bottom: 8px; }
+.copy-modes .chip { font-size: 0.82rem; }
+
 .catalog-check { cursor: pointer; }
 .catalog-check:hover { color: var(--text); }
 

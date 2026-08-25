@@ -26,6 +26,8 @@ export interface ItemListProps {
   onCast: (id: string, spell: string, cost: number) => void;
   onUpdate: (id: string, fields: Partial<Item>) => void;
   onDelete: (id: string, disposition?: 'lost' | 'destroyed' | 'given' | 'spoiled', qty?: number) => void;
+  // papers only: information can be transcribed and handed on
+  onCopy: (id: string, to: HolderId) => void;
   onSell: (id: string, amount: number, unit: 'gp' | 'pp', qty?: number) => void;
   onAddEntry: (id: string, fields: { title?: string; text: string; image?: string }) => void;
   onUpdateEntry: (id: string, entryId: string, fields: { title?: string; text: string; image?: string }) => void;
@@ -61,6 +63,7 @@ export function ItemRow({
   onCast,
   onUpdate,
   onDelete,
+  onCopy,
   onSell,
   onAddEntry,
   onUpdateEntry,
@@ -78,6 +81,9 @@ export function ItemRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const [rollFor, setRollFor] = useState(false);
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
+  // papers can be handed over or transcribed; everything else only moves
+  const canCopy = item.category === 'papers';
+  const [copying, setCopying] = useState(false);
   const [moveQty, setMoveQty] = useState(1);
   const liRef = useRef<HTMLLIElement>(null);
 
@@ -274,6 +280,7 @@ export function ItemRow({
         onClick={() => {
           setMenuOpen(!menuOpen);
           setMoveTo('');
+          setCopying(false);
           setView('closed');
         }}
       >
@@ -370,11 +377,40 @@ export function ItemRow({
               </h2>
               <button type="button" className="link-button" onClick={() => setMenuOpen(false)}>✕</button>
             </div>
-            <div className="item-menu-heading muted">Give to</div>
+            <div className="item-menu-heading muted">{copying ? 'Copy for' : 'Give to'}</div>
+            {canCopy && (
+              <div className="copy-modes">
+                <button type="button" className={`chip ${copying ? '' : 'chip-on'}`} onClick={() => setCopying(false)}>
+                  ➤ Hand it over
+                </button>
+                <button
+                  type="button"
+                  className={`chip ${copying ? 'chip-on' : ''}`}
+                  title="They get their own transcription — you keep yours"
+                  onClick={() => setCopying(true)}
+                >
+                  📋 Send a copy
+                </button>
+              </div>
+            )}
             {moveTo === '' ? (
               <div className="send-holders">
                 {HOLDERS.filter((h) => h.id !== item.location).map((h) => (
-                  <button key={h.id} type="button" className="send-holder" onClick={() => startMove(h.id)}>
+                  <button
+                    key={h.id}
+                    type="button"
+                    className="send-holder"
+                    onClick={() => {
+                      if (copying) {
+                        setMenuOpen(false);
+                        setCopying(false);
+                        fly(h.id);
+                        onCopy(item.id, h.id);
+                      } else {
+                        startMove(h.id);
+                      }
+                    }}
+                  >
                     <span className="send-holder-emoji">{holderIcon(icons, h)}</span> {h.name}
                   </button>
                 ))}

@@ -96,12 +96,14 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
   const [browsing, setBrowsing] = useState(false);
   const [coining, setCoining] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  // custom builds join the catalogue by default; one-off finds can opt out
-  const [toCatalog, setToCatalog] = useState(true);
+  // custom builds join the catalogue by default — except Information, which
+  // is one-off by nature (this letter, that map). null = follow the default.
+  const [catalogChoice, setCatalogChoice] = useState<boolean | null>(null);
   const [photoError, setPhotoError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<number | undefined>(undefined);
 
+  const toCatalog = catalogChoice ?? adv.category !== 'papers';
   const target = location === 'auto' ? defaultLocation : location;
   const money = parseMoney(name);
   // no catalogue matches for what's typed: the two options are Quick Add or a custom item
@@ -276,7 +278,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
     setDetailsOpen(false);
     setPicked(null);
     setSuggestions([]);
-    setToCatalog(true);
+    setCatalogChoice(null);
   };
 
   const doAdd = (andAnother: boolean) => {
@@ -555,7 +557,7 @@ export function AddItemForm({ defaultLocation, custom, onAdd, onAddMoney, onSave
               className="wide check panel-hint catalog-check"
               title="Keeps it in ✦ Custom for next time — turn it off for one-off finds nobody will add again"
             >
-              <input type="checkbox" checked={toCatalog} onChange={(e) => setToCatalog(e.target.checked)} />
+              <input type="checkbox" checked={toCatalog} onChange={(e) => setCatalogChoice(e.target.checked)} />
               ✦ Save to the party catalogue{toCatalog ? '' : ' — just this once'}
             </label>
           )}

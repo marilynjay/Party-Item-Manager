@@ -164,6 +164,34 @@ export function updateItem(id: string, fields: Partial<Item>, actor: string): Pr
   return Promise.resolve(clone(item));
 }
 
+// Papers are information, and information spreads. A copy is a
+// transcription: the same words, sketches and pages, taking on its own
+// life from here — edit one and the other keeps what it always said. The
+// only class of item that can be in two places at once.
+export function copyItem(id: string, to: HolderId, actor: string): Promise<{ ok: true }> {
+  const db = load();
+  const item = db.items.find((i) => i.id === id);
+  if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  if (item.category !== 'papers') return Promise.reject(new Error('Only information can be copied'));
+  const now = Date.now();
+  const copy = clone(item);
+  db.items.push({
+    ...copy,
+    id: newId(),
+    // don't stack "(copy) (copy) (copy)" on a copy of a copy
+    name: /\(copy\)\s*$/i.test(item.name) ? item.name : `${item.name} (copy)`,
+    qty: 1,
+    location: to,
+    attuned: false,
+    entries: copy.entries?.map((e) => ({ ...e, id: newId() })),
+    createdAt: now,
+    updatedAt: now,
+  });
+  addLog(db, actor, `copied ${item.name} for ${holderName(to)} 📋`);
+  save(db);
+  return Promise.resolve({ ok: true });
+}
+
 // Move some or all of a stack; merges into a same-named stack at the target.
 export function moveItem(id: string, to: HolderId, qty: number, actor: string): Promise<{ ok: true }> {
   const db = load();

@@ -1255,6 +1255,7 @@ export function App() {
                   onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
                   onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
                   onDelete={(id, disposition, qty) => run(() => api.deleteItem(id, actor, disposition, qty))}
+                  onCopy={(id, to) => run(() => api.copyItem(id, to, actor))}
                   onSell={(id, n, unit, qty) => run(() => api.sellItem(id, n, unit, actor, qty))}
                   onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
                   onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
@@ -1348,6 +1349,7 @@ export function App() {
               onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
               onUpdate={(id, fields) => run(() => api.updateItem(id, fields, actor))}
               onDelete={(id, disposition, qty) => run(() => api.deleteItem(id, actor, disposition, qty))}
+              onCopy={(id, to) => run(() => api.copyItem(id, to, actor))}
               onSell={(id, n, unit, qty) => run(() => api.sellItem(id, n, unit, actor, qty))}
               onAddEntry={(id, fields) => run(() => api.addEntry(id, fields, actor))}
               onUpdateEntry={(id, entryId, fields) => run(() => api.updateEntry(id, entryId, fields, actor))}
