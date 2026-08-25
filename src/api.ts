@@ -546,31 +546,34 @@ export function longRest(
 }
 
 // Use up one from a stack (drink the potion, throw the dagger of returning-nowhere).
-export function consumeItem(id: string, actor: string, note?: string): Promise<{ ok: true }> {
+export function consumeItem(id: string, actor: string, note?: string, qty = 1): Promise<{ ok: true }> {
   const db = load();
   const item = db.items.find((i) => i.id === id);
   if (!item) return Promise.reject(new Error('Item not found — it may have been changed in another tab'));
+  // eating three rations at camp is one act, not three — but never more
+  // than the stack actually holds
+  const n = Math.min(item.qty, Math.max(1, Math.floor(qty) || 1));
   const suffix = note ? ` — ${note}` : '';
-  // drinking a potion leaves the empty vial behind
+  // drinking a potion leaves the empty vial behind, one per potion
   const keepVial = item.category === 'consumable' && item.subtype === 'potion';
-  const vialText = keepVial ? ' · kept the empty vial' : '';
-  if (item.qty > 1) {
-    item.qty -= 1;
+  const vialText = keepVial ? ` · kept the empty vial${n > 1 ? 's' : ''}` : '';
+  if (item.qty > n) {
+    item.qty -= n;
     item.updatedAt = Date.now();
-    addLog(db, actor, `used 1 ${item.name}${suffix} (${item.qty} left)${vialText}`);
+    addLog(db, actor, `used ${n} ${item.name}${suffix} (${item.qty} left)${vialText}`);
   } else {
     db.items = db.items.filter((i) => i.id !== id);
-    addLog(db, actor, `used the last ${item.name}${suffix}${vialText}`);
+    addLog(db, actor, `used the last ${n > 1 ? `${n} ` : ''}${item.name}${suffix}${vialText}`);
   }
   if (keepVial) {
     const existing = db.items.find(
       (i) => i.location === item.location && i.name.toLowerCase() === 'vial' && !i.liquid && !i.entries?.length
     );
     if (existing) {
-      existing.qty += 1;
+      existing.qty += n;
       existing.updatedAt = Date.now();
     } else {
-      db.items.push(materialize('Vial', 1, item.location, Date.now()));
+      db.items.push(materialize('Vial', n, item.location, Date.now()));
     }
   }
   save(db);

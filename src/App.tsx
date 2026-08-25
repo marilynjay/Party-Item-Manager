@@ -1367,7 +1367,7 @@ export function App() {
                   isMagic={isMagic}
                   emptyMessage="Nothing matches that search."
                   onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
-                  onConsume={(id, note) => run(() => api.consumeItem(id, actor, note))}
+                  onConsume={(id, note, qty) => run(() => api.consumeItem(id, actor, note, qty))}
                   onSpend={(id) => run(() => api.spendCharge(id, actor))}
                   onRecharge={(id, rolled) => run(() => api.rechargeItem(id, actor, rolled))}
                   onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}
@@ -1477,7 +1477,7 @@ export function App() {
                 filtering ? 'Nothing matches those filters.' : 'Nothing here yet — add something above.'
               }
               onMove={(id, to, qty) => run(() => api.moveItem(id, to, qty, actor))}
-              onConsume={(id, note) => run(() => api.consumeItem(id, actor, note))}
+              onConsume={(id, note, qty) => run(() => api.consumeItem(id, actor, note, qty))}
               onSpend={(id) => run(() => api.spendCharge(id, actor))}
               onRecharge={(id, rolled) => run(() => api.rechargeItem(id, actor, rolled))}
               onCast={(id, spell, cost) => run(() => api.castSpell(id, spell, cost, actor))}

@@ -20,7 +20,7 @@ export interface ItemListProps {
   isMagic: (i: Item) => boolean;
   emptyMessage: string;
   onMove: (id: string, to: HolderId, qty: number) => void;
-  onConsume: (id: string, note?: string) => void;
+  onConsume: (id: string, note?: string, qty?: number) => void;
   onSpend: (id: string) => void;
   onRecharge: (id: string, rolled?: number) => void;
   onCast: (id: string, spell: string, cost: number) => void;
@@ -83,6 +83,10 @@ export function ItemRow({
   const [moveTo, setMoveTo] = useState<HolderId | ''>('');
   // papers can be handed over or transcribed; everything else only moves
   const canCopy = item.category === 'papers';
+  // Food and drink share one subtype on purpose — nothing in the app treats
+  // them differently — so the label covers both rather than making anyone
+  // declare which a thing was.
+  const eaten = isFood(item.category, item.subtype);
   // a deed's copy is a transcript, not title — say so before they tap
   const isDeed = item.subtype === 'deed';
   const [copying, setCopying] = useState(false);
@@ -509,6 +513,19 @@ export function ItemRow({
                   What happened to {item.qty > 1 ? `${dispQty < item.qty ? `${dispQty} of them` : `all ${item.qty}`}` : 'it'}?
                 </div>
                 <div className="dispose-options">
+                  {/* only a consumable can have been consumed — a sword can't be eaten */}
+                  {item.category === 'consumable' && (
+                    <button
+                      type="button"
+                      className="dispose-eat"
+                      title={eaten ? 'Down the hatch' : 'Used up in the doing'}
+                      onClick={() =>
+                        dispose(eaten ? 'eat' : 'dissolve', () => onConsume(item.id, undefined, dispQty))
+                      }
+                    >
+                      {eaten ? '🍽️ Ate / drank it' : '🧪 Used it up'}
+                    </button>
+                  )}
                   <button type="button" onClick={() => setDispMode('sold')}>💰 Sold</button>
                   <button type="button" onClick={() => dispose('toss', () => onDelete(item.id, 'lost', dispQty))}>🗑 Discarded / lost</button>
                   <button type="button" onClick={() => dispose('destroy', () => onDelete(item.id, 'destroyed', dispQty))}>💥 Destroyed</button>

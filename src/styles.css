@@ -539,6 +539,30 @@ input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-off
 }
 /* given to an NPC: the plaque fades (transform-free, same anchoring rule
    as destroy) while a 🎁 pops up and rapidly expands over it */
+/* Eaten: the plaque is bitten away from the right in five quick snaps.
+   steps(1) per segment so each bite lands as a bite rather than sliding —
+   and the shell jolts with every one, the way something being worried at
+   does. clip-path polygons approximate the scalloped edge teeth leave. */
+.exit-eat { animation: eatBites 520ms steps(1, end) forwards; pointer-events: none; }
+@keyframes eatBites {
+  0%   { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); transform: none; }
+  20%  { clip-path: polygon(0 0, 84% 0, 80% 14%, 86% 30%, 79% 48%, 85% 66%, 80% 84%, 84% 100%, 0 100%);
+         transform: rotate(-0.5deg) translateX(-1px); }
+  40%  { clip-path: polygon(0 0, 63% 0, 58% 16%, 65% 33%, 57% 52%, 64% 70%, 58% 86%, 62% 100%, 0 100%);
+         transform: rotate(0.6deg) translateX(1px); }
+  60%  { clip-path: polygon(0 0, 41% 0, 35% 18%, 43% 36%, 34% 55%, 42% 72%, 35% 88%, 40% 100%, 0 100%);
+         transform: rotate(-0.7deg) translateX(-2px); }
+  80%  { clip-path: polygon(0 0, 19% 0, 13% 20%, 21% 38%, 11% 57%, 19% 74%, 12% 90%, 17% 100%, 0 100%);
+         transform: rotate(0.8deg) translateX(2px); opacity: 0.9; }
+  100% { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); transform: none; opacity: 0; }
+}
+/* Everything else consumable just goes: swallowed, burnt, thrown, spent. */
+.exit-dissolve { animation: dissolveAway 520ms ease-in forwards; pointer-events: none; }
+@keyframes dissolveAway {
+  0%   { opacity: 1; filter: blur(0); transform: scale(1); }
+  55%  { opacity: 0.45; filter: blur(2px); transform: scale(1.02); }
+  100% { opacity: 0; filter: blur(7px); transform: scale(0.96); }
+}
 .exit-gift { animation: giftShell 520ms ease forwards; pointer-events: none; }
 @keyframes giftShell {
   15% { border-color: var(--accent); box-shadow: 0 0 18px rgba(180, 140, 242, 0.4); }
