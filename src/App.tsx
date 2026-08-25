@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as api from './api';
 import type { AppState, Holder, HolderId, Item } from './types';
 import { diceText, findRoll, neverRecharges, rollDice } from './dice';
-import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isFood, isMagic, itemIcon, parseGoldValue, weighItems } from './types';
+import { ATTUNEMENT_SLOTS, HOLDERS, MEMBERS, eatsFood, holderById, holderIcon, isFood, isMagic, itemIcon, parseGoldValue, splitText, weighItems } from './types';
 import { Sidebar, type Scope } from './components/Sidebar';
 import { FilterBar, type Filters, emptyFilters, applyFilters } from './components/FilterBar';
 import { AddItemForm } from './components/AddItemForm';
@@ -800,7 +800,7 @@ function PursePanel({
         ) : (
           <CoinDelta
             verb={sendTo === 'split' ? '🤝 Split among party' : `➤ Send to ${holderById(sendTo).name}`}
-            preview={sendTo === 'split' ? splitPreview : undefined}
+            preview={sendTo === 'split' ? splitText : undefined}
             onDone={(g, p) => {
               if (sendTo === 'split') onSplit(g, p);
               else onSend(sendTo, g, p);
@@ -825,22 +825,6 @@ function PursePanel({
 }
 
 const noop = () => {};
-
-// What a split will actually do, worked out live as they type: nobody
-// should have to guess whether 103 gp divides nicely, or discover after
-// the fact that their own share came back to them.
-function splitPreview(gp: number, pp: number): string {
-  const n = MEMBERS.length;
-  if (gp + pp <= 0) return `Even shares among all ${n} party members — your own included. Each coin splits on its own; anything left over goes to ${holderById('senchez').name}.`;
-  const eachG = Math.floor(gp / n);
-  const eachP = Math.floor(pp / n);
-  const restG = gp - eachG * n;
-  const restP = pp - eachP * n;
-  const each = [eachG > 0 && `${eachG.toLocaleString()} gp`, eachP > 0 && `${eachP.toLocaleString()} pp`].filter(Boolean).join(' + ');
-  const rest = [restG > 0 && `${restG.toLocaleString()} gp`, restP > 0 && `${restP.toLocaleString()} pp`].filter(Boolean).join(' + ');
-  const head = each ? `${each} each to all ${n}` : `Too little to go round`;
-  return rest ? `${head} · ${rest} over to ${holderById('senchez').name}` : head;
-}
 
 // Gold and platinum fields side by side — shared by Add, Spend, and Send.
 // Both can move in one action; coins never convert (DM's table rules).
@@ -1246,7 +1230,16 @@ export function App() {
             return { carried: weighItems(state.items.filter((i) => i.location === h)), limit };
           }}
           onAdd={(fields) => run(() => api.createItem(fields, actor))}
-          onAddMoney={(amount, unit, location) => run(() => api.addMoney(location, unit === 'pp' ? 0 : amount, unit === 'pp' ? amount : 0, actor))}
+          onAddMoney={(amount, unit, location) => {
+            const gp = unit === 'pp' ? 0 : amount;
+            const pp = unit === 'pp' ? amount : 0;
+            if (location === 'split')
+              return run(async () => {
+                await api.splitMoney(null, gp, pp, actor);
+                setStream({ to: MEMBERS.map((m) => m.id), key: Date.now() });
+              });
+            return run(() => api.addMoney(location, gp, pp, actor));
+          }}
           onSaveCustom={(entry) => run(() => api.saveCustomItem(entry, actor))}
           onDeleteCustom={(name) => run(() => api.deleteCustomItem(name, actor))}
           onClose={() => setAdding(false)}

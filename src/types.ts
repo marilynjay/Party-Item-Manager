@@ -383,6 +383,41 @@ export const holderIcon = (icons: Icons, h: Holder): string => icons[h.id] || h.
 
 // An item counts as "magic" for filtering if flagged, or if it has any rarity
 // above common, or if it needs attunement.
+// How a pile divides among the party. One source of truth, so the preview
+// a player reads while typing and the coins api.ts actually moves can never
+// disagree. Each coin type divides on its own — platinum doesn't break into
+// gold — and whatever won't divide is the remainder, which the caller hands
+// to Senchez.
+export function splitShares(gp: number, pp: number): {
+  shares: number;
+  eachGp: number;
+  eachPp: number;
+  restGp: number;
+  restPp: number;
+} {
+  const shares = MEMBERS.length;
+  const eachGp = Math.floor(gp / shares);
+  const eachPp = Math.floor(pp / shares);
+  return { shares, eachGp, eachPp, restGp: gp - eachGp * shares, restPp: pp - eachPp * shares };
+}
+
+// The sentence every split UI shows — what each member gets and what falls
+// to the bag — worked from the same shares the coins actually follow.
+export function splitText(gp: number, pp: number): string {
+  const { shares, eachGp, eachPp, restGp, restPp } = splitShares(gp, pp);
+  const bag = holderById('senchez').name;
+  if (gp + pp <= 0)
+    return `Even shares among all ${shares} party members. Each coin splits on its own; anything left over goes to ${bag}.`;
+  const each = [eachGp > 0 && `${eachGp.toLocaleString()} gp`, eachPp > 0 && `${eachPp.toLocaleString()} pp`]
+    .filter(Boolean)
+    .join(' + ');
+  const rest = [restGp > 0 && `${restGp.toLocaleString()} gp`, restPp > 0 && `${restPp.toLocaleString()} pp`]
+    .filter(Boolean)
+    .join(' + ');
+  const head = each ? `${each} each to all ${shares}` : 'Too little to go round';
+  return rest ? `${head} · ${rest} over to ${bag}` : head;
+}
+
 // What a pile of items weighs, quantity included. Items with no weight
 // (papers, most treasure) simply don't count.
 export const weighItems = (items: Item[]): number =>

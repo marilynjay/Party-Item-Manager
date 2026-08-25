@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Gold, HolderId, Icons } from '../types';
-import { HOLDERS, MEMBERS, PP_IN_GP, holderIcon } from '../types';
+import { HOLDERS, MEMBERS, PP_IN_GP, holderIcon, splitText } from '../types';
 
 interface Props {
   gold: Gold;
@@ -10,7 +10,8 @@ interface Props {
   onGive: (holder: HolderId, gp: number, pp: number) => void;
   onSpend: (holder: HolderId, gp: number, pp: number) => void;
   onTransfer: (from: HolderId, to: HolderId, gp: number, pp: number) => void;
-  onSplit: (from: HolderId, gp: number, pp: number) => void;
+  // from === null: coins new to the party, divided without anyone paying
+  onSplit: (from: HolderId | null, gp: number, pp: number) => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -45,7 +46,7 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
   const [active, setActive] = useState<HolderId | null>(null);
   const [mode, setMode] = useState<'add' | 'spend' | 'send' | 'exact' | null>(null);
   const [sendTo, setSendTo] = useState<HolderId | 'split' | ''>('');
-  const [giveTo, setGiveTo] = useState<HolderId | ''>('');
+  const [giveTo, setGiveTo] = useState<HolderId | 'split' | ''>('');
   const gpOf = (id: HolderId) => gold[id] ?? 0;
   const ppOf = (id: HolderId) => platinum[id] ?? 0;
   // Everything displayed is the gp equivalent; platinum shows up in the row editor.
@@ -121,11 +122,7 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                 ) : (
                   <GiveForm
                     label={sendTo === 'split' ? '🤝 Split' : `➤ ${holderOf(sendTo).name}`}
-                    note={
-                      sendTo === 'split'
-                        ? `Even shares to all ${MEMBERS.length} party members — each coin split on its own, remainder to ${holderOf('senchez').name}.`
-                        : undefined
-                    }
+                    note={sendTo === 'split' ? splitText(0, 0) : undefined}
                     onGive={(gp, pp) => {
                       if (sendTo === 'split') onSplit(h.id, gp, pp);
                       else onTransfer(h.id, sendTo, gp, pp);
@@ -163,7 +160,7 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
             <select
               className="give-gold-select"
               value=""
-              onChange={(e) => e.target.value && setGiveTo(e.target.value as HolderId)}
+              onChange={(e) => e.target.value && setGiveTo(e.target.value as HolderId | 'split')}
             >
               <option value="">＋ Give gold to…</option>
               {HOLDERS.map((h) => (
@@ -171,12 +168,15 @@ export function GoldTracker({ gold, platinum, icons, onSetPurse, onGive, onSpend
                   {holderIcon(icons, h)} {h.name} ({fmt(worth(h.id))} gp)
                 </option>
               ))}
+              <option value="split">🤝 Split among party</option>
             </select>
           ) : (
             <GiveForm
-              label={`＋ ${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name}`}
+              label={giveTo === 'split' ? '🤝 Split' : `＋ ${holderIcon(icons, holderOf(giveTo))} ${holderOf(giveTo).name}`}
+              note={giveTo === 'split' ? splitText(0, 0) : undefined}
               onGive={(gp, pp) => {
-                onGive(giveTo, gp, pp);
+                if (giveTo === 'split') onSplit(null, gp, pp);
+                else onGive(giveTo, gp, pp);
                 setGiveTo('');
               }}
               onCancel={() => setGiveTo('')}

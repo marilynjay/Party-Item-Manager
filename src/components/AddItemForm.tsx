@@ -2,7 +2,7 @@ import { AutoTextarea } from './AutoTextarea';
 import { useRef, useState } from 'react';
 import type { CategoryKey, HolderId, Item } from '../types';
 import type { FormField, ItemStats } from '../types';
-import { HOLDERS, RARITIES, categoryLabel, defaultIcon, formPlan, notesLabel, planHas, statPlan, holderById } from '../types';
+import { HOLDERS, RARITIES, categoryLabel, defaultIcon, formPlan, notesLabel, planHas, statPlan, holderById, splitText } from '../types';
 import { StatFieldControl, cleanStats } from './StatFields';
 import { compressImage } from '../image';
 import { CategoryPicker } from './CategoryPicker';
@@ -18,7 +18,7 @@ interface Props {
   // set one — null means nobody's counting them
   weighIn: (holder: HolderId) => { carried: number; limit: number } | null;
   onAdd: (fields: Partial<Item> & { name: string }) => Promise<unknown> | void;
-  onAddMoney: (amount: number, unit: 'gp' | 'pp', location: HolderId) => Promise<unknown> | void;
+  onAddMoney: (amount: number, unit: 'gp' | 'pp', location: HolderId | 'split') => Promise<unknown> | void;
   onSaveCustom: (entry: CatalogItem) => Promise<unknown> | void;
   onDeleteCustom: (name: string) => Promise<unknown> | void;
   onClose: () => void;
@@ -619,12 +619,12 @@ function CoinDialog({
   onClose,
 }: {
   defaultTo: HolderId;
-  onAdd: (amount: number, unit: 'gp' | 'pp', to: HolderId) => void;
+  onAdd: (amount: number, unit: 'gp' | 'pp', to: HolderId | 'split') => void;
   onClose: () => void;
 }) {
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState<'gp' | 'pp'>('gp');
-  const [to, setTo] = useState<HolderId>(defaultTo);
+  const [to, setTo] = useState<HolderId | 'split'>(defaultTo);
   const ref = useRef<HTMLInputElement>(null);
   const n = Math.max(0, Math.floor(Number(amount) || 0));
 
@@ -662,16 +662,19 @@ function CoinDialog({
               ⚪ Platinum
             </button>
           </div>
-          <select value={to} onChange={(e) => setTo(e.target.value as HolderId)}>
+          <select value={to} onChange={(e) => setTo(e.target.value as HolderId | 'split')}>
             {HOLDERS.map((h) => (
               <option key={h.id} value={h.id}>
                 → {h.name}
               </option>
             ))}
+            <option value="split">🤝 Split among party</option>
           </select>
+          {to === 'split' && <p className="split-note muted">{splitText(unit === 'gp' ? n : 0, unit === 'pp' ? n : 0)}</p>}
         </div>
         <button type="button" className="coin-add" disabled={n <= 0} onClick={commit}>
-          Add {n > 0 ? `${n.toLocaleString()} ${unit}` : 'coins'}
+          {to === 'split' ? '🤝 Split ' : 'Add '}
+          {n > 0 ? `${n.toLocaleString()} ${unit}` : 'coins'}
         </button>
       </div>
     </div>
